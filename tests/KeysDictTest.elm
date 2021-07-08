@@ -356,11 +356,8 @@ serializeTest =
                         (KeysDict.equal decoded with2)
 
                 Err err ->
+                    --too lazy to case on import Serialize.Error(..)
                     Expect.fail (Debug.toString err)
-
-
-
---too lazy to case on import Serialize exposing (Error(..))
 
 
 type Element
@@ -431,8 +428,8 @@ readmeExamplesTest =
                             |> KeysDict.toAssocList
                                 { key = .element, value = .atomicNumber }
                 in
-                [ AssocDict.get Helium atomicNumberByElement
-                , AssocDict.get Hydrogen atomicNumberByElement
+                [ atomicNumberByElement |> AssocDict.get Helium
+                , atomicNumberByElement |> AssocDict.get Hydrogen
                 ]
                     |> Expect.equal [ Just 2, Just 1 ]
         ]
