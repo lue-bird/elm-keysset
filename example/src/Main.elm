@@ -8,8 +8,8 @@ import Element.Input as UiInput
 import Html exposing (Html, br, div, h3, header, input, text)
 import Html.Attributes exposing (style, value)
 import Html.Events exposing (onInput)
-import KeysDict exposing (KeysDict, KeysDict.at, enterableBy, KeysDict.insert)
-import KeysDict.Uniqueness exposing (door)
+import KeysDict exposing (KeysDict, KeysDict.at, empty, KeysDict.insert)
+import KeysDict.Uniqueness exposing (unique)
 
 
 type alias Model =
@@ -82,12 +82,12 @@ update msg model =
                                 String.length text
                                     > String.length (.textInOpenCloseBrackets model)
                             then
-                                case KeysDict.at { door = .open, key = last } brackets of
+                                case KeysDict.at { unique = .open, key = last } brackets of
                                     Just { closed } ->
                                         text ++ String.fromChar closed
 
                                     Nothing ->
-                                        case KeysDict.at { door = .closed, key = last } brackets of
+                                        case KeysDict.at { unique = .closed, key = last } brackets of
                                             Just { open } ->
                                                 before ++ String.fromList [ open, last ]
 
@@ -95,12 +95,12 @@ update msg model =
                                                 text
 
                             else
-                                case KeysDict.at { door = .open, key = last } brackets of
+                                case KeysDict.at { unique = .open, key = last } brackets of
                                     Just _ ->
                                         before
 
                                     Nothing ->
-                                        case KeysDict.at { door = .closed, key = last } brackets of
+                                        case KeysDict.at { unique = .closed, key = last } brackets of
                                             Just _ ->
                                                 before
 
@@ -166,10 +166,10 @@ aLetterInfo =
 
 letterInfos : KeysDict LetterInfo
 letterInfos =
-    enterableBy
-        [ door .lowercase
-        , door .uppercase
-        , door .inAlphabet
+    empty
+        [ unique .lowercase
+        , unique .uppercase
+        , unique .inAlphabet
         ]
         |> KeysDict.insert aLetterInfo
         |> KeysDict.insert { inAlphabet = 1, lowercase = 'b', uppercase = 'B' }
@@ -181,17 +181,17 @@ letterInfos =
 
 casedLetterByLowercase : Char -> Maybe LetterInfo
 casedLetterByLowercase char =
-    KeysDict.at { door = .lowercase, key = char } letterInfos
+    KeysDict.at { unique = .lowercase, key = char } letterInfos
 
 
 casedLetterByUppercase : Char -> Maybe LetterInfo
 casedLetterByUppercase char =
-    KeysDict.at { door = .uppercase, key = char } letterInfos
+    KeysDict.at { unique = .uppercase, key = char } letterInfos
 
 
 casedLetterInAlphabet : Int -> Maybe LetterInfo
 casedLetterInAlphabet inAlphabet =
-    KeysDict.at { door = .inAlphabet, key = inAlphabet } letterInfos
+    KeysDict.at { unique = .inAlphabet, key = inAlphabet } letterInfos
 
 
 viewOpenCloseBrackets labelText =
@@ -219,7 +219,7 @@ type alias OpenClosedBracket =
 
 brackets : KeysDict OpenClosedBracket
 brackets =
-    enterableBy [ door .open, door .closed ]
+    empty [ unique .open, unique .closed ]
         |> KeysDict.insert { open = '(', closed = ')' }
         |> KeysDict.insert { open = '{', closed = '}' }
         |> KeysDict.insert { open = '[', closed = ']' }

@@ -1,9 +1,7 @@
 module KeysDictTest exposing (suite)
 
-import AssocList as AssocDict
 import Expect
-import KeysDict exposing (KeysDict)
-import KeysDict.Uniqueness exposing (door)
+import KeysDict exposing (KeysDict, unique)
 import Serialize
 import Test exposing (Test, describe, test)
 
@@ -11,11 +9,41 @@ import Test exposing (Test, describe, test)
 suite : Test
 suite =
     describe "KeysDict"
-        [ scanTest
+        [ uniquenessTest
+        , scanTest
         , inTest
         , removeTest
         , transformTest
         , readmeExamplesTest
+        ]
+
+
+uniquenessTest : Test
+uniquenessTest =
+    describe "KeysDict.Uniqueness"
+        [ describe "unique"
+            [ test "equal aspect"
+                (\() ->
+                    unique .name
+                        { name = "smile", symbol = '😊' }
+                        { symbol = '🙂', name = "smile" }
+                        |> Expect.equal { areUnique = False }
+                )
+            , test "different aspect"
+                (\() ->
+                    unique .symbol
+                        { name = "smile", symbol = '😊' }
+                        { symbol = '🙂', name = "smile" }
+                        |> Expect.equal { areUnique = True }
+                )
+            , test "combined aspect"
+                (\() ->
+                    unique (\person -> person.firstName ++ person.lastName)
+                        { lastName = "jimmy", firstName = "petter" }
+                        { lastName = "jimmy", firstName = "greg" }
+                        |> Expect.equal { areUnique = True }
+                )
+            ]
         ]
 
 
@@ -35,8 +63,8 @@ at1 =
 
 with2 : KeysDict CharWithCode
 with2 =
-    KeysDict.enterableBy
-        [ door .code, door .char ]
+    KeysDict.promising
+        [ unique .code, unique .char ]
         |> KeysDict.insert at0
         |> KeysDict.insert at1
 
@@ -47,8 +75,8 @@ type alias BracketMatch =
 
 brackets : KeysDict BracketMatch
 brackets =
-    KeysDict.enterableBy
-        [ door .open, door .closed ]
+    KeysDict.promising
+        [ unique .open, unique .closed ]
         |> KeysDict.insert { open = '(', closed = ')' }
         |> KeysDict.insert { open = '{', closed = '}' }
 
@@ -59,8 +87,8 @@ scanTest =
         [ describe "size"
             [ test "empty" <|
                 \() ->
-                    KeysDict.enterableBy
-                        [ door .code, door .char ]
+                    KeysDict.promising
+                        [ unique .code, unique .char ]
                         |> KeysDict.size
                         |> Expect.equal 0
             , test "same size as a list of unique elements" <|
@@ -68,8 +96,8 @@ scanTest =
                     List.range 0 41
                         |> List.map (\i -> ( i, i ))
                         |> List.foldl KeysDict.insert
-                            (KeysDict.enterableBy
-                                [ door Tuple.first, door Tuple.second ]
+                            (KeysDict.promising
+                                [ unique Tuple.first, unique Tuple.second ]
                             )
                         |> KeysDict.size
                         |> Expect.equal 42
@@ -77,19 +105,21 @@ scanTest =
         , describe "at"
             (let
                 casedLetters =
-                    KeysDict.enterableBy
-                        [ door .lowercase, door .uppercase ]
-                        |> KeysDict.insert { lowercase = 'a', uppercase = 'A' }
-                        |> KeysDict.insert { lowercase = 'b', uppercase = 'B' }
+                    KeysDict.promising
+                        [ unique .lowercase, unique .uppercase ]
+                        |> KeysDict.insert
+                            { lowercase = 'a', uppercase = 'A' }
+                        |> KeysDict.insert
+                            { lowercase = 'b', uppercase = 'B' }
 
                 lowercase char =
                     casedLetters
-                        |> KeysDict.at { door = .uppercase, key = char }
+                        |> KeysDict.at .uppercase char
                         |> Maybe.map .lowercase
 
                 uppercase char =
                     casedLetters
-                        |> KeysDict.at { door = .lowercase, key = char }
+                        |> KeysDict.at .lowercase char
                         |> Maybe.map .uppercase
              in
              [ test "finds lowercase" <|
@@ -112,13 +142,13 @@ scanTest =
                         , { letter = 'b', code = 98 }
                         ]
                             |> List.foldl KeysDict.insert
-                                (KeysDict.enterableBy
-                                    [ door .letter, door .code ]
+                                (KeysDict.promising
+                                    [ unique .letter, unique .code ]
                                 )
 
                     fancyCompetingLetterCodes =
-                        KeysDict.enterableBy
-                            [ door .code, door .letter ]
+                        KeysDict.promising
+                            [ unique .code, unique .letter ]
                             |> KeysDict.insert { code = 98, letter = 'b' }
                             |> KeysDict.insert { code = 97, letter = 'a' }
                 in
@@ -135,8 +165,8 @@ scanTest =
                     in
                     Expect.true "isEmpty for filled False, ifEmpty True"
                         (isEmpty
-                            (KeysDict.enterableBy
-                                [ door .code, door .char ]
+                            (KeysDict.promising
+                                [ unique .code, unique .char ]
                             )
                             && not (isEmpty with2)
                         )
@@ -147,8 +177,8 @@ scanTest =
                             List.head << KeysDict.toList
                     in
                     mostRecentlyInserted
-                        (KeysDict.enterableBy
-                            [ door .lowercase, door .uppercase ]
+                        (KeysDict.promising
+                            [ unique .lowercase, unique .uppercase ]
                             |> KeysDict.insert
                                 { lowercase = 'a', uppercase = 'A' }
                             |> KeysDict.insert
@@ -174,59 +204,59 @@ inTest =
                         |> Expect.equal 2
             , test "access code is Just letter of inserted pair" <|
                 \() ->
-                    KeysDict.enterableBy
-                        [ door .code, door .char ]
+                    KeysDict.promising
+                        [ unique .code, unique .char ]
                         |> KeysDict.insert at1
-                        |> KeysDict.at { door = .code, key = .code at1 }
+                        |> KeysDict.at .code at1.code
                         |> Maybe.map .char
-                        |> Expect.equal (Just (.char at1))
+                        |> Expect.equal (Just at1.char)
             , test "code is Nothing if not of inserted pair" <|
                 \() ->
-                    KeysDict.enterableBy
-                        [ door .code, door .char ]
+                    KeysDict.promising
+                        [ unique .code, unique .char ]
                         |> KeysDict.insert at1
-                        |> KeysDict.at { door = .code, key = .code at0 }
+                        |> KeysDict.at .code at0.code
                         |> Maybe.map .char
                         |> Expect.equal Nothing
             , test "char is Just left of inserted pair" <|
                 \() ->
-                    KeysDict.enterableBy
-                        [ door .code, door .char ]
+                    KeysDict.promising
+                        [ unique .code, unique .char ]
                         |> KeysDict.insert at1
-                        |> KeysDict.at { door = .char, key = .char at1 }
+                        |> KeysDict.at .char at1.char
                         |> Maybe.map .code
-                        |> Expect.equal (Just (.code at1))
+                        |> Expect.equal (Just at1.code)
             , test "char is Nothing if not of inserted pair" <|
                 \() ->
-                    KeysDict.enterableBy
-                        [ door .code, door .char ]
+                    KeysDict.promising
+                        [ unique .code, unique .char ]
                         |> KeysDict.insert at1
-                        |> KeysDict.at { door = .char, key = .char at0 }
+                        |> KeysDict.at .char at0.char
                         |> Maybe.map .code
                         |> Expect.equal Nothing
             , test "insert example" <|
                 \() ->
                     let
                         result =
-                            KeysDict.enterableBy
-                                [ door .lowercase, door .uppercase ]
+                            KeysDict.promising
+                                [ unique .lowercase, unique .uppercase ]
                                 -- lowercase and uppercase are unique keys across each value
                                 |> KeysDict.insert { lowercase = 'b', uppercase = 'B', rating = 0.5 }
-                                -- put in
+                                -- is inserted
                                 |> KeysDict.insert { lowercase = 'a', uppercase = 'A', rating = 0.5 }
-                                -- put in, because rating is not a key
+                                -- is inserted, because rating is not a key
                                 |> KeysDict.insert { lowercase = 'b', uppercase = 'C', rating = 0 }
                                 -- ignored, the left value already exists
                                 |> KeysDict.insert { lowercase = 'c', uppercase = 'A', rating = 0 }
                                 -- ignored, the right value already exists
                                 |> KeysDict.insert { lowercase = 'c', uppercase = 'C', rating = 0.6 }
 
-                        --put in
+                        -- is inserted
                     in
                     KeysDict.equal
                         result
-                        (KeysDict.enterableBy
-                            [ door .lowercase, door .uppercase ]
+                        (KeysDict.promising
+                            [ unique .lowercase, unique .uppercase ]
                             |> KeysDict.insert
                                 { lowercase = 'c', uppercase = 'C', rating = 0.6 }
                             |> KeysDict.insert
@@ -246,13 +276,13 @@ removeTest =
             \() ->
                 with2
                     |> KeysDict.insert { code = 2, char = 'C' }
-                    |> KeysDict.remove { door = .code, key = 2 }
+                    |> KeysDict.remove .code 2
                     |> Expect.equal with2
         , test "insert |> remove char leaves it unchanged" <|
             \() ->
                 with2
                     |> KeysDict.insert { code = 2, char = 'C' }
-                    |> KeysDict.remove { door = .char, key = 'C' }
+                    |> KeysDict.remove .char 'C'
                     |> Expect.equal with2
         ]
 
@@ -278,47 +308,33 @@ transformTest =
             \() ->
                 let
                     digitNames =
-                        KeysDict.enterableBy
-                            [ door .number, door .name ]
+                        KeysDict.promising
+                            [ unique .number, unique .name ]
                             |> KeysDict.insert { number = 0, name = "zero" }
                             |> KeysDict.insert { number = 1, name = "one" }
 
                     mathSymbolNames =
                         digitNames
-                            |> KeysDict.map
+                            |> KeysDict.toList
+                            |> List.map
                                 (\{ number, name } ->
                                     { symbol = String.fromInt number, name = name }
                                 )
-                                [ door .symbol, door .name ]
+                            |> (\list ->
+                                    KeysDict.promising [ unique .symbol, unique .name ]
+                                        |> KeysDict.insertAll list
+                               )
                             |> KeysDict.insert { symbol = "+", name = "plus" }
                 in
                 Expect.true "mapped KeysDict equal to put up"
                     (KeysDict.equal
                         mathSymbolNames
-                        (KeysDict.enterableBy
-                            [ door .symbol, door .name ]
+                        (KeysDict.promising
+                            [ unique .symbol, unique .name ]
                             |> KeysDict.insert { symbol = "0", name = "zero" }
                             |> KeysDict.insert { symbol = "1", name = "one" }
                             |> KeysDict.insert { symbol = "+", name = "plus" }
                         )
-                    )
-        , test "toAssocList example works" <|
-            \() ->
-                let
-                    casedLetters =
-                        KeysDict.enterableBy
-                            [ door .lowercase, door .uppercase ]
-                            |> KeysDict.insert { uppercase = 'A', lowercase = 'a' }
-                            |> KeysDict.insert { uppercase = 'B', lowercase = 'b' }
-
-                    lowerFromUppercase =
-                        casedLetters
-                            |> KeysDict.toDict { key = .uppercase, value = .lowercase }
-                in
-                Expect.true "KeysDict.insert |> toDict equal to AssocList.fromList"
-                    (AssocDict.eq
-                        lowerFromUppercase
-                        (AssocDict.fromList [ ( 'A', 'a' ), ( 'B', 'b' ) ])
                     )
         , serializeTest
         ]
@@ -339,16 +355,16 @@ serializeTest =
                         |> Serialize.field .code Serialize.int
                         |> Serialize.finishRecord
 
-                serializeCharWithCodeMultiDict =
+                serializeCharWithCodeKeysDict =
                     KeysDict.serialize serializeCharWithCode
-                        [ door .code, door .char ]
+                        [ unique .code, unique .char ]
 
                 encodedDecoded =
                     Serialize.encodeToJson
-                        serializeCharWithCodeMultiDict
+                        serializeCharWithCodeKeysDict
                         with2
                         |> Serialize.decodeFromJson
-                            serializeCharWithCodeMultiDict
+                            serializeCharWithCodeKeysDict
             in
             case encodedDecoded of
                 Ok decoded ->
@@ -356,13 +372,8 @@ serializeTest =
                         (KeysDict.equal decoded with2)
 
                 Err err ->
-                    --too lazy to case on import Serialize.Error(..)
+                    -- too lazy to case on import Serialize.Error(..)
                     Expect.fail (Debug.toString err)
-
-
-type Element
-    = Hydrogen
-    | Helium
 
 
 readmeExamplesTest : Test
@@ -371,22 +382,22 @@ readmeExamplesTest =
         [ test "braces" <|
             \() ->
                 let
-                    typeChar character =
+                    typeChar char =
                         brackets
-                            |> KeysDict.at { door = .open, key = character }
+                            |> KeysDict.at .open char
                             |> Maybe.map
                                 (\{ closed } ->
-                                    String.fromList [ character, closed ]
+                                    String.fromList [ char, closed ]
                                 )
                             |> Maybe.withDefault
                                 (brackets
-                                    |> KeysDict.at { door = .closed, key = character }
+                                    |> KeysDict.at .closed char
                                     |> Maybe.map
                                         (\{ open } ->
-                                            String.fromList [ open, character ]
+                                            String.fromList [ open, char ]
                                         )
                                     |> Maybe.withDefault
-                                        (String.fromChar character)
+                                        (String.fromChar char)
                                 )
                 in
                 Expect.equal
@@ -396,18 +407,17 @@ readmeExamplesTest =
             \() ->
                 let
                     lowerUppercaseLetters =
-                        KeysDict.enterableBy
-                            [ door .lowercase, door .uppercase ]
-                            |> KeysDict.insert
-                                { lowercase = 'a', uppercase = 'A' }
-                            |> KeysDict.insert
-                                { lowercase = 'b', uppercase = 'B' }
-                            |> KeysDict.insert
-                                { lowercase = 'c', uppercase = 'C' }
+                        KeysDict.promising
+                            [ unique .lowercase, unique .uppercase ]
+                            |> KeysDict.insertAll
+                                [ { lowercase = 'a', uppercase = 'A' }
+                                , { lowercase = 'b', uppercase = 'B' }
+                                , { lowercase = 'c', uppercase = 'C' }
+                                ]
 
                     upperCase char =
                         lowerUppercaseLetters
-                            |> KeysDict.at { door = .lowercase, key = char }
+                            |> KeysDict.at .lowercase char
                             |> Maybe.map .uppercase
                 in
                 Expect.equal
@@ -416,20 +426,22 @@ readmeExamplesTest =
         , test "periodic table" <|
             \() ->
                 let
-                    elementAtomicNumberPairdict =
-                        KeysDict.enterableBy [ door .element, door .atomicNumber ]
-                            |> KeysDict.insert
-                                { element = Hydrogen, atomicNumber = 1 }
-                            |> KeysDict.insert
-                                { element = Helium, atomicNumber = 2 }
+                    elements =
+                        KeysDict.promising
+                            [ unique .atomicNumber, unique .symbol ]
+                            |> KeysDict.insertAll
+                                [ { symbol = "H", name = "Hydrogen", atomicNumber = 1 }
+                                , { symbol = "He", name = "Helium", atomicNumber = 2 }
+                                ]
 
-                    atomicNumberByElement =
-                        elementAtomicNumberPairdict
-                            |> KeysDict.toAssocList
-                                { key = .element, value = .atomicNumber }
+                    atomicNumberOfElementWithName : String -> Maybe Int
+                    atomicNumberOfElementWithName name =
+                        elements
+                            |> KeysDict.at .name name
+                            |> Maybe.map .atomicNumber
                 in
-                [ atomicNumberByElement |> AssocDict.get Helium
-                , atomicNumberByElement |> AssocDict.get Hydrogen
+                [ atomicNumberOfElementWithName "Helium"
+                , atomicNumberOfElementWithName "Hydrogen"
                 ]
                     |> Expect.equal [ Just 2, Just 1 ]
         ]

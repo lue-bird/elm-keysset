@@ -3,7 +3,7 @@ module Benchmarks exposing (main)
 import Benchmark exposing (Benchmark, describe)
 import Benchmark.Runner exposing (BenchmarkProgram)
 import KeysDict exposing (KeysDict)
-import KeysDict.Uniqueness exposing (door)
+import KeysDict.Uniqueness exposing (unique)
 import Util exposing (ListOperationResult(..), aspect, removeFirstWithResult)
 
 
@@ -42,12 +42,12 @@ casedLetterList =
             )
 
 
-multiDict : KeysDict CasedLetter
-multiDict =
+keysDict : KeysDict CasedLetter
+keysDict =
     casedLetterList
         |> List.foldl KeysDict.insert
-            (KeysDict.enterableBy
-                [ door .lowercase, door .uppercase ]
+            (KeysDict.promising
+                [ unique .lowercase, unique .uppercase ]
             )
 
 
@@ -55,9 +55,9 @@ fold : Benchmark
 fold =
     Benchmark.compare "fold"
         "KeysDict.fold"
-        (\() -> KeysDict.fold (::) [] multiDict)
+        (\() -> KeysDict.fold (::) [] keysDict)
         "foldr"
-        (\() -> foldr (::) [] multiDict)
+        (\() -> foldr (::) [] keysDict)
 
 
 foldr : (a -> b -> b) -> b -> KeysDict a -> b
@@ -66,13 +66,13 @@ foldr reduce initial =
         >> List.foldr reduce initial
 
 
-multiDictReversed : KeysDict CasedLetter
-multiDictReversed =
+keysDictReversed : KeysDict CasedLetter
+keysDictReversed =
     casedLetterList
         |> List.reverse
         |> List.foldl KeysDict.insert
-            (KeysDict.enterableBy
-                [ door .uppercase, door .lowercase ]
+            (KeysDict.promising
+                [ unique .uppercase, unique .lowercase ]
             )
 
 
@@ -81,11 +81,11 @@ equal =
     Benchmark.compare "equal <?> alternative equals"
         "equal"
         (\() ->
-            KeysDict.equal multiDict multiDictReversed
+            KeysDict.equal keysDict keysDictReversed
         )
         "altEqual"
         (\() ->
-            altEqual multiDict multiDictReversed
+            altEqual keysDict keysDictReversed
         )
 
 

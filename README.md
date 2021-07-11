@@ -1,124 +1,114 @@
 # `KeysDict`
-Lookup elements by their unique aspects.
+> Lookup elements by their unique aspects.
 
-- a "door" describes a unique aspect across all elements.
+For a `KeysDict` with some elements
 ```elm
-door .operator
+{ flag = "🇦🇺", code = "AU", name = "Australia" }
+{ flag = "🇦🇶", code = "AQ", name = "Antarctica" }
+{ flag = "🇱🇧", code = "LB", name = "Lebanon" }
 ```
-So... If you have a key and the type of door it could match, you can find the only matching element.
-
-> You want the element where `🗝️` is `1`?
-
-```noformatingples
-    🔑= 0, 🏠= 🏚, 🗝️= 2
-    🔑= 2, 🏠= 🏡, 🗝️= 0
-    🔑= 1, 🏠= 🏚, 🗝️= 1 <--
-
-🔑, 🗝️: doors you can "open" with a key unique across all elements
+you can specify aspects that will be unique across all elements.
+```elm
+KeysDict.promising
+    [ unique .flag, unique .code ]
 ```
+If you have a key and the aspect to check if it matches, you can find the matching element:
 
-> Going through while checking every element, if the `🗝️` matches.
+```elm
+KeysDict.at .flag "🇦🇶"
+--> Just { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
 
-        🔑= 1, 🏠= 🏚, 🗝️= 1  where 🗝️ is 1   
-        
-> You want the element where `🔑` is `0`?
-
-```noformatingples
---> 🔑= 0, 🏠= 🏚, 🗝️= 2
-    🔑= 2, 🏠= 🏡, 🗝️= 0
-    🔑= 1, 🏠= 🏚, 🗝️= 1
-
-🔑, 🗝️: doors you can "open" with a key unique across all elements
-```
-
-> Going through while checking every element, if the `🔑` matches.
-
-```noformatingples
-    🔑= 0, 🏠= 🏚, 🗝️= 2  where 🔑 is 0
+KeysDict.at .code "LB"
+--> Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 ```
 
 &nbsp;
 
 
-## 👍 How to `KeysDict`
+## 👍 How to
 
-### setup
+### example
 
 ```elm
-import KeysDict.Uniqueness exposing (door)
+import KeysDict.Uniqueness exposing (unique)
 import KeysDict exposing (KeysDict)
-```
 
-Try the [ellie for some examples](https://ellie-app.com/cHj9Fy9bpXMa1) (always a version behind).
-
-### Example: cased letters
-```elm
-type alias CasedLetter=
-    { lowercase : Char
-    , uppercase : Char
+type alias Account =
+    { username : String
+    , email : String
+    , settings : Settings
     }
 
-lowerUppercaseLetters: KeysDict CasedLetter
-lowerUppercaseLetters=
-    KeysDict.enterableBy
-        [ door .lowercase, door .uppercase ]
-        |> KeysDict.insert { lowercase = 'a', uppercase = 'A' }
-        |> KeysDict.insert { lowercase = 'b', uppercase = 'B' }
-        |> KeysDict.insert { lowercase = 'c', uppercase = 'C' }
+type alias Model =
+    { accounts : KeysDict Account }
 
-uppercase char=
-    lowerUppercaseLetters
-        |> KeysDict.at { door = .lowercase, key = char }
-        |> Maybe.map .uppercase
-```
 
-### Example: periodic table
+initialModel =
+    { accounts =
+        KeysDict.promising
+            [ unique .atomicNumber, unique .symbol ]
+    }
 
-```elm
-type Element
-    = Hydrogen
-    | Helium
+update msg model =
+    case msg of
+        LoggedIn username ->
+            { model | selectedUsername = username }
+        
+        Registered username email ->
+            if
+                model.accounts
+                    |> KeysDict.any (.username >> (==) username)
+            then
+                -- username already taken
 
-elementAtomicNumberMultiDict=
-    KeysDict.enterableBy
-        [ door .atomicNumber, door .element ]
-        |> KeysDict.insert
-            { element = Hydrogen, atomicNumber = 1 }
-        |> KeysDict.insert
-            { element = Helium, atomicNumber = 2 }
-
-atomicNumberByElement=
-    KeysDict.toDict
-        { key = .element, value = .atomicNumber }
-        elementAtomicNumberMultiDict
+            else
+                { model
+                  | accounts =
+                      model.accounts
+                          |> KeysDict.insert
+                              { username = username
+                              , email = email
+                              , settings = defaultSettings
+                              }
+                }
+            
+        ChangedSettings updateSettings username ->
+            { model
+              | accounts =
+                  model.accounts
+                      |> KeysDict.update .username username
+                          updateSettings
+            }
 ```
 
 ### Example: brackets
 
 ```elm
-brackets=
-    KeysDict.enterableBy
-        [ door .opening, door .closing ]
-        |> KeysDict.insert
-            { opening = '(', closing = ')' }
-        |> KeysDict.insert
-            { opening = '{', closing = '}' }
+brackets =
+    KeysDict.promising
+        [ unique .opening, unique .closing ]
+        |> KeysDict.insertAll
+            [ { opening = '(', closing = ')' }
+            , { opening = '{', closing = '}' }
+            ]
 
-typeChar character=
+{-| closes/opens with the opposite bracket.
+-}
+typeChar character =
     case
         brackets
-            |> MultiDict.at { door = .opening, key = character }
+            |> KeysDict.at .opening character
     of
         Just { closing }->
-            String.fromValues [ character, closing ]
+            String.fromList [ character, closing ]
 
         Nothing->
             case
                 brackets
-                    |> MultiDict.at { door = .closing, key = character }
+                    |> KeysDict.at .closing character
             of
                 Just { opening }->
-                    String.fromValues [ opening, character ]
+                    String.fromList [ opening, character ]
                   
                 Nothing->
                     String.fromChar character
@@ -128,43 +118,41 @@ typeChar character=
 &nbsp;
 
 
-## 👎 How not to `KeysDict`
+## 👎 How not to
 
 ## Example: automatic answers
 ```elm
 answers =
-    KeysDict.enterableBy [ door .youSay ]
-        |> KeysDict.insert
-            { youSay = "Hi"
-            , answer = "Hi there!"
-            }
-        |> KeysDict.insert
-            { youSay = "Bye"
-            , answer = "Ok, have a nice day and spread some love." }
-        |> KeysDict.insert
-            { youSay = "How are you"
-            , answer = "I don't have feelings :("
-            }
-        |> KeysDict.insert
-            { youSay = "Are you a robot"
-            , answer = "I think the most human answer is 'Haha... yes'"
-            }
+    KeysDict.promising [ unique .youSay ]
+        |> KeysDict.insertAll
+            [ { youSay = "Hi"
+              , answer = "Hi there!"
+              }
+            , { youSay = "Bye"
+              , answer = "Ok, have a nice day and spread some love."
+              }
+            , { youSay = "How are you"
+              , answer = "I don't have feelings :("
+              }
+            , { youSay = "Are you a robot"
+              , answer = "I think the most human answer is 'Haha... yes'"
+              }
+            ]
 ```
 We will only ever lookup answers to what `youSay`
 → use a `Dict` where it is more appropriate: **`Dict`s are for one-way access**.
 
 ## Example: translation, synonymes...
 ```elm
-englishGerman =
-    KeysDict.enterableBy []
-        |> KeysDict.insert
-            { english = "elm", german = "Ulme" }
-        |> KeysDict.insert
-            { english = "git", german = "Schwachkopf" }
-        |> KeysDict.insert
-            { german = "Rüste", english = "elm" }
+translationsEnDe =
+    KeysDict.promising []
+        |> KeysDict.insertAll
+            [ { english = "elm", german = "Ulme" }
+            , { english = "git", german = "Schwachkopf" }
+            , { german = "Rüste", english = "elm" }
+            ]
 ```
-A `KeysDict` is only effective, when there is **only one unique key for each door**.
+A `KeysDict` is only effective when there is **only one matching key**.
 
 Please take a look at [elm-bidict](https://github.com/Janiczek/elm-bidict) instead!
 
@@ -173,14 +161,13 @@ Please take a look at [elm-bidict](https://github.com/Janiczek/elm-bidict) inste
 Similar to the previous example:
 ```elm
 partners =
-    KeysDict.enterableBy
-        [ door .partner, door .partnerOfPartner ]
-        |> KeysDict.insert
-            { partner = "Ann", partnerOfPartner = "Alan" }
-        |> KeysDict.insert
-            { partner = "Alex", partnerOfPartner = "Alastair" }
-        |> KeysDict.insert
-            { partner = "Alan", partnerOfPartner = "Ann" }
-        --wait, this is no duplicate and is inserted
+    KeysDict.promising
+        [ unique .partner, unique .partnerOfPartner ]
+        |> KeysDict.insertAll
+            [ { partner = "Ann", partnerOfPartner = "Alan" }
+            , { partner = "Alex", partnerOfPartner = "Alastair" }
+            , { partner = "Alan", partnerOfPartner = "Ann" }
+            -- wait, this is no duplicate and is inserted
+            ]
 ```
-A `KeysDict` ony makes sense, when the **keys describe something different**.
+A `KeysDict` ony makes sense when the **keys describe something different**.

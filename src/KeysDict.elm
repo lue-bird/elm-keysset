@@ -1,144 +1,186 @@
 module KeysDict exposing
     ( KeysDict
-    , enterableBy
-    , equal, at, size
-    , insert, remove
-    , fold, map, toList, toDict, toAssocList, serialize
+    , promising
+    , Uniqueness, unique
+    , equal, isEmpty, at, size, isUnique, all, any
+    , insert, insertAll, remove, update, updateAll
+    , when, dropWhen
+    , fold, toList, serialize
     )
 
 {-|
-
-
-# KeysDict
-
-Lookup elements by their unique aspects.
-
-  - a "door" describes a unique aspect across all elements.
-
-```elm
-door .operator
-```
-
-So... If you have a key and the type of door it could match, you can find the only matching element.
-
-> You want the element where `🗝️` is `1`?
-
-```noformatingples
-    🔑= 0, 🏠= 🏚, 🗝️= 2
-    🔑= 2, 🏠= 🏡, 🗝️= 0
-    🔑= 1, 🏠= 🏚, 🗝️= 1 <--
-
-🔑, 🗝️: doors you can "open" with a key unique across all elements
-```
-
-> Going through while checking every element, if the `🗝️` matches.
-
-        🔑= 1, 🏠= 🏚, 🗝️= 1  where 🗝️ is 1
-
-> You want the element where `🔑` is `0`?
-
-```noformatingples
---> 🔑= 0, 🏠= 🏚, 🗝️= 2
-    🔑= 2, 🏠= 🏡, 🗝️= 0
-    🔑= 1, 🏠= 🏚, 🗝️= 1
-
-🔑, 🗝️: doors you can "open" with a key unique across all elements
-```
-
-> Going through while checking every element, if the `🔑` matches.
-
-```noformatingples
-    🔑= 0, 🏠= 🏚, 🗝️= 2  where 🔑 is 0
-```
 
 @docs KeysDict
 
 
 ## create
 
-@docs enterableBy
+@docs promising
+
+
+### uniqueness
+
+@docs Uniqueness, unique
 
 
 ## scan
 
-@docs equal, at, size
+@docs equal, isEmpty, at, size, isUnique, all, any
 
 
 ## modify
 
-@docs insert, remove
+@docs insert, insertAll, remove, update, updateAll
+
+
+### filter
+
+@docs when, dropWhen
 
 
 ## transform
 
-@docs fold, map, toList, toDict, toAssocList, serialize
+@docs fold, toList, serialize
 
 -}
 
-import AssocList
-import Dict
-import KeysDict.Uniqueness as Uniqueness exposing (Uniqueness)
 import Serialize exposing (Codec)
-import Util
-    exposing
-        ( any
-        , aspect
-        , equalIgnoringOrder
-        , firstWhere
-        )
+import Typed exposing (Checked, Internal, Typed, internalVal, isChecked, tag)
+import Util exposing (aspect, equalIgnoringOrder, firstWhere)
 
 
-{-| Unsorted data structure, which promises `Uniqueness` for multiple doors.
-Read the module doc for more!
+{-| Unsorted data structure where you can specify aspects that will be unique across all elements.
 
-    type alias CasedLetter =
-        { lowercase : Char
-        , uppercase : Char
-        }
+    countries =
+        KeysDict.promising
+            [ unique .flag, unique .code ]
+            |> KeysDict.insertAll
+                [ { flag = "🇦🇺", code = "AU", name = "Australia" }
+                , { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
+                , { flag = "🇱🇧", code = "LB", name = "Lebanon" }
+                ]
 
-    casedLetters : KeysDict CasedLetter
-    casedLetters =
-        KeysDict.enterableBy
-            [ door .lowercase, door .uppercase ]
-            |> KeysDict.insert { lowercase = 'a', uppercase = 'A' }
-            |> KeysDict.insert { lowercase = 'b', uppercase = 'B' }
-            |> KeysDict.insert { lowercase = 'c', uppercase = 'C' }
+If you have a key and the aspect to check if it matches, you can find the matching element:
 
-    uppercase char =
-        lowerUppercaseLetters
-            |> KeysDict.at { door = .lowercase, key = char }
-            |> Maybe.map .uppercase
+    KeysDict.at .flag "🇦🇶" countries
+    --> Just { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
+
+    KeysDict.at .code "LB" countries
+    --> Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 
 -}
-type KeysDict element
-    = ElementsWithUniquenessPromises (List (Uniqueness element)) (List element)
+type alias KeysDict element =
+    Typed Checked ElementsWithUniquenessPromises Internal { uniqueness : List (Uniqueness element), elements : List element }
 
 
-{-| How can you know if each element in `aMultiDict` can also be found in `bMultiDict`?
+{-| **Should not be exposed.**
+-}
+type ElementsWithUniquenessPromises
+    = KeysDict
 
-    letterCodes=
-      [ { letter= 'a', code= 97 }
-      , { letter= 'b', code= 98 }
-      ]
-        |> List.foldl KeysDict.insert
-            (KeysDict.enterableBy
-                [ door .letter, door .code ]
+
+{-| Check 2 elements if they are equal in a specified aspect. See [unique](KeysDict#unique)
+
+    uniqueInCasedLetter =
+        [ unique .inAlphabet
+        , unique .lowercase
+        , unique .uppercase
+        ]
+
+    KeysDict.promising uniqueInCasedLetter
+        |> KeysDict.insert
+            { inAlphabet = 0, lowercase = 'a', uppercase = 'A' }
+        |> KeysDict.insert
+            { inAlphabet = 0, lowercase = 'b', uppercase = 'B' }
+
+The second element isn't inserted. There's already an element where `.inAlphabet` is `0`.
+
+-}
+type alias Uniqueness element =
+    element -> element -> { areUnique : Bool }
+
+
+{-| Check elements if some aspect is not the same.
+
+    unique .name
+        { name = "smile", symbol = '😊' }
+        { symbol = '🙂', name = "smile" }
+    --> { areUnique = False }
+
+    unique .symbol
+        { name = "smile", symbol = '😊' }
+        { symbol = '🙂', name = "smile" }
+    --> { areUnique = True }
+
+    unique (\person -> person.firstName ++ person.lastName)
+        { lastName = "jimmy", firstName = "petter" }
+        { lastName = "jimmy", firstName = "greg" }
+    --> { areUnique = True }
+
+in `KeysDict`
+
+    KeysDict.promising [ unique .email ]
+        |> KeysDict.insert
+            { username = "ben", email = "ben10@gmx.de" }
+        |> KeysDict.insert
+            { username = "mai", email = "ben10@gmx.de" }
+
+The second element isn't inserted. There's already an element where `.email` is `"ben10@gmx.de"`.
+
+-}
+unique : (element -> aspect_) -> Uniqueness element
+unique aspect =
+    \a b -> { areUnique = aspect a /= aspect b }
+
+
+{-| A `KeysDict` with no elements inside,
+promising that given aspects are unique across all elements.
+See [`Uniqueness`](KeysDict#Uniqueness)
+
+    KeysDict.promising [ unique .email ]
+        |> KeysDict.insert
+            { username = "ben", email = "ben10@gmx.de" }
+        |> KeysDict.insert
+            { username = "mai", email = "ben10@gmx.de" }
+
+The second element isn't inserted.
+There's already an element where `.email` is `"ben10@gmx.de"`.
+
+Elements must **not** contain **functions, json or regexes**.
+Elm will crash trying to see if they are equal.
+
+-}
+promising : List (Uniqueness element) -> KeysDict element
+promising uniqueness_ =
+    { uniqueness = uniqueness_, elements = [] }
+        |> tag
+        |> isChecked KeysDict
+
+
+{-| How can you know if each element in `aKeysDict` can also be found in `bKeysDict`?
+
+    letterCodes =
+        KeysDict.insertAll
+            [ { letter = 'a', code = 97 }
+            , { letter = 'b', code = 98 }
+            ]
+            (KeysDict.promising
+                [ unique .letter, unique .code ]
             )
 
-    fancyCompetingLetterCodes=
-        KeysDict.enterableBy
-            [ door .code, door .letter ]
-            |> KeysDict.insert { code= 98, letter= 'b' }
-            |> KeysDict.insert { code= 97, letter= 'a' }
+    fancyCompetingLetterCodes =
+        KeysDict.promising
+            [ unique .code, unique .letter ]
+            |> KeysDict.insert { code = 98, letter = 'b' }
+            |> KeysDict.insert { code = 97, letter = 'a' }
 
-    (==) letterCodes fancyCompetingLetterCodes
+    letterCodes == fancyCompetingLetterCodes
     --> elm crashes
 
 Because a `KeysDict`'s `Uniqueness` is defined as functions.
 
-    (==)
-      (KeysDict.toList letterCodes)
-      (KeysDict.toList fancyCompetingLetterCodes)
+    KeysDict.toList letterCodes
+    == KeysDict.toList fancyCompetingLetterCodes
     --> False
 
 Even though both contain the same elements but in a different order.
@@ -148,17 +190,15 @@ Even though both contain the same elements but in a different order.
 
 > Don't use `==` to compare `KeysDict`s
 
-> With non-comparable types, thinking about order doesn't make much sense.
-> You shouldn't rely on it when using functions like `fold` or `toList`.
+> The keys can be non-comparable. There is no obvious order.
+> → You shouldn't rely on order when using functions like `fold` or `toList`.
 
-Instead, you should use
+Instead, use
 
     KeysDict.equal
         letterCodes
         fancyCompetingLetterCodes
     --> True
-
-_Elements must not contain functions or json. Elm will crash trying to see if they are equal._
 
 -}
 equal :
@@ -169,64 +209,82 @@ equal =
     aspect toList equalIgnoringOrder
 
 
-{-| A `KeysDict` with no elements inside, promising that given aspects are unique across all elements (see `Uniqueness`).
--}
-enterableBy : List (Uniqueness element) -> KeysDict element
-enterableBy uniqueness =
-    ElementsWithUniquenessPromises uniqueness []
-
-
-{-| `Just` the element where `door` of the element matches the `key`;
+{-| `Just` the element where `unique` of the element matches the `key`;
 if no such element is found, `Nothing`.
 
     casedLetters =
-        KeysDict.enterableBy
-            [ door .lowercase, door .uppercase ]
+        KeysDict.promising
+            [ unique .lowercase, unique .uppercase ]
             |> KeysDict.insert { lowercase = 'a', uppercase = 'A' }
             |> KeysDict.insert { lowercase = 'b', uppercase = 'B' }
 
     lowercase char =
         casedLetters
-            |> KeysDict.at { door = .uppercase, key = char }
+            |> KeysDict.at .uppercase char
             |> Maybe.map .lowercase
 
     uppercase char =
         casedLetters
-            |> KeysDict.at { door = .lowercase, key = char }
+            |> KeysDict.at .lowercase char
             |> Maybe.map .uppercase
 
-**Note**: If keys of `door` aren't promised to be unique,
-`KeysDict.at` will find the most recently inserted element where `door` of the element matches the `key`.
+**Note**: If keys of `unique` aren't promised to be unique,
+`KeysDict.at` will find the most recently inserted element where `unique` of the element matches the `key`.
 
-    ratedCasedLetters=
-        KeysDict.enterableBy
-            [ door .lowercase, door .uppercase ]
+    ratedCasedLetters =
+        KeysDict.promising
+            [ unique .lowercase, unique .uppercase ]
             |> KeysDict.insert
-                { rating= 0.5, lowercase= 'a', uppercase= 'A' }
+                { rating = 0.5, lowercase = 'a', uppercase = 'A' }
             |> KeysDict.insert
-                { rating= 0.5, lowercase= 'b', uppercase= 'B' }
+                { rating = 0.5, lowercase = 'b', uppercase = 'B' }
 
-    KeysDict.at { door= .rating, key= 0.5 } ratedCasedLetters
-    --> { rating= 0.5, lowercase= 'b', uppercase= 'B' }
+    KeysDict.at { unique = .rating, key = 0.5 } ratedCasedLetters
+    --> { rating = 0.5, lowercase = 'b', uppercase = 'B' }
 
 -}
 at :
-    { door : element -> key, key : key }
+    (element -> key)
+    -> key
     -> KeysDict element
     -> Maybe element
-at { door, key } =
-    toList >> firstWhere (door >> (==) key)
+at accessAspect keyToFind =
+    toList >> firstWhere (accessAspect >> (==) keyToFind)
+
+
+{-| Conveniently insert a list of elements. See [insert](KeysDict#insert).
+
+    KeysDict.promising
+        [ unique .open, unique .closed ]
+        |> KeysDict.insertAll
+            [ { open = '(', closed = ')' }
+            , { open = '{', closed = '}' }
+            ]
+    --> KeysDict.promising [ unique .open, unique .closed ]
+    -->     |> KeysDict.insert { open = '(', closed = ')' }
+    -->     |> KeysDict.insert { open = '{', closed = '}' }
+
+-}
+insertAll :
+    List element
+    -> KeysDict element
+    -> KeysDict element
+insertAll listOfElementsToInsert =
+    \keysDict ->
+        List.foldl insert
+            keysDict
+            listOfElementsToInsert
 
 
 {-| How many elements there are.
 
-    List.foldl KeysDict.insert
-        (KeysDict.enterableBy
-            [ door .number, door .following ]
-        )
-        (List.map (\i-> { number= i, following= i +1 })
-            (List.range 0 41)
-        )
+    KeysDict.promising
+        [ unique .number, unique .following ]
+        |> KeysDict.insertAll
+            (List.map
+                (\i -> { number = i, following = i + 1 })
+                (List.range 0 41)
+            )
         |> KeysDict.size
     --> 42
 
@@ -236,36 +294,126 @@ size =
     toList >> List.length
 
 
-isntUnique : element -> KeysDict element -> Bool
-isntUnique element =
-    \(ElementsWithUniquenessPromises keys elementList) ->
-        keys
-            |> List.map
-                (\uniqueness ->
-                    any
-                        (\bElement ->
-                            Uniqueness.violated element bElement uniqueness
-                        )
-                        elementList
+{-| Are there no elements inside?
+
+    KeysDict.promising [ unique .name ]
+        |> KeysDict.isEmpty
+    --> True
+
+    KeysDict.promising [ unique .name ]
+        |> KeysDict.insertAll []
+        |> KeysDict.isEmpty
+    --> True
+
+    KeysDict.promising [ unique .name ]
+        |> KeysDict.insert { name = "pete" }
+        |> KeysDict.remove .name "pete"
+        |> KeysDict.isEmpty
+    --> True
+
+-}
+isEmpty : KeysDict element_ -> Bool
+isEmpty =
+    toList >> List.isEmpty
+
+
+{-| Would this element get inserted / is it considered unique?
+
+    letters =
+        KeysDict.promising
+            [ unique .lowercase, unique .uppercase ]
+            |> KeysDict.insertAll
+                [ { lowercase = 'a', uppercase = 'A' }
+                , { lowercase = 'b', uppercase = 'B' }
+                ]
+
+    letters
+        |> KeysDict.isUnique
+            { lowercase = 'b', uppercase = 'C' }
+    -- the .lowercase already exists
+    --> False
+
+    letters
+        |> KeysDict.isUnique
+            { lowercase = 'c', uppercase = 'A' }
+    -- ignored, the .uppercase already exists
+    --> False
+
+    letters
+        |> KeysDict.isUnique
+            { lowercase = 'c', uppercase = 'C' }
+    --> True
+
+-}
+isUnique : element -> KeysDict element -> Bool
+isUnique element =
+    \keysDict ->
+        uniqueness keysDict
+            |> List.any
+                (\unique_ ->
+                    keysDict
+                        |> any
+                            (\bElement ->
+                                not (unique_ element bElement).areUnique
+                            )
                 )
-            |> List.foldl (||) False
+            |> not
 
 
-{-| Put an element into `KeysDict`. _Keys must not contain functions or json. Elm will crash trying to see if they match._
+{-| Is there at least one element that passes a test?
+
+    KeysDict.promising
+        [ unique .username, unique .email ]
+        |> KeysDict.insertAll
+            [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
+            , { username = "gria", priority = 3, email = "miggo@inlook.com" }
+            ]
+        |> KeysDict.any (\user -> user.prioroty > 4)
+    --> False
+
+-}
+any : (element -> Bool) -> KeysDict element -> Bool
+any isOkay =
+    toList >> List.any isOkay
+
+
+{-| Do all elements pass a test?
+
+    KeysDict.promising
+        [ unique .username, unique .email ]
+        |> KeysDict.insertAll
+            [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
+            , { username = "gria", priority = 3, email = "miggo@inlook.com" }
+            ]
+        |> KeysDict.all (\user -> user.prioroty < 4)
+    --> True
+
+-}
+all : (element -> Bool) -> KeysDict element -> Bool
+all isOkay =
+    toList >> List.all isOkay
+
+
+{-| Put an element into `KeysDict`.
 
 If there is already an element with the same **key** is already **present**, (see `Uniqueness`), the `KeysDict` remains **unchanged**.
 
-    KeysDict.enterableBy
-        [ door .lowercase, door .uppercase ]
-        |> KeysDict.insert { lowercase= 'b', uppercase= 'B', rating= 0.5 }
+    KeysDict.promising
+        [ unique .lowercase, unique .uppercase ]
+        |> KeysDict.insert
+            { lowercase = 'b', uppercase = 'B', rating = 0.5 }
             -- put up
-        |> KeysDict.insert { lowercase= 'a', uppercase= 'A', rating= 0.5 }
-            -- put up, because rating is not a key
-        |> KeysDict.insert { lowercase= 'b', uppercase= 'C', rating= 0 }
+        |> KeysDict.insert
+            { lowercase = 'a', uppercase = 'A', rating = 0.5 }
+            -- put up because rating is not a key
+        |> KeysDict.insert
+            { lowercase = 'b', uppercase = 'C', rating = 0 }
             -- ignored, the .lowercase already exists
-        |> KeysDict.insert { lowercase= 'c', uppercase= 'A', rating= 0 }
+        |> KeysDict.insert
+            { lowercase = 'c', uppercase = 'A', rating = 0 }
             -- ignored, the .uppercase already exists
-        |> KeysDict.insert { lowercase= 'c', uppercase= 'C', rating= 0.6 }
+        |> KeysDict.insert
+            { lowercase = 'c', uppercase = 'C', rating = 0.6 }
             --put up
 
 -}
@@ -274,35 +422,80 @@ insert :
     -> KeysDict element
     -> KeysDict element
 insert element =
-    \multiDict ->
-        if isntUnique element multiDict then
-            multiDict
+    \keysDict ->
+        if isUnique element keysDict then
+            updateElements ((::) element) keysDict
 
         else
-            updateElements
-                (\elementList -> element :: elementList)
-                multiDict
+            keysDict
 
 
 updateElements :
     (List element -> List element)
     -> KeysDict element
     -> KeysDict element
-updateElements update =
-    \(ElementsWithUniquenessPromises keys elementList) ->
-        ElementsWithUniquenessPromises keys
-            (update elementList)
+updateElements change =
+    Typed.map
+        (\keysDict ->
+            { keysDict
+                | elements =
+                    change keysDict.elements
+            }
+        )
+        >> isChecked KeysDict
+
+
+{-| Change the element with the matching aspect based on its current value.
+
+    KeysDict.promising [ unique .username, unique .email ]
+        |> KeysDict.insertAll
+            [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
+            , { username = "gria", priority = 3, email = "miggo@inlook.com" }
+            ]
+        |> KeysDict.update
+            .username
+            "fred"
+            (\user -> { user | priority = p.priority + 3 })
+
+If this aspect isn't unique, all elements with the matching aspect are updated.
+
+    KeysDict.promising [ unique .email ]
+        |> KeysDict.insertAll
+            [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
+            , { username = "fred", priority = 3, email = "miggo@inlook.com" }
+            ]
+        |> KeysDict.update
+            .username
+            "fred"
+            (\user -> { user | priority = p.priority + 3 })
+
+Every fred gets a higher priority!
+
+-}
+update : (a -> b) -> b -> (a -> a) -> KeysDict a -> KeysDict a
+update aspect match change =
+    \keysDict ->
+        keysDict
+            |> updateAll
+                (\el ->
+                    if aspect el == match then
+                        change el
+
+                    else
+                        el
+                )
 
 
 {-| Reduce the elements from most recently to least recently inserted element.
 
 > With non-comparable types, thinking about order doesn't make much sense.
+
 > You shouldn't rely on it when using functions like folds or `toList`.
 
 
     brackets =
-        KeysDict.enterableBy
-            [ door .open, door .closed ]
+        KeysDict.promising
+            [ unique .open, unique .closed ]
             |> KeysDict.insert { open = '(', closed = ')' }
             |> KeysDict.insert { open = '{', closed = '}' }
 
@@ -325,233 +518,186 @@ fold :
     -> KeysDict element
     -> acc
 fold reduce initial =
-    toList
-        >> List.foldl reduce initial
+    toList >> List.foldl reduce initial
 
 
-{-| Remove the element where `door` of the element matches the `key`.
+{-| Remove the element where `unique` of the element matches the `key`.
 If **the key does not exist**, the `KeysDict` is **unchanged**
 
-    openClosedBrackets=
-        KeysDict.enterableBy
-            [ door .open, door .closed ]
-            |> KeysDict.insert { open= "(", closed= ")" }
+    openClosedBrackets =
+        KeysDict.promising
+            [ unique .open, unique .closed ]
+            |> KeysDict.insert { open = "(", closed = ")" }
 
     openClosedBrackets
-        |>  KeysDict.remove { door= .open, key= ")" }
+        |> KeysDict.remove .open ")"
             -- unchanged, ")" does not exist as a .open key
-        |>  KeysDict.remove { door= .open, key= "(" }
-    --> KeysDict.enterableBy
-    -->     [ door .open, door .closed ]
+        |> KeysDict.remove .open "("
+    --> KeysDict.promising
+    -->     [ unique .open, unique .closed ]
 
     openClosedBrackets
-        |> KeysDict.remove { door= .closed, key= "(" }
+        |> KeysDict.remove .closed "("
             -- unchanged, "(" does not exist as a .closed key
-        |> KeysDict.remove { door= .closed, key= ")" }
-    --> KeysDict.enterableBy
-    -->     [ door .open, door .closed ]
+        |> KeysDict.remove .closed ")"
+    --> KeysDict.promising
+    -->     [ unique .open, unique .closed ]
 
-**Notice:** If there is no promise of `Uniqueness` for `door`, `remove` acts as a normal filter.
+If there is no promise of `Uniqueness` for `unique`, `remove` acts as a filter.
 
-    KeysDict.enterableBy
-        [ door .open, door .closed ]
-        |> KeysDict.insert { open= "(", closed= ")", meaning= Nothing }
-        |> KeysDict.insert { open= "[", closed= "]", meaning= Just List }
-        |> KeysDict.insert { open= "<, closed= ">", meaning= Nothing }
-        |> KeysDict.remove { door= .meaning, key= Nothing }
+    KeysDict.promising
+        [ unique .open, unique .closed ]
+        |> KeysDict.insert
+            { open = "(", closed= ")", meaning = Nothing }
+        |> KeysDict.insert
+            { open = "[", closed = "]", meaning = Just List }
+        |> KeysDict.insert
+            { open = "<, closed = ">", meaning = Nothing }
+        |> KeysDict.remove .meaning Nothing
 
-    --> KeysDict.enterableBy
-    -->   [ door .open, door .closed ]
-    --> |>KeysDict.insert { open= "[", closed= "]", meaning= Just List }
+    --> KeysDict.promising
+    -->     [ unique .open, unique .closed ]
+    -->     |> KeysDict.insert
+    -->         { open = "[", closed = "]", meaning = Just List }
 
 -}
 remove :
-    { door : element -> key, key : key }
+    (element -> aspect)
+    -> aspect
     -> KeysDict element
     -> KeysDict element
-remove { door, key } =
+remove aspect key =
     updateElements
         (List.filter
-            (\element -> key /= door element)
+            (\element -> key /= aspect element)
         )
+
+
+{-| Only keep elements that satisfy a test.
+
+    letters =
+        KeysDict.promising
+            [ unique .inAlphabet
+            , unique .lowercase
+            , unique .uppercase
+            ]
+            |> KeysDict.insertAll
+                [ { inAlphabet = 0, lowercase = 'a', uppercase = 'A' }
+                , { inAlphabet = 1, lowercase = 'b', uppercase = 'B' }
+                , ...
+                ]
+
+    aToD =
+        letters
+            |> KeysDict.when
+                (\letter -> letter.inAlphabet <= 3)
+
+-}
+when : (element -> Bool) -> KeysDict element -> KeysDict element
+when isGood =
+    updateElements (List.filter isGood)
+
+
+{-| Remove elements where a condition is met.
+
+    letters =
+        KeysDict.promising
+            [ unique .inAlphabet
+            , unique .lowercase
+            , unique .uppercase
+            ]
+            |> KeysDict.insertAll
+                [ { inAlphabet = 0, lowercase = 'a', uppercase = 'A' }
+                , { inAlphabet = 1, lowercase = 'b', uppercase = 'B' }
+                , ...
+                ]
+
+    aToD =
+        letters
+            |> KeysDict.dropWhen
+                (\letter -> letter.inAlphabet > 3)
+
+See [`when`](KeysDict#when).
+
+-}
+dropWhen : (element -> Bool) -> KeysDict element -> KeysDict element
+dropWhen isBad =
+    when (not << isBad)
 
 
 {-| The `List` containing all elements from most recently (= head) to least recently inserted element.
 
-> With non-comparable types, thinking about order doesn't make much sense.
-> You shouldn't rely on it when using functions like folds or `toList`.
+> The keys can be non-comparable. There is no obvious order.
 
-    isEmpty =
-        List.isEmpty << KeysDict.toList
+> → You shouldn't rely on order when using functions like `fold` or `toList`.
 
     mostRecentlyInserted =
         List.head << KeysDict.toList
 
-    removeMostRecentlyInserted multiDict =
-        case KeysDict.toList multiDict of
-            _ :: rest ->
-                rest
-
-            [] ->
-                KeysDict
-
 -}
 toList : KeysDict element -> List element
 toList =
-    \(ElementsWithUniquenessPromises _ elementList) ->
-        elementList
+    internalVal KeysDict >> .elements
 
 
-{-| Map all elements.
+uniqueness : KeysDict element_ -> List (Uniqueness element_)
+uniqueness =
+    internalVal KeysDict >> .uniqueness
+
+
+{-| Alter every element based on its current value.
 
     digitNames =
-        KeysDict.enterableBy
-            [ door .number, door .name ]
+        KeysDict.promising
+            [ unique .number, unique .name ]
             |> KeysDict.insert { number = 0, name = "zero" }
             |> KeysDict.insert { number = 1, name = "one" }
 
     mathSymbolNames =
         digitNames
-            |> KeysDict.map [ door .symbol, door .name ]
+            |> KeysDict.map [ unique .symbol, unique .name ]
                 (\{ number, name } ->
                     { symbol = String.fromInt number, name = name }
                 )
             |> KeysDict.insert { symbol = "+", name = "plus" }
 
 -}
-map :
-    (element -> resultElement)
-    -> List (Uniqueness resultElement)
+updateAll :
+    (element -> element)
     -> KeysDict element
-    -> KeysDict resultElement
-map alter resultUniqueness =
-    enterableBy resultUniqueness
-        |> fold (alter >> insert)
-
-
-{-| Convert a `KeysDict` to a `Dict`.
-
-    casedLetters =
-        KeysDict.enterableBy
-            [ door .lowercase, door .uppercase ]
-            |> KeysDict.insert { uppercase = 'A', lowercase = 'a' }
-            |> KeysDict.insert { uppercase = 'B', lowercase = 'b' }
-
-    lowerFromUppercase =
-        KeysDict.toDict
-            { key = .uppercase, value = .lowercase }
-            casedLetters
-
--}
-toDict :
-    { key : element -> comparableKey, value : element -> value }
     -> KeysDict element
-    -> AssocList.Dict comparableKey value
-toDict { key, value } =
-    fold
-        (\element ->
-            AssocList.insert (key element) (value element)
-        )
-        AssocList.empty
+updateAll alter =
+    \keysDict ->
+        keysDict
+            |> fold (alter >> insert)
+                (promising (uniqueness keysDict))
 
 
-{-| Convert a `KeysDict` to an [association-`Dict`](https://package.elm-lang.org/packages/pzp1997/assoc-list/latest/).
+{-| A [Codec](https://package.elm-lang.org/packages/MartinSStewart/elm-serialize/latest/Serialize) to serialize a `KeysDict`.
 
-    elements =
-        KeysDict.enterableBy
-            [ door .lowercase, door .uppercase ]
-            |> KeysDict.insert { element = H, protons = 1 }
-            |> KeysDict.insert { element = He, protons = 2 }
+    serializeUserKeysDict =
+        KeysDict.serialze serializeUser
+            [ unique .number, unique .name ]
 
-    protonsOfElement =
-        elements
-            |> KeysDict.toAssocList
-                { key = .element, value = .protons }
+    type alias User =
+        { username : String
+        , userId : UserId
+        , settings = Settings
+        }
 
--}
-toAssocList :
-    { key : element -> key, value : element -> value }
-    -> KeysDict element
-    -> AssocList.Dict key value
-toAssocList { key, value } =
-    fold
-        (\element ->
-            AssocList.insert (key element) (value element)
-        )
-        AssocList.empty
-
-
-{-| [Serialize](https://package.elm-lang.org/packages/MartinSStewart/elm-serialize/latest/Serialize) a `KeysDict`.
-
-    type alias NamedNumber=
-      { name: String
-      , number: Int
-      }
-
-    namedNumberCodec=
-      Serialize.record NamedNumber
-      |>Serialize.field .name Decode.string
-      |>Serialize.field .number Decode.int
-      |>Serialize.finishRecord
-
-    namedNumberMultiDictCodec=
-      KeysDict.codec namedNumberCodec
-        [ door .number, door .name ]
-
-    someMultiDict=
-      KeysDict.enterableBy
-        [ door .number, door .name ]
-      |>KeysDict.insert { number= 1, name= "one" }
-      |>KeysDict.insert { number= 2, name= "two" }
-
-    Serialize.encodeToJson
-      (NamedNumberKeyDictCodec someMultiDict)
-    |>Json.Encode.encode 1
-
-    --> """
-    --> [
-    -->  {
-    -->   \"number\": 2,
-    -->   \"name\": "two"
-    -->  },
-    -->  {
-    -->   \"number\": 1,
-    -->   \"name\": "one"
-    -->  }
-    --> ]
-    --> """
-
-    """
-    [
-     {
-      \"number\": 2,
-      \"name\": "two"
-     },
-     {
-      \"number\": 1,
-      \"name\": "one"
-     }
-    ]
-    """
-    |>Json.Decode.decodeString
-        (Serialize.decodeFromJson
-          namedNumberMultiDictCodec
-        )
-
-    --> Ok
-    -->   (KeysDict.enterableBy
-    -->     [ door .number, door .name ]
-    -->   |>KeysDict.insert { number= 1, name= "one" }
-    -->   |>KeysDict.insert { number= 2, name= "two" }
-    -->   )
+    serializeUser =
+        Serialize.record User
+            |> Serialize.field .username Decode.string
+            |> Serialize.field ...
+            |> Serialize.finishRecord
 
 -}
 serialize :
     Codec customError element
     -> List (Uniqueness element)
     -> Codec customError (KeysDict element)
-serialize serializeElement uniqueness =
-    Serialize.map
-        (List.foldl insert (enterableBy uniqueness))
-        toList
-        (Serialize.list serializeElement)
+serialize serializeElement uniqueness_ =
+    Serialize.list serializeElement
+        |> Serialize.map
+            (List.foldl insert (promising uniqueness_))
+            toList

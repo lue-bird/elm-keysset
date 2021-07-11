@@ -1,6 +1,6 @@
 module Util exposing
     ( ListOperationResult(..)
-    , any
+    , anyWhere
     , aspect
     , equalIgnoringOrder
     , firstWhere
@@ -39,11 +39,12 @@ aspect accessAspect resultFromAspects a b =
 
 {-| The first (from head) element in a `List` where `isFound` is `True`.
 
-    [ 0, 2, 8, 16, 22 ] |>find (\el-> el > 10)
+    [ 0, 2, 8, 16, 22 ]
+        |> firstWhere (\el -> el > 10)
     --> Just 16
 
-    [ { x= 3, y= 5 }, { y= 9, x= 7 } ]
-    |>find (.x >>(==) 0)
+    [ { x = 3, y = 5 }, { y = 9, x = 7 } ]
+        |> firstWhere (.x >> (==) 0)
     --> Nothing
 
 -}
@@ -64,27 +65,27 @@ firstWhere isFound list =
                 firstWhere isFound rest
 
 
-{-| Is there any element in a `List` where `isFound` is `True`.
+{-| Is there any element in a `List` where a test succeeds?
 
-    [ 0, 2, 8, 16, 22 ] |>find (\el-> el > 10)
+    [ 0, 2, 8, 16, 22 ]
+        |> anyWhere (\el -> el > 10)
     --> True
 
-    [ { x= 3, y= 5 }, { y= 9, x= 7 } ]
-    |>find (.x >>(==) 0)
+    [ { x = 3, y = 5 }, { y = 9, x = 7 } ]
+        |> anyWhere (.x >> (==) 0)
     --> False
 
 -}
-any : (element -> Bool) -> List element -> Bool
-any isFound =
-    firstWhere isFound
-        >> (/=) Nothing
+anyWhere : (element -> Bool) -> List element -> Bool
+anyWhere isFound =
+    firstWhere isFound >> (/=) Nothing
 
 
 {-| Do 2 `List`s contain the same elements but in a different order?
 
     equalIgnoringOrder
-      [ 1, 2, 3 ]
-      [ 3, 1, 2 ]
+        [ 1, 2, 3 ]
+        [ 3, 1, 2 ]
     --> True
 
 _Elements must not contain functions or json. Elm will crash trying to see if they are equal._
