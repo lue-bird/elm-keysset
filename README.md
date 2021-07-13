@@ -27,7 +27,7 @@ KeysDict.at .code "LB"
 
 ## 👍 How to
 
-### example
+### example: users
 
 ```elm
 import KeysDict.Uniqueness exposing (unique)
@@ -60,6 +60,12 @@ update msg model =
                     |> KeysDict.any (.username >> (==) username)
             then
                 -- username already taken
+            
+            else if
+                model.accounts
+                    |> KeysDict.any (.email >> (==) email)
+            then
+                -- email already taken
 
             else
                 { model
@@ -81,39 +87,26 @@ update msg model =
             }
 ```
 
-### Example: brackets
+### Example: operators
 
 ```elm
-brackets =
+operators =
     KeysDict.promising
-        [ unique .opening, unique .closing ]
+        [ unique .symbol, unique .name ]
         |> KeysDict.insertAll
-            [ { opening = '(', closing = ')' }
-            , { opening = '{', closing = '}' }
+            [ { symbol = ">", name = "gt", kind = Infix }
+            , { symbol = "<", name = "lt", kind = Infix }
+            , { symbol = "==", name = "eq", kind = Infix }
+            , { symbol = "-", name = "negate", kind = Unary }
             ]
 
-{-| closes/opens with the opposite bracket.
--}
-typeChar character =
-    case
-        brackets
-            |> KeysDict.at .opening character
-    of
-        Just { closing }->
-            String.fromList [ character, closing ]
+infixOperators =
+    operators
+        |> KeysDict.when (.kind >> (==) Infix)
 
-        Nothing->
-            case
-                brackets
-                    |> KeysDict.at .closing character
-            of
-                Just { opening }->
-                    String.fromList [ opening, character ]
-                  
-                Nothing->
-                    String.fromChar character
-
-"Typing (: " ++ typeChar '(' ++ ". Even }: " ++ typeChar '}'
+nameOfOperatorSymbol operatorSymbol =
+    operators
+        |> KeysDict.at .symbol operatorSymbol
 ```
 &nbsp;
 
@@ -158,7 +151,6 @@ Please take a look at [elm-bidict](https://github.com/Janiczek/elm-bidict) inste
 
 ## Example: partners, opposites...
 
-Similar to the previous example:
 ```elm
 partners =
     KeysDict.promising
