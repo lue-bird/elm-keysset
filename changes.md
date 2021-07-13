@@ -19,7 +19,6 @@ Continuing [indique/elm-keysdict](https://package.elm-lang.org/packages/indique/
 - added `KeysDict.insertAll`
 - added `KeysDict.update`
 - added `KeysDict.where`
-- added `KeysDict.dropWhere`
 - added `KeysDict.isUnique`
 - added `KeysDict.all`
 - added `KeysDict.any`
