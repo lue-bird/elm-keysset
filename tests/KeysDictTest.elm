@@ -11,7 +11,7 @@ suite =
     describe "KeysDict"
         [ uniquenessTest
         , scanTest
-        , inTest
+        , insertTest
         , removeTest
         , transformTest
         , readmeExamplesTest
@@ -187,11 +187,65 @@ scanTest =
                         |> Expect.equal
                             (Just { lowercase = 'b', uppercase = 'B' })
             ]
+        , test "any"
+            (\() ->
+                KeysDict.promising
+                    [ unique .username, unique .email ]
+                    |> KeysDict.insertAll
+                        [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
+                        , { username = "gria", priority = 3, email = "miggo@inlook.com" }
+                        ]
+                    |> KeysDict.any (\user -> user.priority > 4)
+                    |> Expect.equal False
+            )
+        , test "all"
+            (\() ->
+                KeysDict.promising
+                    [ unique .username, unique .email ]
+                    |> KeysDict.insertAll
+                        [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
+                        , { username = "gria", priority = 3, email = "miggo@inlook.com" }
+                        ]
+                    |> KeysDict.all (\user -> user.priority < 4)
+                    |> Expect.equal True
+            )
+        , let
+            letters =
+                KeysDict.promising
+                    [ unique .lowercase, unique .uppercase ]
+                    |> KeysDict.insertAll
+                        [ { lowercase = 'a', uppercase = 'A' }
+                        , { lowercase = 'b', uppercase = 'B' }
+                        ]
+          in
+          describe "isUnique"
+            [ test "not unique"
+                (\() ->
+                    Expect.all
+                        [ KeysDict.isUnique
+                            { lowercase = 'b', uppercase = 'C' }
+                            -- the .lowercase already exists
+                            >> Expect.equal False
+                        , KeysDict.isUnique
+                            { lowercase = 'c', uppercase = 'A' }
+                            -- the .uppercase already exists
+                            >> Expect.equal False
+                        ]
+                        letters
+                )
+            , test "unique"
+                (\() ->
+                    letters
+                        |> KeysDict.isUnique
+                            { lowercase = 'c', uppercase = 'C' }
+                        |> Expect.equal True
+                )
+            ]
         ]
 
 
-inTest : Test
-inTest =
+insertTest : Test
+insertTest =
     describe "in"
         [ describe "insert"
             [ test "ignored for duplicates" <|
@@ -271,20 +325,90 @@ inTest =
 
 removeTest : Test
 removeTest =
-    describe "remove"
-        [ test "insert |> remove code leaves it unchanged" <|
-            \() ->
-                with2
-                    |> KeysDict.insert { code = 2, char = 'C' }
-                    |> KeysDict.remove .code 2
-                    |> Expect.equal with2
-        , test "insert |> remove char leaves it unchanged" <|
-            \() ->
-                with2
-                    |> KeysDict.insert { code = 2, char = 'C' }
-                    |> KeysDict.remove .char 'C'
-                    |> Expect.equal with2
+    let
+        openClosedBrackets =
+            KeysDict.promising
+                [ unique .open, unique .closed ]
+                |> KeysDict.insert
+                    { open = "(", closed = ")" }
+    in
+    describe "take elements out"
+        [ describe "remove"
+            [ test "insert |> remove code leaves it unchanged"
+                (\() ->
+                    with2
+                        |> KeysDict.insert { code = 2, char = 'C' }
+                        |> KeysDict.remove .code 2
+                        |> Expect.equal with2
+                )
+            , test "insert |> remove char leaves it unchanged"
+                (\() ->
+                    with2
+                        |> KeysDict.insert { code = 2, char = 'C' }
+                        |> KeysDict.remove .char 'C'
+                        |> Expect.equal with2
+                )
+            , test "nothing to remove"
+                (\() ->
+                    openClosedBrackets
+                        |> KeysDict.remove .open ")"
+                        --> no change, .open is never ")"
+                        |> Expect.equal openClosedBrackets
+                )
+            , test "something to remove"
+                (\() ->
+                    openClosedBrackets
+                        |> KeysDict.remove .closed ")"
+                        |> KeysDict.toList
+                        |> Expect.equalLists []
+                )
+            , test "non-unique aspect"
+                (\() ->
+                    KeysDict.promising
+                        [ unique .open, unique .closed ]
+                        |> KeysDict.insertAll
+                            [ { open = "[", closed = "]", meaning = List }
+                            , { open = "<", closed = ">", meaning = Custom }
+                            , { open = "\\", closed = "/", meaning = Custom }
+                            ]
+                        |> KeysDict.remove .meaning Custom
+                        |> KeysDict.toList
+                        |> Expect.equalLists
+                            [ { open = "[", closed = "]", meaning = List }
+                            ]
+                )
+            ]
+        , let
+            operators =
+                KeysDict.promising
+                    [ unique .symbol, unique .name ]
+                    |> KeysDict.insertAll
+                        [ { symbol = ">", name = "gt" }
+                        , { symbol = "<", name = "lt" }
+                        , { symbol = "==", name = "eq" }
+                        ]
+          in
+          test "when"
+            (\() ->
+                operators
+                    |> KeysDict.when
+                        (.symbol >> String.length >> (==) 1)
+                    |> KeysDict.equal
+                        (KeysDict.promising
+                            [ unique .symbol, unique .name ]
+                            |> KeysDict.insertAll
+                                [ { symbol = ">", name = "gt" }
+                                , { symbol = "<", name = "lt" }
+                                ]
+                        )
+                    |> Expect.equal True
+            )
         ]
+
+
+type BracketMeaning
+    = List
+    | Custom
 
 
 transformTest : Test
