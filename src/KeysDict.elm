@@ -4,7 +4,7 @@ module KeysDict exposing
     , Uniqueness, unique
     , equal, isEmpty, at, size, isUnique, all, any
     , insert, insertAll, remove, update, updateAll
-    , when, dropWhen
+    , when
     , fold, toList, serialize
     )
 
@@ -35,7 +35,7 @@ module KeysDict exposing
 
 ### filter
 
-@docs when, dropWhen
+@docs when
 
 
 ## transform
@@ -49,7 +49,7 @@ import Typed exposing (Checked, Internal, Typed, internalVal, isChecked, tag)
 import Util exposing (aspect, equalIgnoringOrder, firstWhere)
 
 
-{-| Unsorted data structure where you can specify aspects that will be unique across all elements.
+{-| Unsorted data structure that lets you specify aspects that are checked to be unique across all elements.
 
     countries =
         KeysDict.promising
@@ -70,12 +70,16 @@ If you have a key and the aspect to check if it matches, you can find the matchi
 
 -}
 type alias KeysDict element =
-    Typed Checked ElementsWithUniquenessPromises Internal { uniqueness : List (Uniqueness element), elements : List element }
+    Typed Checked KeysDictTag Internal (ElementsWithUniquenessPromises element)
+
+
+type alias ElementsWithUniquenessPromises element =
+    { uniqueness : List (Uniqueness element), elements : List element }
 
 
 {-| **Should not be exposed.**
 -}
-type ElementsWithUniquenessPromises
+type KeysDictTag
     = KeysDict
 
 
@@ -92,8 +96,7 @@ type ElementsWithUniquenessPromises
             { inAlphabet = 0, lowercase = 'a', uppercase = 'A' }
         |> KeysDict.insert
             { inAlphabet = 0, lowercase = 'b', uppercase = 'B' }
-
-The second element isn't inserted. There's already an element where `.inAlphabet` is `0`.
+        --> isn't inserted. There's already an element where .inAlphabet is 0.
 
 -}
 type alias Uniqueness element =
@@ -112,9 +115,9 @@ type alias Uniqueness element =
         { symbol = '🙂', name = "smile" }
     --> { areUnique = True }
 
-    unique (\person -> person.firstName ++ person.lastName)
-        { lastName = "jimmy", firstName = "petter" }
-        { lastName = "jimmy", firstName = "greg" }
+    unique (\person -> ( person.firstName, person.lastName ))
+        { lastName = "jimmy", firstName = "petter", ... }
+        { lastName = "jimmy", firstName = "greg", ... }
     --> { areUnique = True }
 
 in `KeysDict`
@@ -124,8 +127,7 @@ in `KeysDict`
             { username = "ben", email = "ben10@gmx.de" }
         |> KeysDict.insert
             { username = "mai", email = "ben10@gmx.de" }
-
-The second element isn't inserted. There's already an element where `.email` is `"ben10@gmx.de"`.
+        --> isn't inserted. There's already an element where .email is "ben10@gmx.de"
 
 -}
 unique : (element -> aspect_) -> Uniqueness element
@@ -142,11 +144,9 @@ See [`Uniqueness`](KeysDict#Uniqueness)
             { username = "ben", email = "ben10@gmx.de" }
         |> KeysDict.insert
             { username = "mai", email = "ben10@gmx.de" }
+        --> isn't inserted. There's already an element where .email is "ben10@gmx.de"
 
-The second element isn't inserted.
-There's already an element where `.email` is `"ben10@gmx.de"`.
-
-Elements must **not** contain **functions, json or regexes**.
+Elements that are inserted must **not** contain **functions, json or regexes**.
 Elm will crash trying to see if they are equal.
 
 -}
@@ -209,14 +209,15 @@ equal =
     aspect toList equalIgnoringOrder
 
 
-{-| `Just` the element where `unique` of the element matches the `key`;
-if no such element is found, `Nothing`.
+{-| Try to find an element where a given aspect of it matches a given value.
 
     casedLetters =
         KeysDict.promising
             [ unique .lowercase, unique .uppercase ]
-            |> KeysDict.insert { lowercase = 'a', uppercase = 'A' }
-            |> KeysDict.insert { lowercase = 'b', uppercase = 'B' }
+            |> KeysDict.insertAll
+                [ { lowercase = 'a', uppercase = 'A' }
+                , { lowercase = 'b', uppercase = 'B' }
+                ]
 
     lowercase char =
         casedLetters
@@ -228,8 +229,8 @@ if no such element is found, `Nothing`.
             |> KeysDict.at .lowercase char
             |> Maybe.map .uppercase
 
-**Note**: If keys of `unique` aren't promised to be unique,
-`KeysDict.at` will find the most recently inserted element where `unique` of the element matches the `key`.
+If the given aspect isn't promised to be unique,
+`at` will find the _most recently inserted_ element where the given aspect matches the given value.
 
     ratedCasedLetters =
         KeysDict.promising
@@ -244,8 +245,8 @@ if no such element is found, `Nothing`.
 
 -}
 at :
-    (element -> key)
-    -> key
+    (element -> aspect)
+    -> aspect
     -> KeysDict element
     -> Maybe element
 at accessAspect keyToFind =
@@ -307,9 +308,8 @@ size =
 
     KeysDict.promising [ unique .name ]
         |> KeysDict.insert { name = "pete" }
-        |> KeysDict.remove .name "pete"
         |> KeysDict.isEmpty
-    --> True
+    --> False
 
 -}
 isEmpty : KeysDict element_ -> Bool
@@ -317,7 +317,7 @@ isEmpty =
     toList >> List.isEmpty
 
 
-{-| Would this element get inserted / is it considered unique?
+{-| Is this element considered unique / would it get inserted.
 
     letters =
         KeysDict.promising
@@ -330,13 +330,13 @@ isEmpty =
     letters
         |> KeysDict.isUnique
             { lowercase = 'b', uppercase = 'C' }
-    -- the .lowercase already exists
+        -- the .lowercase already exists
     --> False
 
     letters
         |> KeysDict.isUnique
             { lowercase = 'c', uppercase = 'A' }
-    -- ignored, the .uppercase already exists
+        -- the .uppercase already exists
     --> False
 
     letters
@@ -368,8 +368,11 @@ isUnique element =
             [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
             , { username = "gria", priority = 3, email = "miggo@inlook.com" }
             ]
-        |> KeysDict.any (\user -> user.prioroty > 4)
+        |> KeysDict.any (\user -> user.priority > 4)
     --> False
+
+    member needle =
+        KeysDict.any ((==) needle)
 
 -}
 any : (element -> Bool) -> KeysDict element -> Bool
@@ -385,7 +388,7 @@ any isOkay =
             [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
             , { username = "gria", priority = 3, email = "miggo@inlook.com" }
             ]
-        |> KeysDict.all (\user -> user.prioroty < 4)
+        |> KeysDict.all (\user -> user.priority < 4)
     --> True
 
 -}
@@ -447,7 +450,8 @@ updateElements change =
 
 {-| Change the element with the matching aspect based on its current value.
 
-    KeysDict.promising [ unique .username, unique .email ]
+    KeysDict.promising
+        [ unique .username, unique .email ]
         |> KeysDict.insertAll
             [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
             , { username = "gria", priority = 3, email = "miggo@inlook.com" }
@@ -527,38 +531,32 @@ If **the key does not exist**, the `KeysDict` is **unchanged**
     openClosedBrackets =
         KeysDict.promising
             [ unique .open, unique .closed ]
-            |> KeysDict.insert { open = "(", closed = ")" }
+            |> KeysDict.insert
+                { open = "(", closed = ")" }
 
     openClosedBrackets
         |> KeysDict.remove .open ")"
-            -- unchanged, ")" does not exist as a .open key
-        |> KeysDict.remove .open "("
-    --> KeysDict.promising
-    -->     [ unique .open, unique .closed ]
+        --> no change, .open is never ")"
 
     openClosedBrackets
-        |> KeysDict.remove .closed "("
-            -- unchanged, "(" does not exist as a .closed key
         |> KeysDict.remove .closed ")"
-    --> KeysDict.promising
-    -->     [ unique .open, unique .closed ]
+        --> removes { open = "(", closed = ")" }
 
-If there is no promise of `Uniqueness` for `unique`, `remove` acts as a filter.
+If there the checked aspect isn't promised to be unique, `remove` acts as a filter.
 
     KeysDict.promising
         [ unique .open, unique .closed ]
-        |> KeysDict.insert
-            { open = "(", closed= ")", meaning = Nothing }
-        |> KeysDict.insert
-            { open = "[", closed = "]", meaning = Just List }
-        |> KeysDict.insert
-            { open = "<, closed = ">", meaning = Nothing }
-        |> KeysDict.remove .meaning Nothing
+        |> KeysDict.insertAll
+            [ { open = "[", closed = "]", meaning = List }
+            , { open = "<", closed = ">", meaning = Custom }
+            , { open = "\\", closed = "/", meaning = Custom }
+            ]
+        |> KeysDict.remove .meaning Custom
 
     --> KeysDict.promising
     -->     [ unique .open, unique .closed ]
     -->     |> KeysDict.insert
-    -->         { open = "[", closed = "]", meaning = Just List }
+    -->         { open = "[", closed = "]", meaning = List }
 
 -}
 remove :
@@ -575,54 +573,32 @@ remove aspect key =
 
 {-| Only keep elements that satisfy a test.
 
-    letters =
+
+    operators =
         KeysDict.promising
-            [ unique .inAlphabet
-            , unique .lowercase
-            , unique .uppercase
-            ]
+            [ unique .symbol, unique .name ]
             |> KeysDict.insertAll
-                [ { inAlphabet = 0, lowercase = 'a', uppercase = 'A' }
-                , { inAlphabet = 1, lowercase = 'b', uppercase = 'B' }
-                , ...
+                [ { symbol = ">", name = "gt" }
+                , { symbol = "<", name = "lt" }
+                , { symbol = "==", name = "eq" }
                 ]
 
-    aToD =
-        letters
+    singleCharOperators =
+        operators
             |> KeysDict.when
-                (\letter -> letter.inAlphabet <= 3)
+                (.symbol >> String.length >> (==) 1)
+
+    --> KeysDict.promising
+    -->     [ unique .symbol, unique .name ]
+    -->     |> KeysDict.insertAll
+    -->         [ { symbol = ">", name = "gt" }
+    -->         , { symbol = "<", name = "lt" }
+    -->         ]
 
 -}
 when : (element -> Bool) -> KeysDict element -> KeysDict element
 when isGood =
     updateElements (List.filter isGood)
-
-
-{-| Remove elements where a condition is met.
-
-    letters =
-        KeysDict.promising
-            [ unique .inAlphabet
-            , unique .lowercase
-            , unique .uppercase
-            ]
-            |> KeysDict.insertAll
-                [ { inAlphabet = 0, lowercase = 'a', uppercase = 'A' }
-                , { inAlphabet = 1, lowercase = 'b', uppercase = 'B' }
-                , ...
-                ]
-
-    aToD =
-        letters
-            |> KeysDict.dropWhen
-                (\letter -> letter.inAlphabet > 3)
-
-See [`when`](KeysDict#when).
-
--}
-dropWhen : (element -> Bool) -> KeysDict element -> KeysDict element
-dropWhen isBad =
-    when (not << isBad)
 
 
 {-| The `List` containing all elements from most recently (= head) to least recently inserted element.
