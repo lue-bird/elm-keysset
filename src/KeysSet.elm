@@ -646,6 +646,8 @@ uniqueness =
                 [ unique .symbol, unique .name ]
             |> KeysSet.insert { symbol = "+", name = "plus" }
 
+If the type doesn't change, use [`KeysSet.updateAll`](KeysSet#updateAll).
+
 -}
 map :
     (element -> mappedElement)
