@@ -75,10 +75,10 @@ initialModel =
 
 update msg model =
     case msg of
-        SwitchAccount username ->
+        AccountSwitched username ->
             { model | currentUserName = username }
         
-        ChangedSettings updateSettings ->
+        SettingsChanged updateSettings ->
             { model
               | accounts =
                   model.accounts
