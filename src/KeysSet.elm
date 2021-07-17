@@ -5,7 +5,7 @@ module KeysSet exposing
     , equal, isEmpty, at, size, isUnique, all, any
     , insert, insertAll, remove, update, updateAll
     , when
-    , fold, toList, map, serialize
+    , fold, toList, map
     )
 
 {-|
@@ -40,11 +40,10 @@ module KeysSet exposing
 
 ## transform
 
-@docs fold, toList, map, serialize
+@docs fold, toList, map
 
 -}
 
-import Serialize exposing (Codec)
 import Typed exposing (Checked, Internal, Typed, internalVal, isChecked, tag)
 import Util exposing (aspect, equalIgnoringOrder, firstWhere)
 
@@ -181,16 +180,13 @@ promising uniqueness_ =
 
 Because a `KeysSet`'s `Uniqueness` is defined as functions.
 
-    KeysSet.toList letterCodes
-    == KeysSet.toList fancyCompetingLetterCodes
+    (letterCodes |> KeysSet.toList)
+    == (fancyCompetingLetterCodes |> KeysSet.toList)
     --> False
 
 Even though both contain the same elements but in a different order.
 
-
-### take away
-
-> Don't use `==` to compare `KeysSet`s
+> → Don't use `==` to compare `KeysSet`s
 
 > The keys can be non-comparable. There is no obvious order.
 > → You shouldn't rely on order when using functions like `fold` or `toList`.
@@ -282,13 +278,8 @@ insertAll listOfElementsToInsert =
 
 {-| How many elements there are.
 
-    KeysSet.promising
-        [ unique .number, unique .following ]
-        |> KeysSet.insertAll
-            (List.map
-                (\i -> { number = i, following = i + 1 })
-                (List.range 0 41)
-            )
+    KeysSet.promising [ unique identity ]
+        |> KeysSet.insertAll (List.range 0 41)
         |> KeysSet.size
     --> 42
 
@@ -333,14 +324,14 @@ isEmpty =
     letters
         |> KeysSet.isUnique
             { lowercase = 'b', uppercase = 'C' }
-        -- the .lowercase already exists
     --> False
+    -- .lowercase 'b' already exists
 
     letters
         |> KeysSet.isUnique
             { lowercase = 'c', uppercase = 'A' }
-        -- the .uppercase already exists
     --> False
+    -- .uppercase 'A' already exists
 
     letters
         |> KeysSet.isUnique
@@ -369,7 +360,7 @@ isUnique element =
         [ unique .username, unique .email ]
         |> KeysSet.insertAll
             [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
-            , { username = "gria", priority = 3, email = "miggo@inlook.com" }
+            , { username = "gria", priority = 3, email = "miggo@inlook.go" }
             ]
         |> KeysSet.any (\user -> user.priority > 4)
     --> False
@@ -389,7 +380,7 @@ any isOkay =
         [ unique .username, unique .email ]
         |> KeysSet.insertAll
             [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
-            , { username = "gria", priority = 3, email = "miggo@inlook.com" }
+            , { username = "gria", priority = 3, email = "miggo@inlook.go" }
             ]
         |> KeysSet.all (\user -> user.priority < 4)
     --> True
@@ -400,9 +391,9 @@ all isOkay =
     toList >> List.all isOkay
 
 
-{-| Put an element into `KeysSet`.
+{-| Put an element into the `KeysSet`.
 
-If there is already an element with the same **key** is already **present**, (see `Uniqueness`), the `KeysSet` remains **unchanged**.
+If there is already an element where some aspect that is promised to be unique is equal, (see [`Uniqueness`](KeysSet#Uniqueness)), the `KeysSet` remains **unchanged**.
 
     KeysSet.promising
         [ unique .lowercase, unique .uppercase ]
@@ -411,13 +402,16 @@ If there is already an element with the same **key** is already **present**, (se
             --> is inserted
         |> KeysSet.insert
             { lowercase = 'a', uppercase = 'A', rating = 0.5 }
-            --> is inserted. .rating is not specified as unique
+            --> is inserted
+            -- .rating is not specified as unique
         |> KeysSet.insert
             { lowercase = 'b', uppercase = 'C', rating = 0 }
-            --> is ignored. .lowercase 'b' already exists
+            --> is ignored
+            -- .lowercase 'b' already exists
         |> KeysSet.insert
             { lowercase = 'c', uppercase = 'A', rating = 0 }
-            --> is ignored, .uppercase 'A' already exists
+            --> is ignored
+            -- .uppercase 'A' already exists
         |> KeysSet.insert
             { lowercase = 'c', uppercase = 'C', rating = 0.6 }
             --> is inserted
@@ -457,10 +451,9 @@ updateElements change =
         [ unique .username, unique .email ]
         |> KeysSet.insertAll
             [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
-            , { username = "gria", priority = 3, email = "miggo@inlook.com" }
+            , { username = "gria", priority = 3, email = "miggo@inlook.go" }
             ]
-        |> KeysSet.update
-            .username
+        |> KeysSet.update .username
             "fred"
             (\user -> { user | priority = p.priority + 3 })
 
@@ -469,10 +462,9 @@ If this aspect isn't unique, all elements with the matching aspect are updated.
     KeysSet.promising [ unique .email ]
         |> KeysSet.insertAll
             [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
-            , { username = "fred", priority = 3, email = "miggo@inlook.com" }
+            , { username = "fred", priority = 3, email = "miggo@inlook.go" }
             ]
-        |> KeysSet.update
-            .username
+        |> KeysSet.update .username
             "fred"
             (\user -> { user | priority = p.priority + 3 })
 
@@ -495,9 +487,9 @@ update aspect match change =
 
 {-| Reduce the elements from most recently to least recently inserted element.
 
-> With non-comparable types, thinking about order doesn't make much sense.
+> The keys can be non-comparable. There is no obvious order.
 
-> You shouldn't rely on it when using functions like folds or `toList`.
+> → You shouldn't rely on order when using functions like `fold` or `toList`.
 
 
     brackets =
@@ -541,11 +533,12 @@ If **the key does not exist**, the `KeysSet` is **unchanged**
 
     openClosedBrackets
         |> KeysSet.remove .open ")"
-        --> no change, .open is never ")"
+    --> no change
+    -- .open is never ")"
 
     openClosedBrackets
         |> KeysSet.remove .closed ")"
-        --> removes { open = "(", closed = ")" }
+    --> removes { open = "(", closed = ")" }
 
 If there the checked aspect isn't promised to be unique, `remove` acts as a filter.
 
@@ -557,11 +550,9 @@ If there the checked aspect isn't promised to be unique, `remove` acts as a filt
             , { open = "\\", closed = "/", meaning = Custom }
             ]
         |> KeysSet.remove .meaning Custom
+    --> only { open = "[", closed = "]", meaning = List } remains
 
-    --> KeysSet.promising
-    -->     [ unique .open, unique .closed ]
-    -->     |> KeysSet.insert
-    -->         { open = "[", closed = "]", meaning = List }
+If filtering is your intention, use [`KeysSet.when`](KeysSet#when).
 
 -}
 remove :
@@ -658,7 +649,7 @@ map alter uniquenessOfMappedElement =
                 (promising uniquenessOfMappedElement)
 
 
-{-| Alter every element based on its current value.
+{-| Change every element based on its current value.
 
 Use [`map`](KeysSet#map) if your function changes the type of the element.
 
@@ -667,37 +658,6 @@ updateAll :
     (element -> element)
     -> KeysSet element
     -> KeysSet element
-updateAll alter =
+updateAll change =
     \keysSet ->
-        keysSet
-            |> map alter (uniqueness keysSet)
-
-
-{-| A [Codec](https://package.elm-lang.org/packages/MartinSStewart/elm-serialize/latest/Serialize) to serialize a `KeysSet`.
-
-    serializeUserKeysSet =
-        KeysSet.serialze serializeUser
-            [ unique .number, unique .name ]
-
-    type alias User =
-        { username : String
-        , userId : UserId
-        , settings = Settings
-        }
-
-    serializeUser =
-        Serialize.record User
-            |> Serialize.field .username Decode.string
-            |> Serialize.field ...
-            |> Serialize.finishRecord
-
--}
-serialize :
-    Codec customError element
-    -> List (Uniqueness element)
-    -> Codec customError (KeysSet element)
-serialize serializeElement uniqueness_ =
-    Serialize.list serializeElement
-        |> Serialize.map
-            (List.foldl insert (promising uniqueness_))
-            toList
+        keysSet |> map change (uniqueness keysSet)
