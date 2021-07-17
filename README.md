@@ -27,6 +27,28 @@ KeysSet.at .code "LB"
 
 ## 👍 How to
 
+### Example: operators
+
+```elm
+operators =
+    KeysSet.promising
+        [ unique .symbol, unique .name ]
+        |> KeysSet.insertAll
+            [ { symbol = ">", name = "gt", kind = Infix }
+            , { symbol = "<", name = "lt", kind = Infix }
+            , { symbol = "==", name = "eq", kind = Infix }
+            , { symbol = "-", name = "negate", kind = Prefix }
+            ]
+
+infixOperators =
+    operators
+        |> KeysSet.when (.kind >> (==) Infix)
+
+nameOfOperatorSymbol operatorSymbol =
+    operators
+        |> KeysSet.at .symbol operatorSymbol
+```
+
 ### example: users
 
 ```elm
@@ -40,19 +62,30 @@ type alias Account =
     }
 
 type alias Model =
-    { accounts : KeysSet Account }
+    { accounts : KeysSet Account
+    , currentUserName : String
+    }
 
 
 initialModel =
     { accounts =
         KeysSet.promising
-            [ unique .atomicNumber, unique .symbol ]
+            [ unique .username, unique .email ]
     }
 
 update msg model =
     case msg of
-        LoggedIn username ->
-            { model | selectedUsername = username }
+        SwitchAccount username ->
+            { model | currentUserName = username }
+        
+        ChangedSettings updateSettings ->
+            { model
+              | accounts =
+                  model.accounts
+                      |> KeysSet.update .username   
+                          model.currentUserName
+                          updateSettings
+            }
         
         Registered username email ->
             if
@@ -77,37 +110,8 @@ update msg model =
                               , settings = defaultSettings
                               }
                 }
-            
-        ChangedSettings updateSettings username ->
-            { model
-              | accounts =
-                  model.accounts
-                      |> KeysSet.update .username username
-                          updateSettings
-            }
 ```
 
-### Example: operators
-
-```elm
-operators =
-    KeysSet.promising
-        [ unique .symbol, unique .name ]
-        |> KeysSet.insertAll
-            [ { symbol = ">", name = "gt", kind = Infix }
-            , { symbol = "<", name = "lt", kind = Infix }
-            , { symbol = "==", name = "eq", kind = Infix }
-            , { symbol = "-", name = "negate", kind = Prefix }
-            ]
-
-infixOperators =
-    operators
-        |> KeysSet.when (.kind >> (==) Infix)
-
-nameOfOperatorSymbol operatorSymbol =
-    operators
-        |> KeysSet.at .symbol operatorSymbol
-```
 &nbsp;
 
 
