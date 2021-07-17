@@ -2,7 +2,6 @@ module KeysSetTest exposing (suite)
 
 import Expect
 import KeysSet exposing (KeysSet, unique)
-import Serialize
 import Test exposing (Test, describe, test)
 
 
@@ -431,7 +430,7 @@ type BracketMeaning
 transformTest : Test
 transformTest =
     describe "transform"
-        [ test "fold works as in the example"
+        [ test "fold example"
             (\() ->
                 let
                     openingAndClosing =
@@ -446,51 +445,26 @@ transformTest =
                     openingAndClosing
                     [ "()", "{}" ]
             )
-        , serializeTest
+        , test "toList example"
+            (\() ->
+                KeysSet.promising
+                    [ unique .open, unique .closed ]
+                    |> KeysSet.insertAll
+                        [ { open = '(', closed = ')' }
+                        , { open = '{', closed = '}' }
+                        ]
+                    |> KeysSet.toList
+                    |> Expect.equalLists
+                        [ { open = '{', closed = '}' }
+                        , { open = '(', closed = ')' }
+                        ]
+            )
         ]
-
-
-serializeTest : Test
-serializeTest =
-    let
-        serializeCharWithCode =
-            Serialize.record CharWithCode
-                |> Serialize.field .char
-                    (Serialize.map Char.fromCode
-                        Char.toCode
-                        Serialize.int
-                    )
-                |> Serialize.field .code Serialize.int
-                |> Serialize.finishRecord
-
-        serializeCharWithCodeKeysSet =
-            KeysSet.serialize serializeCharWithCode
-                [ unique .code, unique .char ]
-    in
-    test "json encoded & decoded is the same"
-        (\() ->
-            let
-                encodedDecoded =
-                    Serialize.encodeToJson
-                        serializeCharWithCodeKeysSet
-                        with2
-                        |> Serialize.decodeFromJson
-                            serializeCharWithCodeKeysSet
-            in
-            case encodedDecoded of
-                Ok decoded ->
-                    Expect.true "encoded |> decoded equal to before"
-                        (KeysSet.equal decoded with2)
-
-                Err err ->
-                    -- too lazy to case on import Serialize.Error(..)
-                    Expect.fail (Debug.toString err)
-        )
 
 
 readmeExamplesTest : Test
 readmeExamplesTest =
-    describe "readme examples work"
+    describe "readme examples"
         [ test "braces"
             (\() ->
                 let

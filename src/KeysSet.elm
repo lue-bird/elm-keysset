@@ -522,8 +522,7 @@ fold reduce initial =
     toList >> List.foldl reduce initial
 
 
-{-| Remove the element where `unique` of the element matches the `key`.
-If **the key does not exist**, the `KeysSet` is **unchanged**
+{-| Remove the element where a given aspect of the element matches a given value.
 
     openClosedBrackets =
         KeysSet.promising
@@ -605,6 +604,17 @@ when isGood =
 
     mostRecentlyInserted =
         List.head << KeysSet.toList
+
+    KeysSet.promising
+        [ unique .open, unique .closed ]
+        |> KeysSet.insertAll
+            [ { open = '(', closed = ')' }
+            , { open = '{', closed = '}' }
+            ]
+        |> KeysSet.toList
+    --> [ { open = '{', closed = '}' }
+    --> , { open = '(', closed = ')' }
+    --> ]
 
 -}
 toList : KeysSet element -> List element
