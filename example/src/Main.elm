@@ -8,8 +8,8 @@ import Element.Input as UiInput
 import Html exposing (Html, br, div, h3, header, input, text)
 import Html.Attributes exposing (style, value)
 import Html.Events exposing (onInput)
-import MultiSet exposing (MultiSet, MultiSet.at, empty, MultiSet.insert)
-import MultiSet.Uniqueness exposing (unique)
+import KeysSet exposing (KeysSet, KeysSet.at, empty, KeysSet.insert)
+import KeysSet.Uniqueness exposing (unique)
 
 
 type alias Model =
@@ -82,12 +82,12 @@ update msg model =
                                 String.length text
                                     > String.length (.textInOpenCloseBrackets model)
                             then
-                                case MultiSet.at { unique = .open, key = last } brackets of
+                                case KeysSet.at { unique = .open, key = last } brackets of
                                     Just { closed } ->
                                         text ++ String.fromChar closed
 
                                     Nothing ->
-                                        case MultiSet.at { unique = .closed, key = last } brackets of
+                                        case KeysSet.at { unique = .closed, key = last } brackets of
                                             Just { open } ->
                                                 before ++ String.fromList [ open, last ]
 
@@ -95,12 +95,12 @@ update msg model =
                                                 text
 
                             else
-                                case MultiSet.at { unique = .open, key = last } brackets of
+                                case KeysSet.at { unique = .open, key = last } brackets of
                                     Just _ ->
                                         before
 
                                     Nothing ->
-                                        case MultiSet.at { unique = .closed, key = last } brackets of
+                                        case KeysSet.at { unique = .closed, key = last } brackets of
                                             Just _ ->
                                                 before
 
@@ -116,7 +116,7 @@ view : Model -> Html Msg
 view { textInOpenCloseBrackets, letterInfo, textInLetterInfo } =
     Ui.column [ Ui.paddingXY 16 6, Ui.spacing 20 ]
         [ Ui.column [ Ui.padding 12 ]
-            [ Ui.text "MultiSet"
+            [ Ui.text "KeysSet"
                 |> Ui.el
                     [ UiFont.family [ UiFont.typeface "Fira Code" ]
                     , UiFont.size 32
@@ -164,34 +164,34 @@ aLetterInfo =
     { inAlphabet = 0, lowercase = 'a', uppercase = 'A' }
 
 
-letterInfos : MultiSet LetterInfo
+letterInfos : KeysSet LetterInfo
 letterInfos =
     empty
         [ unique .lowercase
         , unique .uppercase
         , unique .inAlphabet
         ]
-        |> MultiSet.insert aLetterInfo
-        |> MultiSet.insert { inAlphabet = 1, lowercase = 'b', uppercase = 'B' }
-        |> MultiSet.insert { inAlphabet = 2, lowercase = 'c', uppercase = 'C' }
-        |> MultiSet.insert { inAlphabet = 5, lowercase = 'f', uppercase = 'F' }
-        |> MultiSet.insert { inAlphabet = 10, lowercase = 'k', uppercase = 'K' }
-        |> MultiSet.insert { inAlphabet = 25, lowercase = 'z', uppercase = 'Z' }
+        |> KeysSet.insert aLetterInfo
+        |> KeysSet.insert { inAlphabet = 1, lowercase = 'b', uppercase = 'B' }
+        |> KeysSet.insert { inAlphabet = 2, lowercase = 'c', uppercase = 'C' }
+        |> KeysSet.insert { inAlphabet = 5, lowercase = 'f', uppercase = 'F' }
+        |> KeysSet.insert { inAlphabet = 10, lowercase = 'k', uppercase = 'K' }
+        |> KeysSet.insert { inAlphabet = 25, lowercase = 'z', uppercase = 'Z' }
 
 
 casedLetterByLowercase : Char -> Maybe LetterInfo
 casedLetterByLowercase char =
-    MultiSet.at { unique = .lowercase, key = char } letterInfos
+    KeysSet.at { unique = .lowercase, key = char } letterInfos
 
 
 casedLetterByUppercase : Char -> Maybe LetterInfo
 casedLetterByUppercase char =
-    MultiSet.at { unique = .uppercase, key = char } letterInfos
+    KeysSet.at { unique = .uppercase, key = char } letterInfos
 
 
 casedLetterInAlphabet : Int -> Maybe LetterInfo
 casedLetterInAlphabet inAlphabet =
-    MultiSet.at { unique = .inAlphabet, key = inAlphabet } letterInfos
+    KeysSet.at { unique = .inAlphabet, key = inAlphabet } letterInfos
 
 
 viewOpenCloseBrackets labelText =
@@ -217,12 +217,12 @@ type alias OpenClosedBracket =
     }
 
 
-brackets : MultiSet OpenClosedBracket
+brackets : KeysSet OpenClosedBracket
 brackets =
     empty [ unique .open, unique .closed ]
-        |> MultiSet.insert { open = '(', closed = ')' }
-        |> MultiSet.insert { open = '{', closed = '}' }
-        |> MultiSet.insert { open = '[', closed = ']' }
+        |> KeysSet.insert { open = '(', closed = ')' }
+        |> KeysSet.insert { open = '{', closed = '}' }
+        |> KeysSet.insert { open = '[', closed = ']' }
 
 
 viewTextInput { value, onInput } =

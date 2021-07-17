@@ -1,14 +1,14 @@
-module MultiSetTest exposing (suite)
+module KeysSetTest exposing (suite)
 
 import Expect
-import MultiSet exposing (MultiSet, unique)
+import KeysSet exposing (KeysSet, unique)
 import Serialize
 import Test exposing (Test, describe, test)
 
 
 suite : Test
 suite =
-    describe "MultiSet"
+    describe "KeysSet"
         [ uniquenessTest
         , scanTest
         , insertTest
@@ -20,7 +20,7 @@ suite =
 
 uniquenessTest : Test
 uniquenessTest =
-    describe "MultiSet.Uniqueness"
+    describe "KeysSet.Uniqueness"
         [ describe "unique"
             [ test "equal aspect"
                 (\() ->
@@ -61,22 +61,22 @@ at1 =
     { code = 1, char = 'B' }
 
 
-with2 : MultiSet CharWithCode
+with2 : KeysSet CharWithCode
 with2 =
-    MultiSet.promising
+    KeysSet.promising
         [ unique .code, unique .char ]
-        |> MultiSet.insertAll [ at0, at1 ]
+        |> KeysSet.insertAll [ at0, at1 ]
 
 
 type alias BracketMatch =
     { open : Char, closed : Char }
 
 
-brackets : MultiSet BracketMatch
+brackets : KeysSet BracketMatch
 brackets =
-    MultiSet.promising
+    KeysSet.promising
         [ unique .open, unique .closed ]
-        |> MultiSet.insertAll
+        |> KeysSet.insertAll
             [ { open = '(', closed = ')' }
             , { open = '{', closed = '}' }
             ]
@@ -88,47 +88,47 @@ scanTest =
         [ describe "size"
             [ test "empty"
                 (\() ->
-                    MultiSet.promising
+                    KeysSet.promising
                         [ unique .code, unique .char ]
-                        |> MultiSet.size
+                        |> KeysSet.size
                         |> Expect.equal 0
                 )
             , test "same size as a list of unique elements"
                 (\() ->
                     List.range 0 41
                         |> List.map (\i -> ( i, i ))
-                        |> List.foldl MultiSet.insert
-                            (MultiSet.promising
+                        |> List.foldl KeysSet.insert
+                            (KeysSet.promising
                                 [ unique Tuple.first, unique Tuple.second ]
                             )
-                        |> MultiSet.size
+                        |> KeysSet.size
                         |> Expect.equal 42
                 )
             ]
         , describe "at"
             (let
                 casedLetters =
-                    MultiSet.promising
+                    KeysSet.promising
                         [ unique .lowercase, unique .uppercase ]
-                        |> MultiSet.insertAll
+                        |> KeysSet.insertAll
                             [ { lowercase = 'a', uppercase = 'A' }
                             , { lowercase = 'b', uppercase = 'B' }
                             ]
 
                 lowercase char =
                     casedLetters
-                        |> MultiSet.at .uppercase char
+                        |> KeysSet.at .uppercase char
                         |> Maybe.map .lowercase
 
                 uppercase char =
                     casedLetters
-                        |> MultiSet.at .lowercase char
+                        |> KeysSet.at .lowercase char
                         |> Maybe.map .uppercase
 
                 ratedOperators =
-                    MultiSet.promising
+                    KeysSet.promising
                         [ unique .symbol, unique .name ]
-                        |> MultiSet.insertAll
+                        |> KeysSet.insertAll
                             [ { rating = 0.5, symbol = "<", name = "lt" }
                             , { rating = 0.5, symbol = ">", name = "gt" }
                             ]
@@ -145,7 +145,7 @@ scanTest =
                 )
              , test "finds most recently inserted non-unique"
                 (\() ->
-                    MultiSet.at .rating 0.5 ratedOperators
+                    KeysSet.at .rating 0.5 ratedOperators
                         |> Expect.equal
                             ({ rating = 0.5, symbol = ">", name = "gt" }
                                 |> Just
@@ -157,22 +157,22 @@ scanTest =
             (\() ->
                 let
                     letterCodes =
-                        MultiSet.promising
+                        KeysSet.promising
                             [ unique .letter, unique .code ]
-                            |> MultiSet.insertAll
+                            |> KeysSet.insertAll
                                 [ { letter = 'a', code = 97 }
                                 , { letter = 'b', code = 98 }
                                 ]
 
                     fancyCompetingLetterCodes =
-                        MultiSet.promising
+                        KeysSet.promising
                             [ unique .code, unique .letter ]
-                            |> MultiSet.insertAll
+                            |> KeysSet.insertAll
                                 [ { code = 98, letter = 'b' }
                                 , { code = 97, letter = 'a' }
                                 ]
                 in
-                MultiSet.equal letterCodes
+                KeysSet.equal letterCodes
                     fancyCompetingLetterCodes
                     |> Expect.true "from reversed list equal to before"
             )
@@ -181,11 +181,11 @@ scanTest =
                 (\() ->
                     let
                         isEmpty =
-                            List.isEmpty << MultiSet.toList
+                            List.isEmpty << KeysSet.toList
                     in
                     Expect.true "isEmpty for filled False, ifEmpty True"
                         (isEmpty
-                            (MultiSet.promising
+                            (KeysSet.promising
                                 [ unique .code, unique .char ]
                             )
                             && not (isEmpty with2)
@@ -195,12 +195,12 @@ scanTest =
                 (\() ->
                     let
                         mostRecentlyInserted =
-                            List.head << MultiSet.toList
+                            List.head << KeysSet.toList
                     in
                     mostRecentlyInserted
-                        (MultiSet.promising
+                        (KeysSet.promising
                             [ unique .lowercase, unique .uppercase ]
-                            |> MultiSet.insertAll
+                            |> KeysSet.insertAll
                                 [ { lowercase = 'a', uppercase = 'A' }
                                 , { lowercase = 'b', uppercase = 'B' }
                                 ]
@@ -213,31 +213,31 @@ scanTest =
             ]
         , test "any"
             (\() ->
-                MultiSet.promising
+                KeysSet.promising
                     [ unique .username, unique .email ]
-                    |> MultiSet.insertAll
+                    |> KeysSet.insertAll
                         [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
                         , { username = "gria", priority = 3, email = "miggo@inlook.com" }
                         ]
-                    |> MultiSet.any (\user -> user.priority > 4)
+                    |> KeysSet.any (\user -> user.priority > 4)
                     |> Expect.equal False
             )
         , test "all"
             (\() ->
-                MultiSet.promising
+                KeysSet.promising
                     [ unique .username, unique .email ]
-                    |> MultiSet.insertAll
+                    |> KeysSet.insertAll
                         [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
                         , { username = "gria", priority = 3, email = "miggo@inlook.com" }
                         ]
-                    |> MultiSet.all (\user -> user.priority < 4)
+                    |> KeysSet.all (\user -> user.priority < 4)
                     |> Expect.equal True
             )
         , let
             letters =
-                MultiSet.promising
+                KeysSet.promising
                     [ unique .lowercase, unique .uppercase ]
-                    |> MultiSet.insertAll
+                    |> KeysSet.insertAll
                         [ { lowercase = 'a', uppercase = 'A' }
                         , { lowercase = 'b', uppercase = 'B' }
                         ]
@@ -246,11 +246,11 @@ scanTest =
             [ test "not unique"
                 (\() ->
                     Expect.all
-                        [ MultiSet.isUnique
+                        [ KeysSet.isUnique
                             { lowercase = 'b', uppercase = 'C' }
                             -- the .lowercase already exists
                             >> Expect.equal False
-                        , MultiSet.isUnique
+                        , KeysSet.isUnique
                             { lowercase = 'c', uppercase = 'A' }
                             -- the .uppercase already exists
                             >> Expect.equal False
@@ -260,7 +260,7 @@ scanTest =
             , test "unique"
                 (\() ->
                     letters
-                        |> MultiSet.isUnique
+                        |> KeysSet.isUnique
                             { lowercase = 'c', uppercase = 'C' }
                         |> Expect.equal True
                 )
@@ -273,42 +273,42 @@ insertTest =
     describe "insert and insertAll"
         [ test "ignored for duplicates"
             (\() ->
-                MultiSet.size
+                KeysSet.size
                     (with2
-                        |> MultiSet.insert at0
-                        |> MultiSet.insert at1
+                        |> KeysSet.insert at0
+                        |> KeysSet.insert at1
                     )
                     |> Expect.equal 2
             )
         , test "access code is Just letter of inserted pair"
             (\() ->
-                MultiSet.promising [ unique .code, unique .char ]
-                    |> MultiSet.insert at1
-                    |> MultiSet.at .code at1.code
+                KeysSet.promising [ unique .code, unique .char ]
+                    |> KeysSet.insert at1
+                    |> KeysSet.at .code at1.code
                     |> Maybe.map .char
                     |> Expect.equal (Just at1.char)
             )
         , test "code is Nothing if not of inserted pair"
             (\() ->
-                MultiSet.promising [ unique .code, unique .char ]
-                    |> MultiSet.insert at1
-                    |> MultiSet.at .code at0.code
+                KeysSet.promising [ unique .code, unique .char ]
+                    |> KeysSet.insert at1
+                    |> KeysSet.at .code at0.code
                     |> Maybe.map .char
                     |> Expect.equal Nothing
             )
         , test "char is Just left of inserted pair"
             (\() ->
-                MultiSet.promising [ unique .code, unique .char ]
-                    |> MultiSet.insert at1
-                    |> MultiSet.at .char at1.char
+                KeysSet.promising [ unique .code, unique .char ]
+                    |> KeysSet.insert at1
+                    |> KeysSet.at .char at1.char
                     |> Maybe.map .code
                     |> Expect.equal (Just at1.code)
             )
         , test "char is Nothing if not of inserted pair"
             (\() ->
-                MultiSet.promising [ unique .code, unique .char ]
-                    |> MultiSet.insert at1
-                    |> MultiSet.at .char at0.char
+                KeysSet.promising [ unique .code, unique .char ]
+                    |> KeysSet.insert at1
+                    |> KeysSet.at .char at0.char
                     |> Maybe.map .code
                     |> Expect.equal Nothing
             )
@@ -316,9 +316,9 @@ insertTest =
             (\() ->
                 let
                     result =
-                        MultiSet.promising
+                        KeysSet.promising
                             [ unique .lowercase, unique .uppercase ]
-                            |> MultiSet.insertAll
+                            |> KeysSet.insertAll
                                 [ { lowercase = 'b', uppercase = 'B', rating = 0.5 }
                                 , { lowercase = 'a', uppercase = 'A', rating = 0.5 }
                                 , { lowercase = 'b', uppercase = 'C', rating = 0 }
@@ -326,10 +326,10 @@ insertTest =
                                 , { lowercase = 'c', uppercase = 'C', rating = 0.6 }
                                 ]
                 in
-                MultiSet.equal result
-                    (MultiSet.promising
+                KeysSet.equal result
+                    (KeysSet.promising
                         [ unique .lowercase, unique .uppercase ]
-                        |> MultiSet.insertAll
+                        |> KeysSet.insertAll
                             [ { lowercase = 'c', uppercase = 'C', rating = 0.6 }
                             , { lowercase = 'b', uppercase = 'B', rating = 0.5 }
                             , { lowercase = 'a', uppercase = 'A', rating = 0.5 }
@@ -344,9 +344,9 @@ removeTest : Test
 removeTest =
     let
         openClosedBrackets =
-            MultiSet.promising
+            KeysSet.promising
                 [ unique .open, unique .closed ]
-                |> MultiSet.insert
+                |> KeysSet.insert
                     { open = "(", closed = ")" }
     in
     describe "take elements out"
@@ -354,42 +354,42 @@ removeTest =
             [ test "insert |> remove code leaves it unchanged"
                 (\() ->
                     with2
-                        |> MultiSet.insert { code = 2, char = 'C' }
-                        |> MultiSet.remove .code 2
+                        |> KeysSet.insert { code = 2, char = 'C' }
+                        |> KeysSet.remove .code 2
                         |> Expect.equal with2
                 )
             , test "insert |> remove char leaves it unchanged"
                 (\() ->
                     with2
-                        |> MultiSet.insert { code = 2, char = 'C' }
-                        |> MultiSet.remove .char 'C'
+                        |> KeysSet.insert { code = 2, char = 'C' }
+                        |> KeysSet.remove .char 'C'
                         |> Expect.equal with2
                 )
             , test "nothing to remove"
                 (\() ->
                     openClosedBrackets
-                        |> MultiSet.remove .open ")"
+                        |> KeysSet.remove .open ")"
                         --> no change, .open is never ")"
                         |> Expect.equal openClosedBrackets
                 )
             , test "something to remove"
                 (\() ->
                     openClosedBrackets
-                        |> MultiSet.remove .closed ")"
-                        |> MultiSet.toList
+                        |> KeysSet.remove .closed ")"
+                        |> KeysSet.toList
                         |> Expect.equalLists []
                 )
             , test "non-unique aspect"
                 (\() ->
-                    MultiSet.promising
+                    KeysSet.promising
                         [ unique .open, unique .closed ]
-                        |> MultiSet.insertAll
+                        |> KeysSet.insertAll
                             [ { open = "[", closed = "]", meaning = List }
                             , { open = "<", closed = ">", meaning = Custom }
                             , { open = "\\", closed = "/", meaning = Custom }
                             ]
-                        |> MultiSet.remove .meaning Custom
-                        |> MultiSet.toList
+                        |> KeysSet.remove .meaning Custom
+                        |> KeysSet.toList
                         |> Expect.equalLists
                             [ { open = "[", closed = "]", meaning = List }
                             ]
@@ -397,9 +397,9 @@ removeTest =
             ]
         , let
             operators =
-                MultiSet.promising
+                KeysSet.promising
                     [ unique .symbol, unique .name ]
-                    |> MultiSet.insertAll
+                    |> KeysSet.insertAll
                         [ { symbol = ">", name = "gt" }
                         , { symbol = "<", name = "lt" }
                         , { symbol = "==", name = "eq" }
@@ -408,12 +408,12 @@ removeTest =
           test "when"
             (\() ->
                 operators
-                    |> MultiSet.when
+                    |> KeysSet.when
                         (.symbol >> String.length >> (==) 1)
-                    |> MultiSet.equal
-                        (MultiSet.promising
+                    |> KeysSet.equal
+                        (KeysSet.promising
                             [ unique .symbol, unique .name ]
-                            |> MultiSet.insertAll
+                            |> KeysSet.insertAll
                                 [ { symbol = ">", name = "gt" }
                                 , { symbol = "<", name = "lt" }
                                 ]
@@ -436,7 +436,7 @@ transformTest =
                 let
                     openingAndClosing =
                         brackets
-                            |> MultiSet.fold
+                            |> KeysSet.fold
                                 (\{ open, closed } ->
                                     (::) (String.fromList [ open, closed ])
                                 )
@@ -463,8 +463,8 @@ serializeTest =
                 |> Serialize.field .code Serialize.int
                 |> Serialize.finishRecord
 
-        serializeCharWithCodeMultiSet =
-            MultiSet.serialize serializeCharWithCode
+        serializeCharWithCodeKeysSet =
+            KeysSet.serialize serializeCharWithCode
                 [ unique .code, unique .char ]
     in
     test "json encoded & decoded is the same"
@@ -472,15 +472,15 @@ serializeTest =
             let
                 encodedDecoded =
                     Serialize.encodeToJson
-                        serializeCharWithCodeMultiSet
+                        serializeCharWithCodeKeysSet
                         with2
                         |> Serialize.decodeFromJson
-                            serializeCharWithCodeMultiSet
+                            serializeCharWithCodeKeysSet
             in
             case encodedDecoded of
                 Ok decoded ->
                     Expect.true "encoded |> decoded equal to before"
-                        (MultiSet.equal decoded with2)
+                        (KeysSet.equal decoded with2)
 
                 Err err ->
                     -- too lazy to case on import Serialize.Error(..)
@@ -495,7 +495,7 @@ readmeExamplesTest =
             (\() ->
                 let
                     typeChar char =
-                        brackets |> MultiSet.at .open char |> Maybe.map (\{ closed } -> String.fromList [ char, closed ]) |> Maybe.withDefault (brackets |> MultiSet.at .closed char |> Maybe.map (\{ open } -> String.fromList [ open, char ]) |> Maybe.withDefault (String.fromChar char))
+                        brackets |> KeysSet.at .open char |> Maybe.map (\{ closed } -> String.fromList [ char, closed ]) |> Maybe.withDefault (brackets |> KeysSet.at .closed char |> Maybe.map (\{ open } -> String.fromList [ open, char ]) |> Maybe.withDefault (String.fromChar char))
                 in
                 Expect.equal ([ '(', '}' ] |> List.map typeChar)
                     [ "()", "{}" ]
@@ -504,15 +504,15 @@ readmeExamplesTest =
             (\() ->
                 let
                     lowerUppercaseLetters =
-                        MultiSet.promising [ unique .lowercase, unique .uppercase ]
-                            |> MultiSet.insertAll
+                        KeysSet.promising [ unique .lowercase, unique .uppercase ]
+                            |> KeysSet.insertAll
                                 [ { lowercase = 'a', uppercase = 'A' }
                                 , { lowercase = 'b', uppercase = 'B' }
                                 , { lowercase = 'c', uppercase = 'C' }
                                 ]
 
                     upperCase char =
-                        lowerUppercaseLetters |> MultiSet.at .lowercase char |> Maybe.map .uppercase
+                        lowerUppercaseLetters |> KeysSet.at .lowercase char |> Maybe.map .uppercase
                 in
                 Expect.equal ([ 'c', 'a', 'x' ] |> List.map upperCase)
                     [ Just 'C', Just 'A', Nothing ]
@@ -521,15 +521,15 @@ readmeExamplesTest =
             (\() ->
                 let
                     elements =
-                        MultiSet.promising [ unique .atomicNumber, unique .symbol ]
-                            |> MultiSet.insertAll
+                        KeysSet.promising [ unique .atomicNumber, unique .symbol ]
+                            |> KeysSet.insertAll
                                 [ { symbol = "H", name = "Hydrogen", atomicNumber = 1 }
                                 , { symbol = "He", name = "Helium", atomicNumber = 2 }
                                 ]
 
                     atomicNumberOfElementWithName : String -> Maybe Int
                     atomicNumberOfElementWithName name =
-                        elements |> MultiSet.at .name name |> Maybe.map .atomicNumber
+                        elements |> KeysSet.at .name name |> Maybe.map .atomicNumber
                 in
                 [ atomicNumberOfElementWithName "Helium"
                 , atomicNumberOfElementWithName "Hydrogen"

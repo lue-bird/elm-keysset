@@ -1,5 +1,5 @@
-module MultiSet exposing
-    ( MultiSet
+module KeysSet exposing
+    ( KeysSet
     , promising
     , Uniqueness, unique
     , equal, isEmpty, at, size, isUnique, all, any
@@ -10,7 +10,7 @@ module MultiSet exposing
 
 {-|
 
-@docs MultiSet
+@docs KeysSet
 
 
 ## create
@@ -52,9 +52,9 @@ import Util exposing (aspect, equalIgnoringOrder, firstWhere)
 {-| Unsorted data structure that lets you specify aspects that are checked to be unique across all elements.
 
     countries =
-        MultiSet.promising
+        KeysSet.promising
             [ unique .flag, unique .code ]
-            |> MultiSet.insertAll
+            |> KeysSet.insertAll
                 [ { flag = "🇦🇺", code = "AU", name = "Australia" }
                 , { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
                 , { flag = "🇱🇧", code = "LB", name = "Lebanon" }
@@ -62,15 +62,15 @@ import Util exposing (aspect, equalIgnoringOrder, firstWhere)
 
 If you have a key and the aspect to check if it matches, you can find the matching element:
 
-    MultiSet.at .flag "🇦🇶" countries
+    KeysSet.at .flag "🇦🇶" countries
     --> Just { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
 
-    MultiSet.at .code "LB" countries
+    KeysSet.at .code "LB" countries
     --> Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 
 -}
-type alias MultiSet element =
-    Typed Checked MultiSetTag Internal (ElementsWithUniquenessPromises element)
+type alias KeysSet element =
+    Typed Checked KeysSetTag Internal (ElementsWithUniquenessPromises element)
 
 
 type alias ElementsWithUniquenessPromises element =
@@ -79,11 +79,11 @@ type alias ElementsWithUniquenessPromises element =
 
 {-| **Should not be exposed.**
 -}
-type MultiSetTag
-    = MultiSet
+type KeysSetTag
+    = KeysSet
 
 
-{-| Check 2 elements if they are equal in a specified aspect. See [unique](MultiSet#unique)
+{-| Check 2 elements if they are equal in a specified aspect. See [unique](KeysSet#unique)
 
     uniqueInCasedLetter =
         [ unique .inAlphabet
@@ -91,10 +91,10 @@ type MultiSetTag
         , unique .uppercase
         ]
 
-    MultiSet.promising uniqueInCasedLetter
-        |> MultiSet.insert
+    KeysSet.promising uniqueInCasedLetter
+        |> KeysSet.insert
             { inAlphabet = 0, lowercase = 'a', uppercase = 'A' }
-        |> MultiSet.insert
+        |> KeysSet.insert
             { inAlphabet = 0, lowercase = 'b', uppercase = 'B' }
         --> isn't inserted. There's already an element where .inAlphabet is 0.
 
@@ -120,12 +120,12 @@ type alias Uniqueness element =
         { lastName = "jimmy", firstName = "greg", ... }
     --> { areUnique = True }
 
-in `MultiSet`
+in `KeysSet`
 
-    MultiSet.promising [ unique .email ]
-        |> MultiSet.insert
+    KeysSet.promising [ unique .email ]
+        |> KeysSet.insert
             { username = "ben", email = "ben10@gmx.de" }
-        |> MultiSet.insert
+        |> KeysSet.insert
             { username = "mai", email = "ben10@gmx.de" }
         --> is not inserted.
         --> There's already an element where .email is "ben10@gmx.de"
@@ -136,14 +136,14 @@ unique aspect =
     \a b -> { areUnique = aspect a /= aspect b }
 
 
-{-| A `MultiSet` with no elements inside,
+{-| A `KeysSet` with no elements inside,
 promising that given aspects are unique across all elements.
-See [`Uniqueness`](MultiSet#Uniqueness)
+See [`Uniqueness`](KeysSet#Uniqueness)
 
-    MultiSet.promising [ unique .email ]
-        |> MultiSet.insert
+    KeysSet.promising [ unique .email ]
+        |> KeysSet.insert
             { username = "ben", email = "ben10@gmx.de" }
-        |> MultiSet.insert
+        |> KeysSet.insert
             { username = "mai", email = "ben10@gmx.de" }
         --> is not inserted.
         --> There's already an element where .email is "ben10@gmx.de"
@@ -152,37 +152,37 @@ Elements that are inserted must **not** contain **functions, json or regexes**.
 Elm will crash trying to see if they are equal.
 
 -}
-promising : List (Uniqueness element) -> MultiSet element
+promising : List (Uniqueness element) -> KeysSet element
 promising uniqueness_ =
     { uniqueness = uniqueness_, elements = [] }
         |> tag
-        |> isChecked MultiSet
+        |> isChecked KeysSet
 
 
-{-| How can you know if each element in `aMultiSet` can also be found in `bMultiSet`?
+{-| How can you know if each element in `aKeysSet` can also be found in `bKeysSet`?
 
     letterCodes =
-        MultiSet.insertAll
+        KeysSet.insertAll
             [ { letter = 'a', code = 97 }
             , { letter = 'b', code = 98 }
             ]
-            (MultiSet.promising
+            (KeysSet.promising
                 [ unique .letter, unique .code ]
             )
 
     fancyCompetingLetterCodes =
-        MultiSet.promising
+        KeysSet.promising
             [ unique .code, unique .letter ]
-            |> MultiSet.insert { code = 98, letter = 'b' }
-            |> MultiSet.insert { code = 97, letter = 'a' }
+            |> KeysSet.insert { code = 98, letter = 'b' }
+            |> KeysSet.insert { code = 97, letter = 'a' }
 
     letterCodes == fancyCompetingLetterCodes
     --> elm crashes
 
-Because a `MultiSet`'s `Uniqueness` is defined as functions.
+Because a `KeysSet`'s `Uniqueness` is defined as functions.
 
-    MultiSet.toList letterCodes
-    == MultiSet.toList fancyCompetingLetterCodes
+    KeysSet.toList letterCodes
+    == KeysSet.toList fancyCompetingLetterCodes
     --> False
 
 Even though both contain the same elements but in a different order.
@@ -190,22 +190,22 @@ Even though both contain the same elements but in a different order.
 
 ### take away
 
-> Don't use `==` to compare `MultiSet`s
+> Don't use `==` to compare `KeysSet`s
 
 > The keys can be non-comparable. There is no obvious order.
 > → You shouldn't rely on order when using functions like `fold` or `toList`.
 
 Instead, use
 
-    MultiSet.equal
+    KeysSet.equal
         letterCodes
         fancyCompetingLetterCodes
     --> True
 
 -}
 equal :
-    MultiSet element
-    -> MultiSet element
+    KeysSet element
+    -> KeysSet element
     -> Bool
 equal =
     aspect toList equalIgnoringOrder
@@ -214,35 +214,35 @@ equal =
 {-| Try to find an element where a given aspect of it matches a given value.
 
     casedLetters =
-        MultiSet.promising
+        KeysSet.promising
             [ unique .lowercase, unique .uppercase ]
-            |> MultiSet.insertAll
+            |> KeysSet.insertAll
                 [ { lowercase = 'a', uppercase = 'A' }
                 , { lowercase = 'b', uppercase = 'B' }
                 ]
 
     lowercase char =
         casedLetters
-            |> MultiSet.at .uppercase char
+            |> KeysSet.at .uppercase char
             |> Maybe.map .lowercase
 
     uppercase char =
         casedLetters
-            |> MultiSet.at .lowercase char
+            |> KeysSet.at .lowercase char
             |> Maybe.map .uppercase
 
 If the given aspect isn't promised to be unique,
 `at` will find the most recently inserted element where the given aspect matches the given value.
 
     ratedOperators =
-        MultiSet.promising
+        KeysSet.promising
             [ unique .symbol, unique .name ]
-            |> MultiSet.insertAll
+            |> KeysSet.insertAll
                 [ { rating = 0.5, symbol = "<", name = "lt" }
                 , { rating = 0.5, symbol = ">", name = "gt" }
                 ]
 
-    MultiSet.at .rating 0.5 ratedOperators
+    KeysSet.at .rating 0.5 ratedOperators
     --> { rating = 0.5, symbol = ">", name = "gt" }
     -->     |> Just
 
@@ -250,72 +250,72 @@ If the given aspect isn't promised to be unique,
 at :
     (element -> aspect)
     -> aspect
-    -> MultiSet element
+    -> KeysSet element
     -> Maybe element
 at accessAspect keyToFind =
     toList >> firstWhere (accessAspect >> (==) keyToFind)
 
 
-{-| Conveniently insert a list of elements. See [insert](MultiSet#insert).
+{-| Conveniently insert a list of elements. See [insert](KeysSet#insert).
 
-    MultiSet.promising
+    KeysSet.promising
         [ unique .open, unique .closed ]
-        |> MultiSet.insertAll
+        |> KeysSet.insertAll
             [ { open = '(', closed = ')' }
             , { open = '{', closed = '}' }
             ]
-    --> MultiSet.promising [ unique .open, unique .closed ]
-    -->     |> MultiSet.insert { open = '(', closed = ')' }
-    -->     |> MultiSet.insert { open = '{', closed = '}' }
+    --> KeysSet.promising [ unique .open, unique .closed ]
+    -->     |> KeysSet.insert { open = '(', closed = ')' }
+    -->     |> KeysSet.insert { open = '{', closed = '}' }
 
 -}
 insertAll :
     List element
-    -> MultiSet element
-    -> MultiSet element
+    -> KeysSet element
+    -> KeysSet element
 insertAll listOfElementsToInsert =
-    \multiSet ->
+    \keysSet ->
         List.foldl insert
-            multiSet
+            keysSet
             listOfElementsToInsert
 
 
 {-| How many elements there are.
 
-    MultiSet.promising
+    KeysSet.promising
         [ unique .number, unique .following ]
-        |> MultiSet.insertAll
+        |> KeysSet.insertAll
             (List.map
                 (\i -> { number = i, following = i + 1 })
                 (List.range 0 41)
             )
-        |> MultiSet.size
+        |> KeysSet.size
     --> 42
 
 -}
-size : MultiSet element_ -> Int
+size : KeysSet element_ -> Int
 size =
     toList >> List.length
 
 
 {-| Whether there are no elements inside.
 
-    MultiSet.promising [ unique .name ]
-        |> MultiSet.isEmpty
+    KeysSet.promising [ unique .name ]
+        |> KeysSet.isEmpty
     --> True
 
-    MultiSet.promising [ unique .name ]
-        |> MultiSet.insertAll []
-        |> MultiSet.isEmpty
+    KeysSet.promising [ unique .name ]
+        |> KeysSet.insertAll []
+        |> KeysSet.isEmpty
     --> True
 
-    MultiSet.promising [ unique .name ]
-        |> MultiSet.insert { name = "pete" }
-        |> MultiSet.isEmpty
+    KeysSet.promising [ unique .name ]
+        |> KeysSet.insert { name = "pete" }
+        |> KeysSet.isEmpty
     --> False
 
 -}
-isEmpty : MultiSet element_ -> Bool
+isEmpty : KeysSet element_ -> Bool
 isEmpty =
     toList >> List.isEmpty
 
@@ -323,38 +323,38 @@ isEmpty =
 {-| Whether this element is considered unique / would it be inserted.
 
     letters =
-        MultiSet.promising
+        KeysSet.promising
             [ unique .lowercase, unique .uppercase ]
-            |> MultiSet.insertAll
+            |> KeysSet.insertAll
                 [ { lowercase = 'a', uppercase = 'A' }
                 , { lowercase = 'b', uppercase = 'B' }
                 ]
 
     letters
-        |> MultiSet.isUnique
+        |> KeysSet.isUnique
             { lowercase = 'b', uppercase = 'C' }
         -- the .lowercase already exists
     --> False
 
     letters
-        |> MultiSet.isUnique
+        |> KeysSet.isUnique
             { lowercase = 'c', uppercase = 'A' }
         -- the .uppercase already exists
     --> False
 
     letters
-        |> MultiSet.isUnique
+        |> KeysSet.isUnique
             { lowercase = 'c', uppercase = 'C' }
     --> True
 
 -}
-isUnique : element -> MultiSet element -> Bool
+isUnique : element -> KeysSet element -> Bool
 isUnique element =
-    \multiSet ->
-        uniqueness multiSet
+    \keysSet ->
+        uniqueness keysSet
             |> List.any
                 (\unique_ ->
-                    multiSet
+                    keysSet
                         |> any
                             (\bElement ->
                                 not (unique_ element bElement).areUnique
@@ -365,113 +365,113 @@ isUnique element =
 
 {-| Whether there is least one element that passes a test.
 
-    MultiSet.promising
+    KeysSet.promising
         [ unique .username, unique .email ]
-        |> MultiSet.insertAll
+        |> KeysSet.insertAll
             [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
             , { username = "gria", priority = 3, email = "miggo@inlook.com" }
             ]
-        |> MultiSet.any (\user -> user.priority > 4)
+        |> KeysSet.any (\user -> user.priority > 4)
     --> False
 
     member needle =
-        MultiSet.any ((==) needle)
+        KeysSet.any ((==) needle)
 
 -}
-any : (element -> Bool) -> MultiSet element -> Bool
+any : (element -> Bool) -> KeysSet element -> Bool
 any isOkay =
     toList >> List.any isOkay
 
 
 {-| Whether all elements pass a test.
 
-    MultiSet.promising
+    KeysSet.promising
         [ unique .username, unique .email ]
-        |> MultiSet.insertAll
+        |> KeysSet.insertAll
             [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
             , { username = "gria", priority = 3, email = "miggo@inlook.com" }
             ]
-        |> MultiSet.all (\user -> user.priority < 4)
+        |> KeysSet.all (\user -> user.priority < 4)
     --> True
 
 -}
-all : (element -> Bool) -> MultiSet element -> Bool
+all : (element -> Bool) -> KeysSet element -> Bool
 all isOkay =
     toList >> List.all isOkay
 
 
-{-| Put an element into `MultiSet`.
+{-| Put an element into `KeysSet`.
 
-If there is already an element with the same **key** is already **present**, (see `Uniqueness`), the `MultiSet` remains **unchanged**.
+If there is already an element with the same **key** is already **present**, (see `Uniqueness`), the `KeysSet` remains **unchanged**.
 
-    MultiSet.promising
+    KeysSet.promising
         [ unique .lowercase, unique .uppercase ]
-        |> MultiSet.insert
+        |> KeysSet.insert
             { lowercase = 'b', uppercase = 'B', rating = 0.5 }
             --> is inserted
-        |> MultiSet.insert
+        |> KeysSet.insert
             { lowercase = 'a', uppercase = 'A', rating = 0.5 }
             --> is inserted. .rating is not specified as unique
-        |> MultiSet.insert
+        |> KeysSet.insert
             { lowercase = 'b', uppercase = 'C', rating = 0 }
             --> is ignored. .lowercase 'b' already exists
-        |> MultiSet.insert
+        |> KeysSet.insert
             { lowercase = 'c', uppercase = 'A', rating = 0 }
             --> is ignored, .uppercase 'A' already exists
-        |> MultiSet.insert
+        |> KeysSet.insert
             { lowercase = 'c', uppercase = 'C', rating = 0.6 }
             --> is inserted
 
 -}
 insert :
     element
-    -> MultiSet element
-    -> MultiSet element
+    -> KeysSet element
+    -> KeysSet element
 insert element =
-    \multiSet ->
-        if isUnique element multiSet then
-            updateElements ((::) element) multiSet
+    \keysSet ->
+        if isUnique element keysSet then
+            updateElements ((::) element) keysSet
 
         else
-            multiSet
+            keysSet
 
 
 updateElements :
     (List element -> List element)
-    -> MultiSet element
-    -> MultiSet element
+    -> KeysSet element
+    -> KeysSet element
 updateElements change =
     Typed.map
-        (\multiSet ->
-            { multiSet
+        (\keysSet ->
+            { keysSet
                 | elements =
-                    change multiSet.elements
+                    change keysSet.elements
             }
         )
-        >> isChecked MultiSet
+        >> isChecked KeysSet
 
 
 {-| Change the element with the matching aspect based on its current value.
 
-    MultiSet.promising
+    KeysSet.promising
         [ unique .username, unique .email ]
-        |> MultiSet.insertAll
+        |> KeysSet.insertAll
             [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
             , { username = "gria", priority = 3, email = "miggo@inlook.com" }
             ]
-        |> MultiSet.update
+        |> KeysSet.update
             .username
             "fred"
             (\user -> { user | priority = p.priority + 3 })
 
 If this aspect isn't unique, all elements with the matching aspect are updated.
 
-    MultiSet.promising [ unique .email ]
-        |> MultiSet.insertAll
+    KeysSet.promising [ unique .email ]
+        |> KeysSet.insertAll
             [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
             , { username = "fred", priority = 3, email = "miggo@inlook.com" }
             ]
-        |> MultiSet.update
+        |> KeysSet.update
             .username
             "fred"
             (\user -> { user | priority = p.priority + 3 })
@@ -479,10 +479,10 @@ If this aspect isn't unique, all elements with the matching aspect are updated.
 Every fred gets a higher priority!
 
 -}
-update : (a -> b) -> b -> (a -> a) -> MultiSet a -> MultiSet a
+update : (a -> b) -> b -> (a -> a) -> KeysSet a -> KeysSet a
 update aspect match change =
-    \multiSet ->
-        multiSet
+    \keysSet ->
+        keysSet
             |> updateAll
                 (\el ->
                     if aspect el == match then
@@ -501,16 +501,16 @@ update aspect match change =
 
 
     brackets =
-        MultiSet.promising
+        KeysSet.promising
             [ unique .open, unique .closed ]
-            |> MultiSet.insertAll
+            |> KeysSet.insertAll
                 [ { open = '(', closed = ')' }
                 , { open = '{', closed = '}' }
                 ]
 
     openingAndClosing =
         brackets
-            |> MultiSet.fold
+            |> KeysSet.fold
                 (\{ open, closed } ->
                     (::) (String.fromList [ open, closed ])
                 )
@@ -524,51 +524,51 @@ update aspect match change =
 fold :
     (element -> acc -> acc)
     -> acc
-    -> MultiSet element
+    -> KeysSet element
     -> acc
 fold reduce initial =
     toList >> List.foldl reduce initial
 
 
 {-| Remove the element where `unique` of the element matches the `key`.
-If **the key does not exist**, the `MultiSet` is **unchanged**
+If **the key does not exist**, the `KeysSet` is **unchanged**
 
     openClosedBrackets =
-        MultiSet.promising
+        KeysSet.promising
             [ unique .open, unique .closed ]
-            |> MultiSet.insert
+            |> KeysSet.insert
                 { open = "(", closed = ")" }
 
     openClosedBrackets
-        |> MultiSet.remove .open ")"
+        |> KeysSet.remove .open ")"
         --> no change, .open is never ")"
 
     openClosedBrackets
-        |> MultiSet.remove .closed ")"
+        |> KeysSet.remove .closed ")"
         --> removes { open = "(", closed = ")" }
 
 If there the checked aspect isn't promised to be unique, `remove` acts as a filter.
 
-    MultiSet.promising
+    KeysSet.promising
         [ unique .open, unique .closed ]
-        |> MultiSet.insertAll
+        |> KeysSet.insertAll
             [ { open = "[", closed = "]", meaning = List }
             , { open = "<", closed = ">", meaning = Custom }
             , { open = "\\", closed = "/", meaning = Custom }
             ]
-        |> MultiSet.remove .meaning Custom
+        |> KeysSet.remove .meaning Custom
 
-    --> MultiSet.promising
+    --> KeysSet.promising
     -->     [ unique .open, unique .closed ]
-    -->     |> MultiSet.insert
+    -->     |> KeysSet.insert
     -->         { open = "[", closed = "]", meaning = List }
 
 -}
 remove :
     (element -> aspect)
     -> aspect
-    -> MultiSet element
-    -> MultiSet element
+    -> KeysSet element
+    -> KeysSet element
 remove aspect key =
     updateElements
         (List.filter
@@ -580,9 +580,9 @@ remove aspect key =
 
 
     operators =
-        MultiSet.promising
+        KeysSet.promising
             [ unique .symbol, unique .name ]
-            |> MultiSet.insertAll
+            |> KeysSet.insertAll
                 [ { symbol = ">", name = "gt" }
                 , { symbol = "<", name = "lt" }
                 , { symbol = "==", name = "eq" }
@@ -590,18 +590,18 @@ remove aspect key =
 
     singleCharOperators =
         operators
-            |> MultiSet.when
+            |> KeysSet.when
                 (.symbol >> String.length >> (==) 1)
 
-    --> MultiSet.promising
+    --> KeysSet.promising
     -->     [ unique .symbol, unique .name ]
-    -->     |> MultiSet.insertAll
+    -->     |> KeysSet.insertAll
     -->         [ { symbol = ">", name = "gt" }
     -->         , { symbol = "<", name = "lt" }
     -->         ]
 
 -}
-when : (element -> Bool) -> MultiSet element -> MultiSet element
+when : (element -> Bool) -> KeysSet element -> KeysSet element
 when isGood =
     updateElements (List.filter isGood)
 
@@ -613,70 +613,70 @@ when isGood =
 > → You shouldn't rely on order when using functions like `fold` or `toList`.
 
     mostRecentlyInserted =
-        List.head << MultiSet.toList
+        List.head << KeysSet.toList
 
 -}
-toList : MultiSet element -> List element
+toList : KeysSet element -> List element
 toList =
-    internalVal MultiSet >> .elements
+    internalVal KeysSet >> .elements
 
 
-uniqueness : MultiSet element -> List (Uniqueness element)
+uniqueness : KeysSet element -> List (Uniqueness element)
 uniqueness =
-    internalVal MultiSet >> .uniqueness
+    internalVal KeysSet >> .uniqueness
 
 
 {-| Alter every element based on its current value.
 
     digitNames =
-        MultiSet.promising
+        KeysSet.promising
             [ unique .number, unique .name ]
-            |> MultiSet.insertAll
+            |> KeysSet.insertAll
                 [ { number = 0, name = "zero" }
                 , { number = 1, name = "one" }
                 ]
 
     mathSymbolNames =
         digitNames
-            |> MultiSet.map
+            |> KeysSet.map
                 (\{ number, name } ->
                     { symbol = String.fromInt number, name = name }
                 )
                 [ unique .symbol, unique .name ]
-            |> MultiSet.insert { symbol = "+", name = "plus" }
+            |> KeysSet.insert { symbol = "+", name = "plus" }
 
 -}
 map :
     (element -> mappedElement)
     -> List (Uniqueness mappedElement)
-    -> MultiSet element
-    -> MultiSet mappedElement
+    -> KeysSet element
+    -> KeysSet mappedElement
 map alter uniquenessOfMappedElement =
-    \multiSet ->
-        multiSet
+    \keysSet ->
+        keysSet
             |> fold (alter >> insert)
                 (promising uniquenessOfMappedElement)
 
 
 {-| Alter every element based on its current value.
 
-Use [`map`](MultiSet#map) if your function changes the type of the element.
+Use [`map`](KeysSet#map) if your function changes the type of the element.
 
 -}
 updateAll :
     (element -> element)
-    -> MultiSet element
-    -> MultiSet element
+    -> KeysSet element
+    -> KeysSet element
 updateAll alter =
-    \multiSet ->
-        multiSet
-            |> map alter (uniqueness multiSet)
+    \keysSet ->
+        keysSet
+            |> map alter (uniqueness keysSet)
 
 
-{-| A [Codec](https://package.elm-lang.org/packages/MartinSStewart/elm-serialize/latest/Serialize) to serialize a `MultiSet`.
+{-| A [Codec](https://package.elm-lang.org/packages/MartinSStewart/elm-serialize/latest/Serialize) to serialize a `KeysSet`.
 
-    serializeUserMultiSet =
-        MultiSet.serialze serializeUser
+    serializeUserKeysSet =
+        KeysSet.serialze serializeUser
             [ unique .number, unique .name ]
 
     type alias User =
@@ -695,7 +695,7 @@ updateAll alter =
 serialize :
     Codec customError element
     -> List (Uniqueness element)
-    -> Codec customError (MultiSet element)
+    -> Codec customError (KeysSet element)
 serialize serializeElement uniqueness_ =
     Serialize.list serializeElement
         |> Serialize.map

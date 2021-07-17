@@ -1,7 +1,7 @@
-# `MultiSet`
+# `KeysSet`
 > Lookup elements by their unique aspects.
 
-For a `MultiSet` with some elements
+For a `KeysSet` with some elements
 ```elm
 { flag = "🇦🇺", code = "AU", name = "Australia" }
 { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
@@ -9,16 +9,16 @@ For a `MultiSet` with some elements
 ```
 you can specify aspects that will be unique across all elements.
 ```elm
-MultiSet.promising
+KeysSet.promising
     [ unique .flag, unique .code ]
 ```
 If you have a key and the aspect to check if it matches, you can find the matching element:
 
 ```elm
-MultiSet.at .flag "🇦🇶"
+KeysSet.at .flag "🇦🇶"
 --> Just { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
 
-MultiSet.at .code "LB"
+KeysSet.at .code "LB"
 --> Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 ```
 
@@ -30,8 +30,8 @@ MultiSet.at .code "LB"
 ### example: users
 
 ```elm
-import MultiSet.Uniqueness exposing (unique)
-import MultiSet exposing (MultiSet)
+import KeysSet.Uniqueness exposing (unique)
+import KeysSet exposing (KeysSet)
 
 type alias Account =
     { username : String
@@ -40,12 +40,12 @@ type alias Account =
     }
 
 type alias Model =
-    { accounts : MultiSet Account }
+    { accounts : KeysSet Account }
 
 
 initialModel =
     { accounts =
-        MultiSet.promising
+        KeysSet.promising
             [ unique .atomicNumber, unique .symbol ]
     }
 
@@ -57,13 +57,13 @@ update msg model =
         Registered username email ->
             if
                 model.accounts
-                    |> MultiSet.any (.username >> (==) username)
+                    |> KeysSet.any (.username >> (==) username)
             then
                 -- username already taken
             
             else if
                 model.accounts
-                    |> MultiSet.any (.email >> (==) email)
+                    |> KeysSet.any (.email >> (==) email)
             then
                 -- email already taken
 
@@ -71,7 +71,7 @@ update msg model =
                 { model
                   | accounts =
                       model.accounts
-                          |> MultiSet.insert
+                          |> KeysSet.insert
                               { username = username
                               , email = email
                               , settings = defaultSettings
@@ -82,7 +82,7 @@ update msg model =
             { model
               | accounts =
                   model.accounts
-                      |> MultiSet.update .username username
+                      |> KeysSet.update .username username
                           updateSettings
             }
 ```
@@ -91,9 +91,9 @@ update msg model =
 
 ```elm
 operators =
-    MultiSet.promising
+    KeysSet.promising
         [ unique .symbol, unique .name ]
-        |> MultiSet.insertAll
+        |> KeysSet.insertAll
             [ { symbol = ">", name = "gt", kind = Infix }
             , { symbol = "<", name = "lt", kind = Infix }
             , { symbol = "==", name = "eq", kind = Infix }
@@ -102,11 +102,11 @@ operators =
 
 infixOperators =
     operators
-        |> MultiSet.when (.kind >> (==) Infix)
+        |> KeysSet.when (.kind >> (==) Infix)
 
 nameOfOperatorSymbol operatorSymbol =
     operators
-        |> MultiSet.at .symbol operatorSymbol
+        |> KeysSet.at .symbol operatorSymbol
 ```
 &nbsp;
 
@@ -116,8 +116,8 @@ nameOfOperatorSymbol operatorSymbol =
 ## Example: automatic answers
 ```elm
 answers =
-    MultiSet.promising [ unique .youSay ]
-        |> MultiSet.insertAll
+    KeysSet.promising [ unique .youSay ]
+        |> KeysSet.insertAll
             [ { youSay = "Hi"
               , answer = "Hi there!"
               }
@@ -138,14 +138,14 @@ We will only ever lookup answers to what `youSay`
 ## Example: translation, synonymes...
 ```elm
 translationsEnDe =
-    MultiSet.promising []
-        |> MultiSet.insertAll
+    KeysSet.promising []
+        |> KeysSet.insertAll
             [ { english = "elm", german = "Ulme" }
             , { english = "git", german = "Schwachkopf" }
             , { german = "Rüste", english = "elm" }
             ]
 ```
-A `MultiSet` is only effective when there is **only one matching key**.
+A `KeysSet` is only effective when there is **only one matching key**.
 
 Please take a look at [elm-bidict](https://github.com/Janiczek/elm-bidict) instead!
 
@@ -153,13 +153,13 @@ Please take a look at [elm-bidict](https://github.com/Janiczek/elm-bidict) inste
 
 ```elm
 partners =
-    MultiSet.promising
+    KeysSet.promising
         [ unique .partner, unique .partnerOfPartner ]
-        |> MultiSet.insertAll
+        |> KeysSet.insertAll
             [ { partner = "Ann", partnerOfPartner = "Alan" }
             , { partner = "Alex", partnerOfPartner = "Alastair" }
             , { partner = "Alan", partnerOfPartner = "Ann" }
             -- wait, this is no duplicate and is inserted
             ]
 ```
-A `MultiSet` ony makes sense when the **keys describe something different**.
+A `KeysSet` ony makes sense when the **keys describe something different**.
