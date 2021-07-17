@@ -1,6 +1,5 @@
 module Util exposing
-    ( ListOperationResult(..)
-    , anyWhere
+    ( DidChange(..)
     , aspect
     , equalIgnoringOrder
     , firstWhere
@@ -65,22 +64,6 @@ firstWhere isFound list =
                 firstWhere isFound rest
 
 
-{-| Is there any element in a `List` where a test succeeds?
-
-    [ 0, 2, 8, 16, 22 ]
-        |> anyWhere (\el -> el > 10)
-    --> True
-
-    [ { x = 3, y = 5 }, { y = 9, x = 7 } ]
-        |> anyWhere (.x >> (==) 0)
-    --> False
-
--}
-anyWhere : (element -> Bool) -> List element -> Bool
-anyWhere isFound =
-    firstWhere isFound >> (/=) Nothing
-
-
 {-| Do 2 `List`s contain the same elements but in a different order?
 
     equalIgnoringOrder
@@ -105,16 +88,16 @@ equalIgnoringOrder aList bList =
 
         ( _, bElement :: bAfter ) ->
             case removeFirstWithResult bElement aList of
-                AsBeforeList _ ->
+                ( Unchanged, _ ) ->
                     False
 
-                ChangedList aWithoutBElement ->
+                ( Changed, aWithoutBElement ) ->
                     equalIgnoringOrder aWithoutBElement bAfter
 
 
-{-| Remove the first element (from head to right) in a `List` where the element is equal to `toRemove`.
+{-| Remove the first element (from head to last) in a `List` where the element is equal to `toRemove`.
 -}
-removeFirstWithResult : el -> List el -> ListOperationResult el
+removeFirstWithResult : el -> List el -> ( DidChange, List el )
 removeFirstWithResult toRemove =
     removeFirstWithResultHelp toRemove []
 
@@ -123,16 +106,17 @@ removeFirstWithResultHelp :
     el
     -> List el
     -> List el
-    -> ListOperationResult el
+    -> ( DidChange, List el )
 removeFirstWithResultHelp toRemove notToRemove list =
     case list of
         [] ->
-            AsBeforeList []
+            ( Unchanged, [] )
 
         head :: after ->
             if toRemove == head then
-                ChangedList
-                    ((notToRemove |> List.reverse) ++ after)
+                ( Changed
+                , (notToRemove |> List.reverse) ++ after
+                )
 
             else
                 removeFirstWithResultHelp
@@ -141,8 +125,8 @@ removeFirstWithResultHelp toRemove notToRemove list =
                     after
 
 
-{-| Did a operation on a List leave the a `ChangedList` or a `AsBeforeList`.
+{-| Did the operation leave it `Changed` or `Unchanged`?
 -}
-type ListOperationResult element
-    = AsBeforeList (List element)
-    | ChangedList (List element)
+type DidChange
+    = Unchanged
+    | Changed

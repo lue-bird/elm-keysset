@@ -1,7 +1,7 @@
-# `KeysDict`
+# `MultiSet`
 > Lookup elements by their unique aspects.
 
-For a `KeysDict` with some elements
+For a `MultiSet` with some elements
 ```elm
 { flag = "🇦🇺", code = "AU", name = "Australia" }
 { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
@@ -9,16 +9,16 @@ For a `KeysDict` with some elements
 ```
 you can specify aspects that will be unique across all elements.
 ```elm
-KeysDict.promising
+MultiSet.promising
     [ unique .flag, unique .code ]
 ```
 If you have a key and the aspect to check if it matches, you can find the matching element:
 
 ```elm
-KeysDict.at .flag "🇦🇶"
+MultiSet.at .flag "🇦🇶"
 --> Just { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
 
-KeysDict.at .code "LB"
+MultiSet.at .code "LB"
 --> Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 ```
 
@@ -30,8 +30,8 @@ KeysDict.at .code "LB"
 ### example: users
 
 ```elm
-import KeysDict.Uniqueness exposing (unique)
-import KeysDict exposing (KeysDict)
+import MultiSet.Uniqueness exposing (unique)
+import MultiSet exposing (MultiSet)
 
 type alias Account =
     { username : String
@@ -40,12 +40,12 @@ type alias Account =
     }
 
 type alias Model =
-    { accounts : KeysDict Account }
+    { accounts : MultiSet Account }
 
 
 initialModel =
     { accounts =
-        KeysDict.promising
+        MultiSet.promising
             [ unique .atomicNumber, unique .symbol ]
     }
 
@@ -57,13 +57,13 @@ update msg model =
         Registered username email ->
             if
                 model.accounts
-                    |> KeysDict.any (.username >> (==) username)
+                    |> MultiSet.any (.username >> (==) username)
             then
                 -- username already taken
             
             else if
                 model.accounts
-                    |> KeysDict.any (.email >> (==) email)
+                    |> MultiSet.any (.email >> (==) email)
             then
                 -- email already taken
 
@@ -71,7 +71,7 @@ update msg model =
                 { model
                   | accounts =
                       model.accounts
-                          |> KeysDict.insert
+                          |> MultiSet.insert
                               { username = username
                               , email = email
                               , settings = defaultSettings
@@ -82,7 +82,7 @@ update msg model =
             { model
               | accounts =
                   model.accounts
-                      |> KeysDict.update .username username
+                      |> MultiSet.update .username username
                           updateSettings
             }
 ```
@@ -91,22 +91,22 @@ update msg model =
 
 ```elm
 operators =
-    KeysDict.promising
+    MultiSet.promising
         [ unique .symbol, unique .name ]
-        |> KeysDict.insertAll
+        |> MultiSet.insertAll
             [ { symbol = ">", name = "gt", kind = Infix }
             , { symbol = "<", name = "lt", kind = Infix }
             , { symbol = "==", name = "eq", kind = Infix }
-            , { symbol = "-", name = "negate", kind = Unary }
+            , { symbol = "-", name = "negate", kind = Prefix }
             ]
 
 infixOperators =
     operators
-        |> KeysDict.when (.kind >> (==) Infix)
+        |> MultiSet.when (.kind >> (==) Infix)
 
 nameOfOperatorSymbol operatorSymbol =
     operators
-        |> KeysDict.at .symbol operatorSymbol
+        |> MultiSet.at .symbol operatorSymbol
 ```
 &nbsp;
 
@@ -116,8 +116,8 @@ nameOfOperatorSymbol operatorSymbol =
 ## Example: automatic answers
 ```elm
 answers =
-    KeysDict.promising [ unique .youSay ]
-        |> KeysDict.insertAll
+    MultiSet.promising [ unique .youSay ]
+        |> MultiSet.insertAll
             [ { youSay = "Hi"
               , answer = "Hi there!"
               }
@@ -138,14 +138,14 @@ We will only ever lookup answers to what `youSay`
 ## Example: translation, synonymes...
 ```elm
 translationsEnDe =
-    KeysDict.promising []
-        |> KeysDict.insertAll
+    MultiSet.promising []
+        |> MultiSet.insertAll
             [ { english = "elm", german = "Ulme" }
             , { english = "git", german = "Schwachkopf" }
             , { german = "Rüste", english = "elm" }
             ]
 ```
-A `KeysDict` is only effective when there is **only one matching key**.
+A `MultiSet` is only effective when there is **only one matching key**.
 
 Please take a look at [elm-bidict](https://github.com/Janiczek/elm-bidict) instead!
 
@@ -153,13 +153,13 @@ Please take a look at [elm-bidict](https://github.com/Janiczek/elm-bidict) inste
 
 ```elm
 partners =
-    KeysDict.promising
+    MultiSet.promising
         [ unique .partner, unique .partnerOfPartner ]
-        |> KeysDict.insertAll
+        |> MultiSet.insertAll
             [ { partner = "Ann", partnerOfPartner = "Alan" }
             , { partner = "Alex", partnerOfPartner = "Alastair" }
             , { partner = "Alan", partnerOfPartner = "Ann" }
             -- wait, this is no duplicate and is inserted
             ]
 ```
-A `KeysDict` ony makes sense when the **keys describe something different**.
+A `MultiSet` ony makes sense when the **keys describe something different**.

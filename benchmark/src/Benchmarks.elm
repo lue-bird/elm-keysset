@@ -2,8 +2,8 @@ module Benchmarks exposing (main)
 
 import Benchmark exposing (Benchmark, describe)
 import Benchmark.Runner exposing (BenchmarkProgram)
-import KeysDict exposing (KeysDict)
-import KeysDict.Uniqueness exposing (unique)
+import MultiSet exposing (MultiSet)
+import MultiSet.Uniqueness exposing (unique)
 import Util exposing (ListOperationResult(..), aspect, removeFirstWithResult)
 
 
@@ -14,7 +14,7 @@ main =
 
 suite : Benchmark
 suite =
-    describe "KeysDict"
+    describe "MultiSet"
         [ equal
         , fold
         ]
@@ -42,11 +42,11 @@ casedLetterList =
             )
 
 
-keysDict : KeysDict CasedLetter
-keysDict =
+multiSet : MultiSet CasedLetter
+multiSet =
     casedLetterList
-        |> List.foldl KeysDict.insert
-            (KeysDict.promising
+        |> List.foldl MultiSet.insert
+            (MultiSet.promising
                 [ unique .lowercase, unique .uppercase ]
             )
 
@@ -54,24 +54,24 @@ keysDict =
 fold : Benchmark
 fold =
     Benchmark.compare "fold"
-        "KeysDict.fold"
-        (\() -> KeysDict.fold (::) [] keysDict)
+        "MultiSet.fold"
+        (\() -> MultiSet.fold (::) [] multiSet)
         "foldr"
-        (\() -> foldr (::) [] keysDict)
+        (\() -> foldr (::) [] multiSet)
 
 
-foldr : (a -> b -> b) -> b -> KeysDict a -> b
+foldr : (a -> b -> b) -> b -> MultiSet a -> b
 foldr reduce initial =
-    KeysDict.toList
+    MultiSet.toList
         >> List.foldr reduce initial
 
 
-keysDictReversed : KeysDict CasedLetter
-keysDictReversed =
+multiSetReversed : MultiSet CasedLetter
+multiSetReversed =
     casedLetterList
         |> List.reverse
-        |> List.foldl KeysDict.insert
-            (KeysDict.promising
+        |> List.foldl MultiSet.insert
+            (MultiSet.promising
                 [ unique .uppercase, unique .lowercase ]
             )
 
@@ -81,20 +81,20 @@ equal =
     Benchmark.compare "equal <?> alternative equals"
         "equal"
         (\() ->
-            KeysDict.equal keysDict keysDictReversed
+            MultiSet.equal multiSet multiSetReversed
         )
         "altEqual"
         (\() ->
-            altEqual keysDict keysDictReversed
+            altEqual multiSet multiSetReversed
         )
 
 
 altEqual :
-    KeysDict CasedLetter
-    -> KeysDict CasedLetter
+    MultiSet CasedLetter
+    -> MultiSet CasedLetter
     -> Bool
 altEqual =
-    aspect KeysDict.toList equalLists
+    aspect MultiSet.toList equalLists
 
 
 equalLists : List el -> List el -> Bool

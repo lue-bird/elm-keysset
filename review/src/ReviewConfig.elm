@@ -14,10 +14,24 @@ when inside the directory containing this file.
 import Review.Rule exposing (Rule)
 import NoUnused.Dependencies
 import OnlyAllSingleUseTypeVarsEndWith_
+import NoSinglePatternCase
+import NoLeftPizza
+import NoExposingEverything
+import NoImportingEverything
+import NoMissingTypeAnnotation
+import NoForbiddenWords
+import NoBooleanCase
 
 
 config : List Rule
 config =
     [ NoUnused.Dependencies.rule
     , OnlyAllSingleUseTypeVarsEndWith_.rule
+    , NoSinglePatternCase.rule
+    , NoLeftPizza.rule NoLeftPizza.Any
+    , NoExposingEverything.rule
+    , NoImportingEverything.rule [ "Nats", "TypeNats" ]
+    , NoMissingTypeAnnotation.rule
+    , NoForbiddenWords.rule [ "TODO", "todo" ]
+    , NoBooleanCase.rule
     ]
