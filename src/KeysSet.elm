@@ -663,6 +663,12 @@ map alter uniquenessOfMappedElement =
 
 {-| Change every element based on its current value.
 
+    rankUpAllUsers =
+        KeysSet.updateAll
+            (\user -> { user | rank = user.rank + 1 })
+
+If aspects that are promised to be unique become the same for 2 elements, the more recently inserted element is chosen.
+
 Use [`map`](KeysSet#map) if your function changes the type of the element.
 
 -}
