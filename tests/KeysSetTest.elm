@@ -46,45 +46,29 @@ uniquenessTest =
         ]
 
 
-type alias CharWithCode =
-    { char : Char, code : Int }
-
-
-at0 : CharWithCode
-at0 =
-    { code = 0, char = 'A' }
-
-
-at1 : CharWithCode
-at1 =
-    { code = 1, char = 'B' }
-
-
-with2 : KeysSet CharWithCode
-with2 =
-    KeysSet.promising
-        [ unique .code, unique .char ]
-        |> KeysSet.insertAll [ at0, at1 ]
-
-
-type alias BracketMatch =
-    { open : Char, closed : Char }
-
-
-brackets : KeysSet BracketMatch
-brackets =
-    KeysSet.promising
-        [ unique .open, unique .closed ]
-        |> KeysSet.insertAll
-            [ { open = '(', closed = ')' }
-            , { open = '{', closed = '}' }
-            ]
-
-
 scanTest : Test
 scanTest =
     describe "scan"
-        [ describe "size"
+        [ describe "isEmpty"
+            [ test "True for empty"
+                (\() ->
+                    Expect.true "isEmpty for filled False, ifEmpty True"
+                        (KeysSet.isEmpty
+                            (KeysSet.promising
+                                [ unique .code, unique .char ]
+                            )
+                        )
+                )
+            , test "False for filled"
+                (\() ->
+                    KeysSet.promising
+                        [ unique .code, unique .letter ]
+                        |> KeysSet.insert { code = 98, letter = 'b' }
+                        |> KeysSet.isEmpty
+                        |> Expect.equal False
+                )
+            ]
+        , describe "size"
             [ test "empty"
                 (\() ->
                     KeysSet.promising
@@ -166,29 +150,29 @@ scanTest =
                     fancyCompetingLetterCodes =
                         KeysSet.promising
                             [ unique .code, unique .letter ]
-                            |> KeysSet.insertAll
-                                [ { code = 98, letter = 'b' }
-                                , { code = 97, letter = 'a' }
-                                ]
+                            |> KeysSet.insert
+                                { code = 98, letter = 'b' }
+                            |> KeysSet.insert
+                                { code = 97, letter = 'a' }
                 in
                 KeysSet.equal letterCodes
                     fancyCompetingLetterCodes
                     |> Expect.true "from reversed list equal to before"
             )
-        , describe "toList examples work"
-            [ test "isEmpty"
+        , describe "toList examples"
+            [ test "after insertAll"
                 (\() ->
-                    let
-                        isEmpty =
-                            List.isEmpty << KeysSet.toList
-                    in
-                    Expect.true "isEmpty for filled False, ifEmpty True"
-                        (isEmpty
-                            (KeysSet.promising
-                                [ unique .code, unique .char ]
-                            )
-                            && not (isEmpty with2)
-                        )
+                    KeysSet.promising
+                        [ unique .open, unique .closed ]
+                        |> KeysSet.insertAll
+                            [ { open = '(', closed = ')' }
+                            , { open = '{', closed = '}' }
+                            ]
+                        |> KeysSet.toList
+                        |> Expect.equalLists
+                            [ { open = '{', closed = '}' }
+                            , { open = '(', closed = ')' }
+                            ]
                 )
             , test "most recently inserted"
                 (\() ->
@@ -267,8 +251,27 @@ scanTest =
         ]
 
 
+type alias CharWithCode =
+    { char : Char, code : Int }
+
+
 insertTest : Test
 insertTest =
+    let
+        at0 : CharWithCode
+        at0 =
+            { code = 0, char = 'A' }
+
+        at1 : CharWithCode
+        at1 =
+            { code = 1, char = 'B' }
+
+        with2 : KeysSet CharWithCode
+        with2 =
+            KeysSet.promising
+                [ unique .code, unique .char ]
+                |> KeysSet.insertAll [ at0, at1 ]
+    in
     describe "insert and insertAll"
         [ test "ignored for duplicates"
             (\() ->
@@ -350,19 +353,22 @@ removeTest =
     in
     describe "take elements out"
         [ describe "remove"
-            [ test "insert |> remove code leaves it unchanged"
+            [ let
+                ab : KeysSet CharWithCode
+                ab =
+                    KeysSet.promising
+                        [ unique .code, unique .char ]
+                        |> KeysSet.insertAll
+                            [ { code = 0, char = 'A' }
+                            , { code = 1, char = 'B' }
+                            ]
+              in
+              test "insert |> remove code leaves it unchanged"
                 (\() ->
-                    with2
+                    ab
                         |> KeysSet.insert { code = 2, char = 'C' }
                         |> KeysSet.remove .code 2
-                        |> Expect.equal with2
-                )
-            , test "insert |> remove char leaves it unchanged"
-                (\() ->
-                    with2
-                        |> KeysSet.insert { code = 2, char = 'C' }
-                        |> KeysSet.remove .char 'C'
-                        |> Expect.equal with2
+                        |> Expect.equal ab
                 )
             , test "nothing to remove"
                 (\() ->
@@ -433,6 +439,15 @@ transformTest =
         [ test "fold example"
             (\() ->
                 let
+                    brackets : KeysSet { open : Char, closed : Char }
+                    brackets =
+                        KeysSet.promising
+                            [ unique .open, unique .closed ]
+                            |> KeysSet.insertAll
+                                [ { open = '(', closed = ')' }
+                                , { open = '{', closed = '}' }
+                                ]
+
                     openingAndClosing =
                         brackets
                             |> KeysSet.fold
@@ -468,8 +483,31 @@ readmeExamplesTest =
         [ test "braces"
             (\() ->
                 let
+                    brackets : KeysSet { open : Char, closed : Char }
+                    brackets =
+                        KeysSet.promising
+                            [ unique .open, unique .closed ]
+                            |> KeysSet.insertAll
+                                [ { open = '(', closed = ')' }
+                                , { open = '{', closed = '}' }
+                                ]
+
                     typeChar char =
-                        brackets |> KeysSet.at .open char |> Maybe.map (\{ closed } -> String.fromList [ char, closed ]) |> Maybe.withDefault (brackets |> KeysSet.at .closed char |> Maybe.map (\{ open } -> String.fromList [ open, char ]) |> Maybe.withDefault (String.fromChar char))
+                        brackets
+                            |> KeysSet.at .open char
+                            |> Maybe.map
+                                (\{ closed } ->
+                                    String.fromList [ char, closed ]
+                                )
+                            |> Maybe.withDefault
+                                (brackets
+                                    |> KeysSet.at .closed char
+                                    |> Maybe.map
+                                        (\{ open } ->
+                                            String.fromList [ open, char ]
+                                        )
+                                    |> Maybe.withDefault (String.fromChar char)
+                                )
                 in
                 Expect.equal ([ '(', '}' ] |> List.map typeChar)
                     [ "()", "{}" ]

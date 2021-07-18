@@ -5,11 +5,10 @@ import Element as Ui
 import Element.Border as UiBorder
 import Element.Font as UiFont
 import Element.Input as UiInput
-import Html exposing (Html, br, div, h3, header, input, text)
-import Html.Attributes exposing (style, value)
+import Html exposing (Html, text)
+import Html.Attributes
 import Html.Events exposing (onInput)
-import KeysSet exposing (KeysSet, KeysSet.at, empty, KeysSet.insert)
-import KeysSet.Uniqueness exposing (unique)
+import KeysSet exposing (KeysSet, unique)
 
 
 type alias Model =
@@ -58,12 +57,9 @@ update msg model =
                             { model
                                 | textInLetterInfo = last |> String.fromChar
                                 , letterInfo =
-                                    case casedLetterByLowercase last of
-                                        Just a ->
-                                            Just a
-
-                                        Nothing ->
-                                            casedLetterByUppercase last
+                                    casedLetterByLowercase last
+                                        |> Maybe.map Just
+                                        |> Maybe.withDefault (casedLetterByUppercase last)
                             }
 
                         [] ->
@@ -82,12 +78,12 @@ update msg model =
                                 String.length text
                                     > String.length (.textInOpenCloseBrackets model)
                             then
-                                case KeysSet.at { unique = .open, key = last } brackets of
+                                case KeysSet.at .open last brackets of
                                     Just { closed } ->
                                         text ++ String.fromChar closed
 
                                     Nothing ->
-                                        case KeysSet.at { unique = .closed, key = last } brackets of
+                                        case KeysSet.at .closed last brackets of
                                             Just { open } ->
                                                 before ++ String.fromList [ open, last ]
 
@@ -95,12 +91,12 @@ update msg model =
                                                 text
 
                             else
-                                case KeysSet.at { unique = .open, key = last } brackets of
+                                case KeysSet.at .open last brackets of
                                     Just _ ->
                                         before
 
                                     Nothing ->
-                                        case KeysSet.at { unique = .closed, key = last } brackets of
+                                        case KeysSet.at .closed last brackets of
                                             Just _ ->
                                                 before
 
@@ -131,6 +127,7 @@ view { textInOpenCloseBrackets, letterInfo, textInLetterInfo } =
         |> Ui.layout []
 
 
+viewCharacterInfo : Maybe LetterInfo -> String -> Ui.Element Msg
 viewCharacterInfo letterInfo content =
     Ui.column [ Ui.spacing 10 ]
         [ Ui.text "Information about your letter."
@@ -140,7 +137,7 @@ viewCharacterInfo letterInfo content =
             , viewTextInput { onInput = InputInCharacterInfo, value = content }
             , case letterInfo of
                 Just { inAlphabet, lowercase, uppercase } ->
-                    Ui.column [ UiFont.family [ UiFont.typeface "Fira Code"] ]
+                    Ui.column [ UiFont.family [ UiFont.typeface "Fira Code" ] ]
                         [ Ui.text ("# " ++ String.fromInt inAlphabet ++ " in the alphabet")
                         , Ui.text ("▼ " ++ String.fromChar lowercase ++ " lowercase")
                         , Ui.text ("▲ " ++ String.fromChar uppercase ++ " uppercase")
@@ -166,41 +163,44 @@ aLetterInfo =
 
 letterInfos : KeysSet LetterInfo
 letterInfos =
-    empty
+    KeysSet.promising
         [ unique .lowercase
         , unique .uppercase
         , unique .inAlphabet
         ]
         |> KeysSet.insert aLetterInfo
-        |> KeysSet.insert { inAlphabet = 1, lowercase = 'b', uppercase = 'B' }
-        |> KeysSet.insert { inAlphabet = 2, lowercase = 'c', uppercase = 'C' }
-        |> KeysSet.insert { inAlphabet = 5, lowercase = 'f', uppercase = 'F' }
-        |> KeysSet.insert { inAlphabet = 10, lowercase = 'k', uppercase = 'K' }
-        |> KeysSet.insert { inAlphabet = 25, lowercase = 'z', uppercase = 'Z' }
+        |> KeysSet.insertAll
+            [ { inAlphabet = 1, lowercase = 'b', uppercase = 'B' }
+            , { inAlphabet = 2, lowercase = 'c', uppercase = 'C' }
+            , { inAlphabet = 5, lowercase = 'f', uppercase = 'F' }
+            , { inAlphabet = 10, lowercase = 'k', uppercase = 'K' }
+            , { inAlphabet = 25, lowercase = 'z', uppercase = 'Z' }
+            ]
 
 
 casedLetterByLowercase : Char -> Maybe LetterInfo
 casedLetterByLowercase char =
-    KeysSet.at { unique = .lowercase, key = char } letterInfos
+    KeysSet.at .lowercase char letterInfos
 
 
 casedLetterByUppercase : Char -> Maybe LetterInfo
 casedLetterByUppercase char =
-    KeysSet.at { unique = .uppercase, key = char } letterInfos
+    KeysSet.at .uppercase char letterInfos
 
 
 casedLetterInAlphabet : Int -> Maybe LetterInfo
 casedLetterInAlphabet inAlphabet =
-    KeysSet.at { unique = .inAlphabet, key = inAlphabet } letterInfos
+    KeysSet.at .inAlphabet inAlphabet letterInfos
 
 
+viewOpenCloseBrackets : String -> Ui.Element Msg
 viewOpenCloseBrackets labelText =
     Ui.column [ Ui.spacing 10 ]
         [ Ui.text "Auto-open and -close brackets"
             |> Ui.el [ UiFont.size 22 ]
         , Ui.column
             [ Ui.spacing 6
-            , UiFont.family [ UiFont.typeface "Fira Code"]
+            , UiFont.family [ UiFont.typeface "Fira Code" ]
             ]
             [ Ui.text "[] {} (): type an open or closed bracket (but don't move the cursor)"
             , viewTextInput
@@ -219,21 +219,30 @@ type alias OpenClosedBracket =
 
 brackets : KeysSet OpenClosedBracket
 brackets =
-    empty [ unique .open, unique .closed ]
-        |> KeysSet.insert { open = '(', closed = ')' }
-        |> KeysSet.insert { open = '{', closed = '}' }
-        |> KeysSet.insert { open = '[', closed = ']' }
+    KeysSet.promising [ unique .open, unique .closed ]
+        |> KeysSet.insertAll
+            [ { open = '(', closed = ')' }
+            , { open = '{', closed = '}' }
+            , { open = '[', closed = ']' }
+            ]
 
 
+viewTextInput :
+    { rec | value : String, onInput : String -> msg }
+    -> Ui.Element msg
 viewTextInput { value, onInput } =
     UiInput.text
-        [ UiBorder.rounded 100
-        , UiBorder.solid
+        [ UiBorder.solid
         , UiBorder.color (Ui.rgb 0 1 1)
         , UiBorder.width 1
+        , UiBorder.widthEach { edges | bottom = 5 }
         ]
         { onChange = onInput
         , text = value
         , placeholder = Nothing
         , label = UiInput.labelHidden "text input"
         }
+
+
+edges =
+    { right = 0, top = 0, left = 0, bottom = 0 }
