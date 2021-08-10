@@ -21,6 +21,7 @@ import NoImportingEverything
 import NoMissingTypeAnnotation
 import NoForbiddenWords
 import NoBooleanCase
+import NoPrematureLetComputation
 
 
 config : List Rule
@@ -34,4 +35,5 @@ config =
     , NoMissingTypeAnnotation.rule
     , NoForbiddenWords.rule [ "TODO", "todo" ]
     , NoBooleanCase.rule
+    , NoPrematureLetComputation.rule
     ]
