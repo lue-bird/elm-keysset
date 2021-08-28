@@ -1,8 +1,9 @@
 module UtilTest exposing (suite)
 
 import Expect
+import List.Extra
 import Test exposing (Test, describe, test)
-import Util exposing (aspect, equalIgnoringOrder)
+import Util exposing (aspect)
 
 
 suite : Test
@@ -23,9 +24,4 @@ suite =
                         |> Expect.equal False
                 )
             ]
-        , test "equalIgnoringOrder"
-            (\() ->
-                equalIgnoringOrder [ 1, 2, 3 ] [ 3, 2, 1 ]
-                    |> Expect.equal True
-            )
         ]

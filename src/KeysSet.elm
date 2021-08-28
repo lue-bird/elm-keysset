@@ -44,8 +44,9 @@ module KeysSet exposing
 
 -}
 
+import List.Extra as List
 import Typed exposing (Checked, Internal, Typed, internalVal, isChecked, tag)
-import Util exposing (aspect, equalIgnoringOrder, firstWhere)
+import Util exposing (aspect, firstWhere)
 
 
 {-| Unsorted data structure that lets you specify aspects that are checked to be unique across all elements.
@@ -204,7 +205,7 @@ equal :
     -> KeysSet element
     -> Bool
 equal =
-    aspect toList equalIgnoringOrder
+    aspect toList List.isPermutationOf
 
 
 {-| Try to find an element where a given aspect of it matches a given value.

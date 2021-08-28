@@ -1,10 +1,4 @@
-module Util exposing
-    ( DidChange(..)
-    , aspect
-    , equalIgnoringOrder
-    , firstWhere
-    , removeFirstWithResult
-    )
+module Util exposing (aspect, firstWhere)
 
 {-| **Should not be exposed.**
 
@@ -62,71 +56,3 @@ firstWhere isFound list =
 
             else
                 firstWhere isFound rest
-
-
-{-| Do 2 `List`s contain the same elements but in a different order?
-
-    equalIgnoringOrder
-        [ 1, 2, 3 ]
-        [ 3, 1, 2 ]
-    --> True
-
-_Elements must not contain functions or json. Elm will crash trying to see if they are equal._
-
--}
-equalIgnoringOrder : List element -> List element -> Bool
-equalIgnoringOrder aList bList =
-    case ( aList, bList ) of
-        ( [], [] ) ->
-            True
-
-        ( [], _ :: _ ) ->
-            False
-
-        ( _ :: _, [] ) ->
-            False
-
-        ( _, bElement :: bAfter ) ->
-            case removeFirstWithResult bElement aList of
-                ( Unchanged, _ ) ->
-                    False
-
-                ( Changed, aWithoutBElement ) ->
-                    equalIgnoringOrder aWithoutBElement bAfter
-
-
-{-| Remove the first element (from head to last) in a `List` where the element is equal to `toRemove`.
--}
-removeFirstWithResult : el -> List el -> ( DidChange, List el )
-removeFirstWithResult toRemove =
-    removeFirstWithResultHelp toRemove []
-
-
-removeFirstWithResultHelp :
-    el
-    -> List el
-    -> List el
-    -> ( DidChange, List el )
-removeFirstWithResultHelp toRemove notToRemove list =
-    case list of
-        [] ->
-            ( Unchanged, [] )
-
-        head :: after ->
-            if toRemove == head then
-                ( Changed
-                , (notToRemove |> List.reverse) ++ after
-                )
-
-            else
-                removeFirstWithResultHelp
-                    toRemove
-                    (head :: notToRemove)
-                    after
-
-
-{-| Did the operation leave it `Changed` or `Unchanged`?
--}
-type DidChange
-    = Unchanged
-    | Changed
