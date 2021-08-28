@@ -22,6 +22,8 @@ import NoMissingTypeAnnotation
 import NoForbiddenWords
 import NoBooleanCase
 import NoPrematureLetComputation
+import NoAlways
+import LinksPointToExistingPackageMembers
 
 
 config : List Rule
@@ -29,6 +31,13 @@ config =
     [ NoUnused.Dependencies.rule
     , OnlyAllSingleUseTypeVarsEndWith_.rule
     , NoSinglePatternCase.rule
+        (NoSinglePatternCase.fixInArgument
+            |> NoSinglePatternCase.ifAsPatternRequired
+                (NoSinglePatternCase.fixInLetInstead
+                    |> NoSinglePatternCase.andIfNoLetExists
+                        NoSinglePatternCase.createNewLet
+                )
+        )
     , NoLeftPizza.rule NoLeftPizza.Any
     , NoExposingEverything.rule
     , NoImportingEverything.rule []
@@ -36,4 +45,6 @@ config =
     , NoForbiddenWords.rule [ "TODO", "todo" ]
     , NoBooleanCase.rule
     , NoPrematureLetComputation.rule
+    , NoAlways.rule
+    , LinksPointToExistingPackageMembers.rule
     ]
