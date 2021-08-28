@@ -13,6 +13,7 @@
             "jfmengels/elm-review-unused": "1.1.16",
             "lue-bird/elm-review-links-point-to-existing-package-members": "1.0.3",
             "lue-bird/elm-review-single-use-type-vars-end-with-underscore": "2.0.1",
+            "sparksp/elm-review-always": "1.0.5",
             "sparksp/elm-review-forbidden-words": "1.0.1",
             "stil4m/elm-syntax": "7.2.7",
             "truqu/elm-review-nobooleancase": "1.0.0",
