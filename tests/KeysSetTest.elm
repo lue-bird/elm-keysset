@@ -414,7 +414,7 @@ removeTest =
             (\() ->
                 operators
                     |> KeysSet.when
-                        (.symbol >> String.length >> (==) 1)
+                        (\operator -> (operator.symbol |> String.length) == 1)
                     |> KeysSet.equal
                         (KeysSet.promising
                             [ unique .symbol, unique .name ]

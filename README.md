@@ -1,5 +1,5 @@
 # `KeysSet`
-> Lookup elements by their unique aspects.
+> look up elements by their unique aspects
 
 For a `KeysSet` with some elements
 ```elm
@@ -7,13 +7,14 @@ For a `KeysSet` with some elements
 { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
 { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 ```
-you can specify aspects that will be unique across all elements.
+
+you can specify aspects that will be unique across all elements
 ```elm
 KeysSet.promising
     [ unique .flag, unique .code ]
 ```
-If you have a key and the aspect to check if it matches, you can find the matching element:
 
+With a key and an aspect to check for matches, you can find the matching element:
 ```elm
 KeysSet.at .flag "🇦🇶"
 --> Just { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
@@ -42,7 +43,7 @@ operators =
 
 infixOperators =
     operators
-        |> KeysSet.when (.kind >> (==) Infix)
+        |> KeysSet.when (\operator -> operator.kind == Infix)
 
 nameOfOperatorSymbol operatorSymbol =
     operators
@@ -52,19 +53,22 @@ nameOfOperatorSymbol operatorSymbol =
 ### example: users
 
 ```elm
+import RecordWithoutConstructorFunction exposing (RecordWithoutConstructorFunction)
 import KeysSet.Uniqueness exposing (unique)
 import KeysSet exposing (KeysSet)
 
 type alias Account =
-    { username : String
-    , email : String
-    , settings : Settings
-    }
+    RecordWithoutConstructorFunction
+        { username : String
+        , email : String
+        , settings : Settings
+        }
 
-type alias Model =
-    { accounts : KeysSet Account
-    , currentUserName : String
-    }
+type alias State =
+    RecordWithoutConstructorFunction
+        { accounts : KeysSet Account
+        , currentUserName : String
+        }
 
 
 initialModel =
@@ -73,43 +77,46 @@ initialModel =
             [ unique .username, unique .email ]
     }
 
-update msg model =
-    case msg of
+update event =
+    case event of
         AccountSwitched username ->
-            { model | currentUserName = username }
+            \state -> { state | currentUserName = username }
         
         SettingsChanged updateSettings ->
-            { model
-              | accounts =
-                  model.accounts
-                      |> KeysSet.update .username   
-                          model.currentUserName
-                          updateSettings
-            }
+            \state ->
+                { state
+                    | accounts =
+                        state.accounts
+                            |> KeysSet.update
+                                .username   
+                                state.currentUserName
+                                updateSettings
+                }
         
         Registered username email ->
-            if
-                model.accounts
-                    |> KeysSet.any (.username >> (==) username)
-            then
-                -- username already taken
-            
-            else if
-                model.accounts
-                    |> KeysSet.any (.email >> (==) email)
-            then
-                -- email already taken
+            \state ->
+                if
+                    state.accounts
+                        |> KeysSet.any (\user -> user.username == username)
+                then
+                    -- username taken already
+                
+                else if
+                    state.accounts
+                        |> KeysSet.any (\user -> user.email == email)
+                then
+                    -- email taken already
 
-            else
-                { model
-                  | accounts =
-                      model.accounts
-                          |> KeysSet.insert
-                              { username = username
-                              , email = email
-                              , settings = defaultSettings
-                              }
-                }
+                else
+                    { state
+                        | accounts =
+                            state.accounts
+                                |> KeysSet.insert
+                                    { username = username
+                                    , email = email
+                                    , settings = defaultSettings
+                                    }
+                    }
 ```
 
 &nbsp;
@@ -137,7 +144,7 @@ answers =
             ]
 ```
 We will only ever lookup answers to what `youSay`
-→ use a `Dict` where it is more appropriate: **`Dict`s are for one-way access**.
+→ use a `Dict` where it is more appropriate: **`Dict`s are for one-way access**
 
 ## Example: translation, synonymes...
 ```elm
@@ -166,4 +173,4 @@ partners =
             -- wait, this is no duplicate and is inserted
             ]
 ```
-A `KeysSet` ony makes sense when the **keys describe something different**.
+A `KeysSet` ony makes sense when the **keys describe something different**

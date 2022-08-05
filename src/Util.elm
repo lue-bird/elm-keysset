@@ -37,7 +37,7 @@ aspect accessAspect resultFromAspects a b =
     --> Just 16
 
     [ { x = 3, y = 5 }, { y = 9, x = 7 } ]
-        |> firstWhere (.x >> (==) 0)
+        |> firstWhere (\point -> point.x == 0)
     --> Nothing
 
 -}
