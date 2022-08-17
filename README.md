@@ -16,11 +16,11 @@ KeysSet.promising
 
 With a key and an aspect to check for matches, you can find the matching element:
 ```elm
-KeysSet.element ( .flag, "🇦🇶" )
---> Just { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
+|> KeysSet.element ( .flag, "🇦🇶" )
+--→ Just { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
 
-KeysSet.element ( .code, "LB" )
---> Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
+|> KeysSet.element ( .code, "LB" )
+--→ Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 ```
 
 &nbsp;
