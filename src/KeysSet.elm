@@ -29,7 +29,7 @@ module KeysSet exposing
 @docs uniqueness
 
 
-## alter
+## altering
 
 @docs insert, insertList, elementRemove, elementAlter, alter
 
@@ -41,7 +41,6 @@ module KeysSet exposing
 -}
 
 import List.Extra as List
-import Typed exposing (Checked, Internal, Typed, internal, isChecked, tag)
 
 
 {-| Unsorted data structure that lets you specify aspects that are checked to be unique across all elements
@@ -57,11 +56,10 @@ import Typed exposing (Checked, Internal, Typed, internal, isChecked, tag)
                 ]
 
     -- aspect to check for matches + key → matching element
-
-    KeysSet.element ( .flag, "🇦🇶" ) countries
+    countries |> KeysSet.element ( .flag, "🇦🇶" )
     --> Just { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
 
-    KeysSet.element ( .code, "LB" ) countries
+    countries |> KeysSet.element ( .code, "LB" )
     --> Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 
 -}
@@ -400,6 +398,21 @@ all isOkay =
     toList >> List.all isOkay
 
 
+internalElementListAlter :
+    (List element -> List element)
+    ->
+        (KeysSet element
+         -> KeysSet element
+        )
+internalElementListAlter elementsInternalChange =
+    \(KeysSet keysSetInternal) ->
+        { keysSetInternal
+            | elements =
+                keysSetInternal.elements |> elementsInternalChange
+        }
+            |> KeysSet
+
+
 {-| Put an element into the `KeysSet`.
 
 If there is already an element where some aspect that is promised to be unique is equal
@@ -453,21 +466,6 @@ insert elementToInsertIfUnique =
 
         else
             keysSet
-
-
-internalElementListAlter :
-    (List element -> List element)
-    ->
-        (KeysSet element
-         -> KeysSet element
-        )
-internalElementListAlter elementsInternalChange =
-    \(KeysSet keysSetInternal) ->
-        { keysSetInternal
-            | elements =
-                keysSetInternal.elements |> elementsInternalChange
-        }
-            |> KeysSet
 
 
 {-| Change the element with the matching aspect based on its current value
