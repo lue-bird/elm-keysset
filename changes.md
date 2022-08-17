@@ -8,14 +8,15 @@ Continuing [indique/elm-keysdict](https://package.elm-lang.org/packages/indique/
 - `when` remove
     - in favor of `mapTry`
 - `set |> isUnique element` → `element |> isUniqueIn set`
-- `equal a b` → `( a, b ) |> areEqual`
+- `equal a b` → `a |> isEqualTo b`
 - `at door key` → `element ( door, key )`
 - `update door key` → `elementAlter ( door, key )`
 - `updateAll` name → `alter`
 - `remove` name → `elementRemove`
 - `insertAll` name → `insertList`
 - `mapTry` add
-- `lue-bird/elm-typed-value` upgrade → `7.0.0`
+- `lue-bird/elm-typed-value` dependency remove
+    - in favor of opaque `type` immune to internal changes
 - performance improve
 
 ## 1.0.0
