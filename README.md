@@ -16,10 +16,10 @@ KeysSet.promising
 
 With a key and an aspect to check for matches, you can find the matching element:
 ```elm
-KeysSet.at .flag "🇦🇶"
+KeysSet.element ( .flag, "🇦🇶" )
 --> Just { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
 
-KeysSet.at .code "LB"
+KeysSet.element ( .code, "LB" )
 --> Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 ```
 
@@ -34,28 +34,38 @@ KeysSet.at .code "LB"
 operators =
     KeysSet.promising
         [ unique .symbol, unique .name ]
-        |> KeysSet.insertAll
-            [ { symbol = ">", name = "gt", kind = Infix }
-            , { symbol = "<", name = "lt", kind = Infix }
-            , { symbol = "==", name = "eq", kind = Infix }
-            , { symbol = "-", name = "negate", kind = Prefix }
+        |> KeysSet.insertList
+            [ { symbol = ">", name = "gt", kind = Binary }
+            , { symbol = "<", name = "lt", kind = Binary }
+            , { symbol = "==", name = "eq", kind = Binary }
+            , { symbol = "-", name = "negate", kind = Unary }
             ]
 
 infixOperators =
     operators
-        |> KeysSet.when (\operator -> operator.kind == Infix)
+        |> KeysSet.mapTry
+            (\operator ->
+                case operator.kind of
+                    Binary ->
+                        { symbol = operator.symbol, kind = operator.kind }
+                            |> Just
+                    
+                    Unary ->
+                        Nothing
+            )
+            [ unique .symbol, unique .name ]
 
 nameOfOperatorSymbol operatorSymbol =
     operators
-        |> KeysSet.at .symbol operatorSymbol
+        |> KeysSet.element ( .symbol, operatorSymbol )
 ```
 
 ### example: users
 
 ```elm
+-- https://dark.elm.dmy.fr/packages/lue-bird/elm-no-record-type-alias-constructor-function/latest/
 import RecordWithoutConstructorFunction exposing (RecordWithoutConstructorFunction)
-import KeysSet.Uniqueness exposing (unique)
-import KeysSet exposing (KeysSet)
+import KeysSet exposing (KeysSet, unique)
 
 type alias Account =
     RecordWithoutConstructorFunction
@@ -77,7 +87,7 @@ initialModel =
             [ unique .username, unique .email ]
     }
 
-update event =
+reactTo event =
     case event of
         AccountSwitched username ->
             \state -> { state | currentUserName = username }
@@ -87,9 +97,8 @@ update event =
                 { state
                     | accounts =
                         state.accounts
-                            |> KeysSet.update
-                                .username   
-                                state.currentUserName
+                            |> KeysSet.elementAlter
+                                ( .username, state.currentUserName )
                                 updateSettings
                 }
         
@@ -128,7 +137,7 @@ update event =
 ```elm
 answers =
     KeysSet.promising [ unique .youSay ]
-        |> KeysSet.insertAll
+        |> KeysSet.insertList
             [ { youSay = "Hi"
               , answer = "Hi there!"
               }
@@ -146,11 +155,11 @@ answers =
 We will only ever lookup answers to what `youSay`
 → use a `Dict` where it is more appropriate: **`Dict`s are for one-way access**
 
-## Example: translation, synonymes...
+## Example: translation, synonyms...
 ```elm
 translationsEnDe =
     KeysSet.promising []
-        |> KeysSet.insertAll
+        |> KeysSet.insertList
             [ { english = "elm", german = "Ulme" }
             , { english = "git", german = "Schwachkopf" }
             , { german = "Rüste", english = "elm" }
@@ -166,7 +175,7 @@ Please take a look at [elm-bidict](https://github.com/Janiczek/elm-bidict) inste
 partners =
     KeysSet.promising
         [ unique .partner, unique .partnerOfPartner ]
-        |> KeysSet.insertAll
+        |> KeysSet.insertList
             [ { partner = "Ann", partnerOfPartner = "Alan" }
             , { partner = "Alex", partnerOfPartner = "Alastair" }
             , { partner = "Alan", partnerOfPartner = "Ann" }

@@ -1,28 +1,22 @@
-## 2.0.0 plans
+# change log
 
-- `lue-bird/elm-typed-value` upgrade → `7.0.0`
+Continuing [indique/elm-keysdict](https://package.elm-lang.org/packages/indique/elm-keysdict/latest/) as `lue-bird/elm-keysset`
+
+## 2.0.0
+
 - indirection `ElementsWithUniquenessPromises` remove
 - `when` remove
-    - in favor of `fills`
+    - in favor of `mapTry`
 - `set |> isUnique element` → `element |> isUniqueIn set`
-- `set |> fold reduce from` → `from |> foldThrough set direction reduce`
 - `equal a b` → `( a, b ) |> areEqual`
-- `promising uniqueness` → `promising uniqueness list`
 - `at door key` → `element ( door, key )`
 - `update door key` → `elementAlter ( door, key )`
 - `updateAll` name → `alter`
 - `remove` name → `elementRemove`
 - `insertAll` name → `insertList`
-- `all` name → `allAre`
-- `any` name → `anyIs`
-- `translate ( map, unmap )` add
-- `fills ( mapToEmptiable, unmap )` add TODO
-- `map` remove
-    - in favor of `translate ( map, unmap )`
-
-# change log
-
-Continuing [indique/elm-keysdict](https://package.elm-lang.org/packages/indique/elm-keysdict/latest/) as `lue-bird/elm-keysset`
+- `mapTry` add
+- `lue-bird/elm-typed-value` upgrade → `7.0.0`
+- performance improve
 
 ## 1.0.0
 

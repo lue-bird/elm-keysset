@@ -2632,16 +2632,33 @@ var _VirtualDom_attributeNS = F3(function(namespace, key, value)
 
 
 // XSS ATTACK VECTOR CHECKS
+//
+// For some reason, tabs can appear in href protocols and it still works.
+// So '\tjava\tSCRIPT:alert("!!!")' and 'javascript:alert("!!!")' are the same
+// in practice. That is why _VirtualDom_RE_js and _VirtualDom_RE_js_html look
+// so freaky.
+//
+// Pulling the regular expressions out to the top level gives a slight speed
+// boost in small benchmarks (4-10%) but hoisting values to reduce allocation
+// can be unpredictable in large programs where JIT may have a harder time with
+// functions are not fully self-contained. The benefit is more that the js and
+// js_html ones are so weird that I prefer to see them near each other.
+
+
+var _VirtualDom_RE_script = /^script$/i;
+var _VirtualDom_RE_on_formAction = /^(on|formAction$)/i;
+var _VirtualDom_RE_js = /^\s*j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t\s*:/i;
+var _VirtualDom_RE_js_html = /^\s*(j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t\s*:|d\s*a\s*t\s*a\s*:\s*t\s*e\s*x\s*t\s*\/\s*h\s*t\s*m\s*l\s*(,|;))/i;
 
 
 function _VirtualDom_noScript(tag)
 {
-	return tag == 'script' ? 'p' : tag;
+	return _VirtualDom_RE_script.test(tag) ? 'p' : tag;
 }
 
 function _VirtualDom_noOnOrFormAction(key)
 {
-	return /^(on|formAction$)/i.test(key) ? 'data-' + key : key;
+	return _VirtualDom_RE_on_formAction.test(key) ? 'data-' + key : key;
 }
 
 function _VirtualDom_noInnerHtmlOrFormAction(key)
@@ -2649,28 +2666,26 @@ function _VirtualDom_noInnerHtmlOrFormAction(key)
 	return key == 'innerHTML' || key == 'formAction' ? 'data-' + key : key;
 }
 
-function _VirtualDom_noJavaScriptUri_UNUSED(value)
-{
-	return /^javascript:/i.test(value.replace(/\s/g,'')) ? '' : value;
-}
-
 function _VirtualDom_noJavaScriptUri(value)
 {
-	return /^javascript:/i.test(value.replace(/\s/g,''))
-		? 'javascript:alert("This is an XSS vector. Please use ports or web components instead.")'
+	return _VirtualDom_RE_js.test(value)
+		? /**_UNUSED/''//*//**/'javascript:alert("This is an XSS vector. Please use ports or web components instead.")'//*/
 		: value;
-}
-
-function _VirtualDom_noJavaScriptOrHtmlUri_UNUSED(value)
-{
-	return /^\s*(javascript:|data:text\/html)/i.test(value) ? '' : value;
 }
 
 function _VirtualDom_noJavaScriptOrHtmlUri(value)
 {
-	return /^\s*(javascript:|data:text\/html)/i.test(value)
-		? 'javascript:alert("This is an XSS vector. Please use ports or web components instead.")'
+	return _VirtualDom_RE_js_html.test(value)
+		? /**_UNUSED/''//*//**/'javascript:alert("This is an XSS vector. Please use ports or web components instead.")'//*/
 		: value;
+}
+
+function _VirtualDom_noJavaScriptOrHtmlJson(value)
+{
+	return (typeof _Json_unwrap(value) === 'string' && _VirtualDom_RE_js_html.test(_Json_unwrap(value)))
+		? _Json_wrap(
+			/**_UNUSED/''//*//**/'javascript:alert("This is an XSS vector. Please use ports or web components instead.")'//*/
+		) : value;
 }
 
 
@@ -5226,56 +5241,20 @@ var $elm$browser$Browser$sandbox = function (impl) {
 			view: impl.view
 		});
 };
-var $elm$core$Basics$composeR = F3(
-	function (f, g, x) {
-		return g(
-			f(x));
-	});
-var $author$project$Util$firstWhere = F2(
-	function (isFound, list) {
-		firstWhere:
-		while (true) {
-			if (!list.b) {
-				return $elm$core$Maybe$Nothing;
-			} else {
-				var element = list.a;
-				var rest = list.b;
-				if (isFound(element)) {
-					return $elm$core$Maybe$Just(element);
-				} else {
-					var $temp$isFound = isFound,
-						$temp$list = rest;
-					isFound = $temp$isFound;
-					list = $temp$list;
-					continue firstWhere;
-				}
-			}
-		}
-	});
-var $author$project$KeysSet$KeysSet = {$: 'KeysSet'};
-var $lue_bird$elm_typed_value$Typed$internalVal = function (_v0) {
-	return function (_v1) {
-		var value_ = _v1.a;
-		return value_;
+var $author$project$KeysSet$KeysSet = function (a) {
+	return {$: 'KeysSet', a: a};
+};
+var $author$project$KeysSet$internalElementListAlter = function (elementsInternalChange) {
+	return function (_v0) {
+		var keysSetInternal = _v0.a;
+		return $author$project$KeysSet$KeysSet(
+			_Utils_update(
+				keysSetInternal,
+				{
+					elements: elementsInternalChange(keysSetInternal.elements)
+				}));
 	};
 };
-var $author$project$KeysSet$toList = A2(
-	$elm$core$Basics$composeR,
-	$lue_bird$elm_typed_value$Typed$internalVal($author$project$KeysSet$KeysSet),
-	function ($) {
-		return $.elements;
-	});
-var $author$project$KeysSet$at = F2(
-	function (accessAspect, keyToFind) {
-		return A2(
-			$elm$core$Basics$composeR,
-			$author$project$KeysSet$toList,
-			$author$project$Util$firstWhere(
-				A2(
-					$elm$core$Basics$composeR,
-					accessAspect,
-					$elm$core$Basics$eq(keyToFind))));
-	});
 var $elm$core$List$any = F2(
 	function (isOkay, list) {
 		any:
@@ -5297,85 +5276,69 @@ var $elm$core$List$any = F2(
 			}
 		}
 	});
-var $author$project$KeysSet$any = function (isOkay) {
+var $elm$core$Basics$composeL = F3(
+	function (g, f, x) {
+		return g(
+			f(x));
+	});
+var $elm$core$Basics$not = _Basics_not;
+var $elm$core$List$all = F2(
+	function (isOkay, list) {
+		return !A2(
+			$elm$core$List$any,
+			A2($elm$core$Basics$composeL, $elm$core$Basics$not, isOkay),
+			list);
+	});
+var $elm$core$Basics$composeR = F3(
+	function (f, g, x) {
+		return g(
+			f(x));
+	});
+var $author$project$KeysSet$toList = function (_v0) {
+	var internal = _v0.a;
+	return internal.elements;
+};
+var $author$project$KeysSet$all = function (isOkay) {
 	return A2(
 		$elm$core$Basics$composeR,
 		$author$project$KeysSet$toList,
-		$elm$core$List$any(isOkay));
+		$elm$core$List$all(isOkay));
 };
-var $elm$core$Basics$not = _Basics_not;
-var $author$project$KeysSet$uniqueness = A2(
-	$elm$core$Basics$composeR,
-	$lue_bird$elm_typed_value$Typed$internalVal($author$project$KeysSet$KeysSet),
-	function ($) {
-		return $.uniqueness;
-	});
-var $author$project$KeysSet$isUnique = function (element) {
-	return function (keysSet) {
-		return !A2(
-			$elm$core$List$any,
-			function (unique_) {
+var $author$project$KeysSet$uniqueness = function (_v0) {
+	var internal = _v0.a;
+	return internal.uniqueness;
+};
+var $author$project$KeysSet$isUniqueIn = function (keysSet) {
+	return function (elementToCheckAgainst) {
+		return A2(
+			$author$project$KeysSet$all,
+			function (el) {
 				return A2(
-					$author$project$KeysSet$any,
-					function (bElement) {
-						return !A2(unique_, element, bElement).areUnique;
+					$elm$core$List$all,
+					function (unique_) {
+						return A2(unique_, elementToCheckAgainst, el).areUnique;
 					},
-					keysSet);
+					$author$project$KeysSet$uniqueness(keysSet));
 			},
-			$author$project$KeysSet$uniqueness(keysSet));
+			keysSet);
 	};
 };
-var $lue_bird$elm_typed_value$Typed$Typed = function (a) {
-	return {$: 'Typed', a: a};
-};
-var $lue_bird$elm_typed_value$Typed$isChecked = function (_v0) {
-	return function (_v1) {
-		var value_ = _v1.a;
-		return $lue_bird$elm_typed_value$Typed$Typed(value_);
-	};
-};
-var $lue_bird$elm_typed_value$Typed$map = function (alter) {
-	return function (_v0) {
-		var value_ = _v0.a;
-		return $lue_bird$elm_typed_value$Typed$Typed(
-			alter(value_));
-	};
-};
-var $author$project$KeysSet$updateElements = function (change) {
-	return A2(
-		$elm$core$Basics$composeR,
-		$lue_bird$elm_typed_value$Typed$map(
-			function (keysSet) {
-				return _Utils_update(
-					keysSet,
-					{
-						elements: change(keysSet.elements)
-					});
-			}),
-		$lue_bird$elm_typed_value$Typed$isChecked($author$project$KeysSet$KeysSet));
-};
-var $author$project$KeysSet$insert = function (element) {
+var $author$project$KeysSet$insert = function (elementToInsertIfUnique) {
 	return function (keysSet) {
-		return A2($author$project$KeysSet$isUnique, element, keysSet) ? A2(
-			$author$project$KeysSet$updateElements,
-			$elm$core$List$cons(element),
+		return A2($author$project$KeysSet$isUniqueIn, keysSet, elementToInsertIfUnique) ? A2(
+			$author$project$KeysSet$internalElementListAlter,
+			$elm$core$List$cons(elementToInsertIfUnique),
 			keysSet) : keysSet;
 	};
 };
-var $author$project$KeysSet$insertAll = function (listOfElementsToInsert) {
+var $author$project$KeysSet$insertList = function (listOfElementsToInsert) {
 	return function (keysSet) {
 		return A3($elm$core$List$foldl, $author$project$KeysSet$insert, keysSet, listOfElementsToInsert);
 	};
 };
-var $lue_bird$elm_typed_value$Typed$tag = function (value_) {
-	return $lue_bird$elm_typed_value$Typed$Typed(value_);
-};
 var $author$project$KeysSet$promising = function (uniqueness_) {
-	return A2(
-		$lue_bird$elm_typed_value$Typed$isChecked,
-		$author$project$KeysSet$KeysSet,
-		$lue_bird$elm_typed_value$Typed$tag(
-			{elements: _List_Nil, uniqueness: uniqueness_}));
+	return $author$project$KeysSet$KeysSet(
+		{elements: _List_Nil, uniqueness: uniqueness_});
 };
 var $elm$core$Basics$neq = _Utils_notEqual;
 var $author$project$KeysSet$unique = function (aspect) {
@@ -5389,7 +5352,7 @@ var $author$project$KeysSet$unique = function (aspect) {
 		});
 };
 var $author$project$Main$brackets = A2(
-	$author$project$KeysSet$insertAll,
+	$author$project$KeysSet$insertList,
 	_List_fromArray(
 		[
 			{
@@ -5417,8 +5380,42 @@ var $author$project$Main$brackets = A2(
 					return $.closed;
 				})
 			])));
+var $elm_community$list_extra$List$Extra$find = F2(
+	function (predicate, list) {
+		find:
+		while (true) {
+			if (!list.b) {
+				return $elm$core$Maybe$Nothing;
+			} else {
+				var first = list.a;
+				var rest = list.b;
+				if (predicate(first)) {
+					return $elm$core$Maybe$Just(first);
+				} else {
+					var $temp$predicate = predicate,
+						$temp$list = rest;
+					predicate = $temp$predicate;
+					list = $temp$list;
+					continue find;
+				}
+			}
+		}
+	});
+var $author$project$KeysSet$element = function (_v0) {
+	var aspectAccess = _v0.a;
+	var keyToFind = _v0.b;
+	return A2(
+		$elm$core$Basics$composeR,
+		$author$project$KeysSet$toList,
+		$elm_community$list_extra$List$Extra$find(
+			function (el) {
+				return _Utils_eq(
+					aspectAccess(el),
+					keyToFind);
+			}));
+};
 var $author$project$Main$letterInfos = A2(
-	$author$project$KeysSet$insertAll,
+	$author$project$KeysSet$insertList,
 	_List_fromArray(
 		[
 			{
@@ -5467,30 +5464,33 @@ var $author$project$Main$letterInfos = A2(
 					})
 				]))));
 var $author$project$Main$casedLetterByLowercase = function (_char) {
-	return A3(
-		$author$project$KeysSet$at,
-		function ($) {
-			return $.lowercase;
-		},
-		_char,
+	return A2(
+		$author$project$KeysSet$element,
+		_Utils_Tuple2(
+			function ($) {
+				return $.lowercase;
+			},
+			_char),
 		$author$project$Main$letterInfos);
 };
 var $author$project$Main$casedLetterByUppercase = function (_char) {
-	return A3(
-		$author$project$KeysSet$at,
-		function ($) {
-			return $.uppercase;
-		},
-		_char,
+	return A2(
+		$author$project$KeysSet$element,
+		_Utils_Tuple2(
+			function ($) {
+				return $.uppercase;
+			},
+			_char),
 		$author$project$Main$letterInfos);
 };
 var $author$project$Main$casedLetterInAlphabet = function (inAlphabet) {
-	return A3(
-		$author$project$KeysSet$at,
-		function ($) {
-			return $.inAlphabet;
-		},
-		inAlphabet,
+	return A2(
+		$author$project$KeysSet$element,
+		_Utils_Tuple2(
+			function ($) {
+				return $.inAlphabet;
+			},
+			inAlphabet),
 		$author$project$Main$letterInfos);
 };
 var $elm$core$String$cons = _String_cons;
@@ -5574,12 +5574,13 @@ var $author$project$Main$update = F2(
 									function ($) {
 										return $.textInOpenCloseBrackets;
 									}(model))) > 0) {
-								var _v4 = A3(
-									$author$project$KeysSet$at,
-									function ($) {
-										return $.open;
-									},
-									last,
+								var _v4 = A2(
+									$author$project$KeysSet$element,
+									_Utils_Tuple2(
+										function ($) {
+											return $.open;
+										},
+										last),
 									$author$project$Main$brackets);
 								if (_v4.$ === 'Just') {
 									var closed = _v4.a.closed;
@@ -5587,12 +5588,13 @@ var $author$project$Main$update = F2(
 										text,
 										$elm$core$String$fromChar(closed));
 								} else {
-									var _v5 = A3(
-										$author$project$KeysSet$at,
-										function ($) {
-											return $.closed;
-										},
-										last,
+									var _v5 = A2(
+										$author$project$KeysSet$element,
+										_Utils_Tuple2(
+											function ($) {
+												return $.closed;
+											},
+											last),
 										$author$project$Main$brackets);
 									if (_v5.$ === 'Just') {
 										var open = _v5.a.open;
@@ -5606,22 +5608,24 @@ var $author$project$Main$update = F2(
 									}
 								}
 							} else {
-								var _v6 = A3(
-									$author$project$KeysSet$at,
-									function ($) {
-										return $.open;
-									},
-									last,
+								var _v6 = A2(
+									$author$project$KeysSet$element,
+									_Utils_Tuple2(
+										function ($) {
+											return $.open;
+										},
+										last),
 									$author$project$Main$brackets);
 								if (_v6.$ === 'Just') {
 									return before;
 								} else {
-									var _v7 = A3(
-										$author$project$KeysSet$at,
-										function ($) {
-											return $.closed;
-										},
-										last,
+									var _v7 = A2(
+										$author$project$KeysSet$element,
+										_Utils_Tuple2(
+											function ($) {
+												return $.closed;
+											},
+											last),
 										$author$project$Main$brackets);
 									if (_v7.$ === 'Just') {
 										return before;
@@ -6282,7 +6286,7 @@ var $elm$virtual_dom$VirtualDom$property = F2(
 		return A2(
 			_VirtualDom_property,
 			_VirtualDom_noInnerHtmlOrFormAction(key),
-			_VirtualDom_noJavaScriptOrHtmlUri(value));
+			_VirtualDom_noJavaScriptOrHtmlJson(value));
 	});
 var $mdgriffith$elm_ui$Internal$Style$AllChildren = F2(
 	function (a, b) {
@@ -11756,11 +11760,6 @@ var $mdgriffith$elm_ui$Element$Input$applyLabel = F3(
 		}
 	});
 var $elm$html$Html$Attributes$attribute = $elm$virtual_dom$VirtualDom$attribute;
-var $elm$core$Basics$composeL = F3(
-	function (g, f, x) {
-		return g(
-			f(x));
-	});
 var $mdgriffith$elm_ui$Element$Input$autofill = A2(
 	$elm$core$Basics$composeL,
 	$mdgriffith$elm_ui$Internal$Model$Attr,

@@ -2,10 +2,10 @@ module KeysSet exposing
     ( KeysSet
     , promising
     , Uniqueness, unique
-    , equal, isEmpty, at, size, isUnique, all, any
-    , insert, insertAll, remove, update, updateAll
-    , when
-    , fold, toList, map
+    , isEqualTo, isEmpty, element, size, isUniqueIn, all, any
+    , uniqueness
+    , insert, insertList, elementRemove, elementAlter, alter
+    , foldFrom, toList, map, mapTry
     )
 
 {-|
@@ -18,35 +18,30 @@ module KeysSet exposing
 @docs promising
 
 
-### door
+### unique or not?
 
 @docs Uniqueness, unique
 
 
 ## scan
 
-@docs equal, isEmpty, at, size, isUnique, all, any
+@docs isEqualTo, isEmpty, element, size, isUniqueIn, all, any
+@docs uniqueness
 
 
 ## alter
 
-@docs insert, insertAll, remove, update, updateAll
-
-
-### filter
-
-@docs when
+@docs insert, insertList, elementRemove, elementAlter, alter
 
 
 ## transform
 
-@docs fold, toList, map
+@docs foldFrom, toList, map, mapTry
 
 -}
 
 import List.Extra as List
 import Typed exposing (Checked, Internal, Typed, internal, isChecked, tag)
-import Util exposing (aspect, firstWhere)
 
 
 {-| Unsorted data structure that lets you specify aspects that are checked to be unique across all elements
@@ -55,7 +50,7 @@ import Util exposing (aspect, firstWhere)
     countries =
         KeysSet.promising
             [ unique .flag, unique .code ]
-            |> KeysSet.insertAll
+            |> KeysSet.insertList
                 [ { flag = "🇦🇺", code = "AU", name = "Australia" }
                 , { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
                 , { flag = "🇱🇧", code = "LB", name = "Lebanon" }
@@ -63,35 +58,22 @@ import Util exposing (aspect, firstWhere)
 
     -- aspect to check for matches + key → matching element
 
-    KeysSet.at .flag "🇦🇶" countries
+    KeysSet.element ( .flag, "🇦🇶" ) countries
     --> Just { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
 
-    KeysSet.at .code "LB" countries
+    KeysSet.element ( .code, "LB" ) countries
     --> Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 
 -}
-type alias KeysSet element =
-    Typed
-        Checked
-        KeysSetTag
-        Internal
-        (ElementsWithUniquenessPromises element)
-
-
-type alias ElementsWithUniquenessPromises element =
-    { uniqueness : List (Uniqueness element)
-    , elements : List element
-    }
-
-
-{-| **Should not be exposed.**
--}
-type KeysSetTag
+type KeysSet element
     = KeysSet
+        { uniqueness : List (Uniqueness element)
+        , elements : List element
+        }
 
 
 {-| A check on whether 2 values are equal in some aspect.
-See [`unique`](KeysSet#unique)
+See [`unique`](#unique)
 
     uniqueInCasedLetter =
         [ unique .inAlphabet
@@ -109,7 +91,7 @@ See [`unique`](KeysSet#unique)
 
 -}
 type alias Uniqueness value =
-    value -> value -> { areUnique : Bool }
+    value -> (value -> { areUnique : Bool })
 
 
 {-| Check values on whether a given aspect is the same structurally
@@ -125,8 +107,8 @@ type alias Uniqueness value =
     --> { areUnique = True }
 
     unique (\person -> ( person.firstName, person.lastName ))
-        { lastName = "jimmy", firstName = "petter", ... }
-        { lastName = "jimmy", firstName = "greg", ... }
+        { lastName = "jimmy", firstName = "petter" }
+        { lastName = "jimmy", firstName = "greg" }
     --> { areUnique = True }
 
 in `KeysSet`
@@ -147,7 +129,7 @@ unique aspect =
 
 {-| A `KeysSet` with no elements inside,
 promising that given aspects are unique across all elements.
-See [`Uniqueness`](KeysSet#Uniqueness)
+See [`Uniqueness`](#Uniqueness)
 
     KeysSet.promising [ unique .email ]
         |> KeysSet.insert
@@ -164,13 +146,14 @@ Elm will crash trying to see if they are equal
 promising : List (Uniqueness element) -> KeysSet element
 promising uniqueness_ =
     { uniqueness = uniqueness_, elements = [] }
-        |> tag KeysSet
+        |> KeysSet
 
 
 {-| How can you know if each element in `aKeysSet` can also be found in `bKeysSet`?
 
+    letterCodes : KeysSet { letter : Char, code : Int }
     letterCodes =
-        KeysSet.insertAll
+        KeysSet.insertList
             [ { letter = 'a', code = 97 }
             , { letter = 'b', code = 98 }
             ]
@@ -178,6 +161,7 @@ promising uniqueness_ =
                 [ unique .letter, unique .code ]
             )
 
+    fancyCompetingLetterCodes : KeysSet { letter : Char, code : Int }
     fancyCompetingLetterCodes =
         KeysSet.promising
             [ unique .code, unique .letter ]
@@ -186,34 +170,37 @@ promising uniqueness_ =
 
     letterCodes == fancyCompetingLetterCodes
     -- elm crashes
-
-Because a `KeysSet`'s `Uniqueness` is defined as functions
+    -- because a `KeysSet`'s `Uniqueness` is defined as functions
 
     (letterCodes |> KeysSet.toList)
-    == (fancyCompetingLetterCodes |> KeysSet.toList)
+        == (fancyCompetingLetterCodes |> KeysSet.toList)
+    -- both contain the same elements
+    -- but in a different order
     --> False
 
-Even though both contain the same elements but in a different order
+    letterCodes
+        |> KeysSet.isEqualTo fancyCompetingLetterCodes
+    --> True
 
 > → Don't use `==` to compare `KeysSet`s
 
 > The keys can be non-comparable. There is no obvious order.
 > → You shouldn't rely on order when using functions like `fold` or `toList`
 
-Instead, use
-
-    KeysSet.equal
-        letterCodes
-        fancyCompetingLetterCodes
-    --> True
+runtime: `length^2`
 
 -}
-equal :
+isEqualTo :
     KeysSet element
-    -> KeysSet element
-    -> Bool
-equal =
-    aspect toList List.isPermutationOf
+    ->
+        (KeysSet element
+         -> Bool
+        )
+isEqualTo keysSetToCheckAgainst =
+    \keysSet ->
+        (keysSet |> toList)
+            |> List.isPermutationOf
+                (keysSetToCheckAgainst |> toList)
 
 
 {-| Try to find an element where a given aspect matches a given value
@@ -221,68 +208,78 @@ equal =
     casedLetters =
         KeysSet.promising
             [ unique .lowercase, unique .uppercase ]
-            |> KeysSet.insertAll
+            |> KeysSet.insertList
                 [ { lowercase = 'a', uppercase = 'A' }
                 , { lowercase = 'b', uppercase = 'B' }
                 ]
 
     lowercase char =
         casedLetters
-            |> KeysSet.at .uppercase char
+            |> KeysSet.element .uppercase char
             |> Maybe.map .lowercase
 
     uppercase char =
         casedLetters
-            |> KeysSet.at .lowercase char
+            |> KeysSet.element .lowercase char
             |> Maybe.map .uppercase
 
 If the given aspect isn't promised to be unique,
 `at` will find the most recently inserted element where the given aspect matches the given value
 
+    ratedOperators : KeysSet { rating : Float, symbol : String, name : String }
     ratedOperators =
         KeysSet.promising
             [ unique .symbol, unique .name ]
-            |> KeysSet.insertAll
+            |> KeysSet.insertList
                 [ { rating = 0.5, symbol = "<", name = "lt" }
                 , { rating = 0.5, symbol = ">", name = "gt" }
                 ]
 
-    KeysSet.at .rating 0.5 ratedOperators
+    ratedOperators
+        |> KeysSet.element ( .rating, 0.5 )
     --> { rating = 0.5, symbol = ">", name = "gt" }
     -->     |> Just
 
+runtime: `length`
+
 -}
-at :
-    (element -> aspect)
-    -> aspect
+element :
+    ( element -> aspect, aspect )
     ->
         (KeysSet element
          -> Maybe element
         )
-at aspectAccess keyToFind =
+element ( aspectAccess, keyToFind ) =
     toList
-        >> firstWhere
-            (\element -> (element |> aspectAccess) == keyToFind)
+        >> List.find
+            (\el -> (el |> aspectAccess) == keyToFind)
 
 
-{-| Conveniently [`insert`](KeysSet#insert) a `List` of elements
+{-| Conveniently [`insert`](#insert) a `List` of elements
 
     KeysSet.promising
         [ unique .open, unique .closed ]
-        |> KeysSet.insertAll
+        |> KeysSet.insertList
             [ { open = '(', closed = ')' }
             , { open = '{', closed = '}' }
             ]
-    --> KeysSet.promising [ unique .open, unique .closed ]
-    -->     |> KeysSet.insert { open = '(', closed = ')' }
-    -->     |> KeysSet.insert { open = '{', closed = '}' }
+        |> KeysSet.isEqualTo
+            (KeysSet.promising [ unique .open, unique .closed ]
+                |> KeysSet.insert { open = '(', closed = ')' }
+                |> KeysSet.insert { open = '{', closed = '}' }
+            )
+    --> True
+
+runtime: `setLength * listLength`
 
 -}
-insertAll :
+insertList :
     List element
-    -> KeysSet element
-    -> KeysSet element
-insertAll listOfElementsToInsert =
+    ->
+        (KeysSet element
+         -> KeysSet element
+        )
+insertList listOfElementsToInsert =
     \keysSet ->
         List.foldl insert
             keysSet
@@ -292,7 +289,7 @@ insertAll listOfElementsToInsert =
 {-| How many elements there are
 
     KeysSet.promising [ unique identity ]
-        |> KeysSet.insertAll (List.range 0 41)
+        |> KeysSet.insertList (List.range 0 41)
         |> KeysSet.size
     --> 42
 
@@ -309,7 +306,7 @@ size =
     --> True
 
     KeysSet.promising [ unique .name ]
-        |> KeysSet.insertAll []
+        |> KeysSet.insertList []
         |> KeysSet.isEmpty
     --> True
 
@@ -324,54 +321,53 @@ isEmpty =
     toList >> List.isEmpty
 
 
-{-| Whether this element is considered unique / would it be [`insert`](#insert)ed
+{-| Whether this element is considered unique / would be [`insert`](#insert)ed
 
+    letters : KeysSet { lowercase : Char, uppercase : Char }
     letters =
         KeysSet.promising
             [ unique .lowercase, unique .uppercase ]
-            |> KeysSet.insertAll
+            |> KeysSet.insertList
                 [ { lowercase = 'a', uppercase = 'A' }
                 , { lowercase = 'b', uppercase = 'B' }
                 ]
 
-    letters
-        |> KeysSet.isUnique
-            { lowercase = 'b', uppercase = 'C' }
-    --> False
+    KeysSet.isUniqueIn letters
+        { lowercase = 'b', uppercase = 'C' }
     -- .lowercase 'b' already exists
-
-    letters
-        |> KeysSet.isUnique
-            { lowercase = 'c', uppercase = 'A' }
     --> False
-    -- .uppercase 'A' already exists
 
-    letters
-        |> KeysSet.isUnique
-            { lowercase = 'c', uppercase = 'C' }
+    KeysSet.isUniqueIn letters
+        { lowercase = 'c', uppercase = 'A' }
+    -- .uppercase 'A' already exists
+    --> False
+
+    KeysSet.isUniqueIn letters
+        { lowercase = 'c', uppercase = 'C' }
     --> True
 
+runtime: `length`
+
 -}
-isUnique : element -> KeysSet element -> Bool
-isUnique element =
-    \keysSet ->
-        uniqueness keysSet
-            |> List.any
-                (\unique_ ->
-                    keysSet
-                        |> any
-                            (\bElement ->
-                                not (unique_ element bElement).areUnique
+isUniqueIn : KeysSet element -> (element -> Bool)
+isUniqueIn keysSet =
+    \elementToCheckAgainst ->
+        keysSet
+            |> all
+                (\el ->
+                    (keysSet |> uniqueness)
+                        |> List.all
+                            (\unique_ ->
+                                (unique_ elementToCheckAgainst el).areUnique
                             )
                 )
-            |> not
 
 
 {-| Whether there are least some elements that pass a given test.
 
     KeysSet.promising
         [ unique .username, unique .email ]
-        |> KeysSet.insertAll
+        |> KeysSet.insertList
             [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
             , { username = "gria", priority = 3, email = "miggo@inlook.go" }
             ]
@@ -391,7 +387,7 @@ any isOkay =
 
     KeysSet.promising
         [ unique .username, unique .email ]
-        |> KeysSet.insertAll
+        |> KeysSet.insertList
             [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
             , { username = "gria", priority = 3, email = "miggo@inlook.go" }
             ]
@@ -407,7 +403,7 @@ all isOkay =
 {-| Put an element into the `KeysSet`.
 
 If there is already an element where some aspect that is promised to be unique is equal
-(see [`Uniqueness`](KeysSet#Uniqueness)),
+(see [`Uniqueness`](#Uniqueness)),
 the [`KeysSet`](#KeysSet) remains **unchanged**
 
     KeysSet.promising
@@ -430,73 +426,125 @@ the [`KeysSet`](#KeysSet) remains **unchanged**
         |> KeysSet.insert
             { lowercase = 'c', uppercase = 'C', rating = 0.6 }
             -- is inserted
+        |> KeysSet.isEqualTo
+            (KeysSet.promising
+                [ unique .lowercase, unique .uppercase ]
+                |> KeysSet.insertList
+                    [ { lowercase = 'b', uppercase = 'B', rating = 0.5 }
+                    , { lowercase = 'a', uppercase = 'A', rating = 0.5 }
+                    , { lowercase = 'c', uppercase = 'C', rating = 0.6 }
+                    ]
+            )
+    --> True
+
+runtime: `length`
 
 -}
 insert :
     element
-    -> KeysSet element
-    -> KeysSet element
-insert element =
+    ->
+        (KeysSet element
+         -> KeysSet element
+        )
+insert elementToInsertIfUnique =
     \keysSet ->
-        if isUnique element keysSet then
-            updateElements ((::) element) keysSet
+        if elementToInsertIfUnique |> isUniqueIn keysSet then
+            keysSet |> internalElementListAlter ((::) elementToInsertIfUnique)
 
         else
             keysSet
 
 
-updateElements :
+internalElementListAlter :
     (List element -> List element)
-    -> KeysSet element
-    -> KeysSet element
-updateElements change =
-    Typed.map
-        (\keysSet ->
-            { keysSet
-                | elements =
-                    change keysSet.elements
-            }
+    ->
+        (KeysSet element
+         -> KeysSet element
         )
-        >> isChecked KeysSet
+internalElementListAlter elementsInternalChange =
+    \(KeysSet keysSetInternal) ->
+        { keysSetInternal
+            | elements =
+                keysSetInternal.elements |> elementsInternalChange
+        }
+            |> KeysSet
 
 
 {-| Change the element with the matching aspect based on its current value
 
     KeysSet.promising
         [ unique .username, unique .email ]
-        |> KeysSet.insertAll
+        |> KeysSet.insertList
             [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
             , { username = "gria", priority = 3, email = "miggo@inlook.go" }
             ]
-        |> KeysSet.update .username
-            "fred"
-            (\user -> { user | priority = p.priority + 3 })
+        |> KeysSet.elementAlter ( .username, "fred" )
+            (\user -> { user | priority = user.priority + 3 })
+        |> KeysSet.isEqualTo
+            (KeysSet.promising [ unique .email ]
+                |> KeysSet.insertList
+                    [ { username = "fred", priority = 4, email = "higgi@outlook.com" }
+                    , { username = "gria", priority = 3, email = "miggo@inlook.go" }
+                    ]
+            )
+    --> True
 
-If this aspect isn't unique, all elements with the matching aspect are updated
+If this aspect isn't unique, all elements with the matching aspect are altered
 
     KeysSet.promising [ unique .email ]
-        |> KeysSet.insertAll
+        |> KeysSet.insertList
             [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
             , { username = "fred", priority = 3, email = "miggo@inlook.go" }
             ]
-        |> KeysSet.update .username
-            "fred"
-            (\user -> { user | priority = p.priority + 3 })
+        |> KeysSet.elementAlter ( .username, "fred" )
+            (\user -> { user | priority = user.priority + 3 })
+        |> KeysSet.isEqualTo
+            (KeysSet.promising [ unique .email ]
+                |> KeysSet.insertList
+                    [ { username = "fred", priority = 4, email = "higgi@outlook.com" }
+                    , { username = "fred", priority = 6, email = "miggo@inlook.go" }
+                    ]
+            )
+    --> True
 
-Every fred gets a higher priority!
+To change all elements → [`map`](#map), [`mapTry`](#mapTry) or [`alter`](#alter) if the result type is the same as before
+
+runtime: `length`
 
 -}
-update : (a -> b) -> b -> (a -> a) -> KeysSet a -> KeysSet a
-update aspect match change =
+elementAlter :
+    ( element -> aspect
+    , aspect
+    )
+    -> (element -> element)
+    ->
+        (KeysSet element
+         -> KeysSet element
+        )
+elementAlter ( elementAspectAccess, elementAspectToMatch ) elementChange =
     \keysSet ->
         keysSet
-            |> updateAll
-                (\el ->
-                    if aspect el == match then
-                        change el
+            |> internalElementListAlter
+                (let
+                    withoutElementToAlter =
+                        keysSet |> elementRemove ( elementAspectAccess, elementAspectToMatch )
+                 in
+                 List.filterMap
+                    (\el ->
+                        if (el |> elementAspectAccess) /= elementAspectToMatch then
+                            el |> Just
 
-                    else
-                        el
+                        else
+                            let
+                                altered =
+                                    el |> elementChange
+                            in
+                            if altered |> isUniqueIn withoutElementToAlter then
+                                altered |> Just
+
+                            else
+                                Nothing
+                    )
                 )
 
 
@@ -506,39 +554,39 @@ update aspect match change =
 
 > → You shouldn't rely on order when using functions like `fold` or `toList`
 
-
+    brackets : KeysSet { open : Char, closed : Char }
     brackets =
         KeysSet.promising
             [ unique .open, unique .closed ]
-            |> KeysSet.insertAll
+            |> KeysSet.insertList
                 [ { open = '(', closed = ')' }
                 , { open = '{', closed = '}' }
                 ]
 
-    openingAndClosing =
-        brackets
-            |> KeysSet.fold
-                (\{ open, closed } ->
-                    (::) (String.fromList [ open, closed ])
-                )
-                []
-
+    brackets
+        |> KeysSet.foldFrom []
+            (\{ open, closed } ->
+                (::) (String.fromList [ open, closed ])
+            )
     --> []
-    -->     |> (::) (String.fromList [ '{' '}' ])
-    -->     |> (::) (String.fromList [ '(' ')' ])
+    -->     |> (::) (String.fromList [ '{', '}' ])
+    -->     |> (::) (String.fromList [ '(', ')' ])
 
 -}
-fold :
-    (element -> acc -> acc)
-    -> acc
-    -> KeysSet element
-    -> acc
-fold reduce initial =
+foldFrom :
+    accumulationValue
+    -> (element -> (accumulationValue -> accumulationValue))
+    ->
+        (KeysSet element
+         -> accumulationValue
+        )
+foldFrom initial reduce =
     toList >> List.foldl reduce initial
 
 
 {-| Remove the element where a given aspect of the element matches a given value
 
+    openClosedBrackets : KeysSet { open : String, closed : String }
     openClosedBrackets =
         KeysSet.promising
             [ unique .open, unique .closed ]
@@ -546,68 +594,48 @@ fold reduce initial =
                 { open = "(", closed = ")" }
 
     openClosedBrackets
-        |> KeysSet.remove .open ")"
-    -- no change
+        |> KeysSet.elementRemove ( .open, ")" )
+        |> KeysSet.isEmpty
+    --> False
     -- .open is never ")"
 
     openClosedBrackets
-        |> KeysSet.remove .closed ")"
-    -- removes { open = "(", closed = ")" }
+        |> KeysSet.elementRemove ( .closed, ")" )
+        |> KeysSet.isEmpty
+    --> True
 
-If there the checked aspect isn't promised to be unique, `remove` acts as a filter
+If the checked aspect isn't promised to be unique, [`elementRemove`](#elementRemove) acts like a filter
 
     KeysSet.promising
         [ unique .open, unique .closed ]
-        |> KeysSet.insertAll
-            [ { open = "[", closed = "]", meaning = List }
-            , { open = "<", closed = ">", meaning = Custom }
-            , { open = "\\", closed = "/", meaning = Custom }
+        |> KeysSet.insertList
+            [ { open = "[", closed = "]", description = "List" }
+            , { open = "<", closed = ">", description = "Custom" }
+            , { open = "\\", closed = "/", description = "Custom" }
             ]
-        |> KeysSet.remove .meaning Custom
-    -- only { open = "[", closed = "]", meaning = List } remains
-
-If filtering is your intention, use [`KeysSet.when`](KeysSet#when)
-
--}
-remove :
-    (element -> aspect)
-    -> aspect
-    -> KeysSet element
-    -> KeysSet element
-remove aspect key =
-    updateElements
-        (List.filter
-            (\element -> key /= aspect element)
-        )
-
-
-{-| Only keep elements that pass a given test
-
-    operators : KeysSet { symbol : String, name : String }
-    operators =
-        KeysSet.promising
-            [ unique .symbol, unique .name ]
-            |> KeysSet.insertAll
-                [ { symbol = ">", name = "gt" }
-                , { symbol = "<", name = "lt" }
-                , { symbol = "==", name = "eq" }
-                ]
-
-    -- singleCharOperators
-    operators
-        |> KeysSet.when
-            (\operator ->
-                (operator.symbol |> String.length) == 1
-            )
+        |> KeysSet.elementRemove ( .description, "Custom" )
         |> KeysSet.toList
-    --> [ { symbol = ">", name = "gt" }
-    --> , { symbol = "<", name = "lt" }
-    --> ]
+    --> [ { open = "[", closed = "]", description = "List" } ]
+
+[`KeysSet.mapTry`](#mapTry) to filter values
+
+runtime: `length`
 
 -}
-when : (element -> Bool) -> KeysSet element -> KeysSet element
-when isGood =
-    updateElements (List.filter isGood)
+elementRemove :
+    ( element -> aspect, aspect )
+    ->
+        (KeysSet element
+         -> KeysSet element
+        )
+elementRemove ( elementAspectAccess, elementAspectToMatchAgainst ) =
+    internalElementListAlter
+        (List.filter
+            (\el ->
+                (el |> elementAspectAccess)
+                    /= elementAspectToMatchAgainst
+            )
+        )
 
 
 {-| The `List` containing all elements from most recently (= head) to least recently inserted element
@@ -621,7 +649,7 @@ when isGood =
 
     KeysSet.promising
         [ unique .open, unique .closed ]
-        |> KeysSet.insertAll
+        |> KeysSet.insertList
             [ { open = '(', closed = ')' }
             , { open = '{', closed = '}' }
             ]
@@ -630,15 +658,44 @@ when isGood =
     --> , { open = '(', closed = ')' }
     --> ]
 
+runtime: `1`
+
 -}
 toList : KeysSet element -> List element
 toList =
-    internal KeysSet >> .elements
+    \(KeysSet internal) -> internal.elements
 
 
+{-| What [`Uniqueness`](#Uniqueness) the [`KeysSet`](#KeysSet) is [`promising`](#promising)
+to check for.
+
+    KeysSet.promising [ unique .open, unique .closed ]
+        |> KeysSet.uniqueness
+    --→ [ unique .open, unique .closed ]
+
+This is rarely useful! Some examples:
+
+    alter change =
+        \keysSet ->
+            keysSet |> KeysSet.map change (keysSet |> uniqueness)
+
+    where isOk =
+        \keysSet ->
+            keysSet
+                |> KeysSet.mapTry
+                    (\element ->
+                        if element |> isOk then
+                            element |> Just
+
+                        else
+                            Nothing
+                    )
+                    (keysSet |> uniqueness)
+
+-}
 uniqueness : KeysSet element -> List (Uniqueness element)
 uniqueness =
-    internal KeysSet >> .uniqueness
+    \(KeysSet internal) -> internal.uniqueness
 
 
 {-| Alter every element based on its current value
@@ -646,7 +703,7 @@ uniqueness =
     digitNames =
         KeysSet.promising
             [ unique .number, unique .name ]
-            |> KeysSet.insertAll
+            |> KeysSet.insertList
                 [ { number = 0, name = "zero" }
                 , { number = 1, name = "one" }
                 ]
@@ -660,19 +717,75 @@ uniqueness =
                 [ unique .symbol, unique .name ]
             |> KeysSet.insert { symbol = "+", name = "plus" }
 
-If the type doesn't change, use [`KeysSet.updateAll`](KeysSet#updateAll)
+Your function doesn't change the type of the element? → [`KeysSet.alter`](#alter)
+
+runtime: `length^2`
 
 -}
 map :
     (element -> mappedElement)
     -> List (Uniqueness mappedElement)
-    -> KeysSet element
-    -> KeysSet mappedElement
-map alter uniquenessOfMappedElement =
+    ->
+        (KeysSet element
+         -> KeysSet mappedElement
+        )
+map elementChange uniquenessOfMappedElement =
     \keysSet ->
         keysSet
-            |> fold (alter >> insert)
+            |> foldFrom
                 (promising uniquenessOfMappedElement)
+                (elementChange >> insert)
+
+
+{-| Only keep elements that are transformed to `Just` by a given function
+
+    operators : KeysSet { symbol : String, name : String }
+    operators =
+        KeysSet.promising
+            [ unique .symbol, unique .name ]
+            |> KeysSet.insertList
+                [ { symbol = ">", name = "gt" }
+                , { symbol = "<", name = "lt" }
+                , { symbol = "==", name = "eq" }
+                ]
+
+    -- singleCharOperators
+    operators
+        |> KeysSet.mapTry
+            (\operator ->
+                case operator.symbol |> String.length of
+                    1 ->
+                        operator.name |> Just
+                    _ ->
+                        Nothing
+            )
+            [ unique identity ]
+        |> KeysSet.toList
+    --> [ "gt", "lt" ]
+
+runtime: `length^2`
+
+-}
+mapTry :
+    (element -> Maybe mappedElementFill)
+    -> List (Uniqueness mappedElementFill)
+    ->
+        (KeysSet element
+         -> KeysSet mappedElementFill
+        )
+mapTry elementChangeTry uniquenessOfMappedElement =
+    \keysSet ->
+        keysSet
+            |> foldFrom
+                (promising uniquenessOfMappedElement)
+                (\el ->
+                    case el |> elementChangeTry of
+                        Just fill ->
+                            insert fill
+
+                        Nothing ->
+                            identity
+                )
 
 
 {-| Change every element based on its current value
@@ -684,13 +797,17 @@ map alter uniquenessOfMappedElement =
 If aspects that are promised to be unique become the same for 2 elements,
 the more recently inserted element is chosen
 
-Use [`map`](KeysSet#map) if your function changes the type of the element
+Your function changes the type of the element? → [`KeysSet.map`](#map)
+
+runtime: `length^2`
 
 -}
-updateAll :
+alter :
     (element -> element)
-    -> KeysSet element
-    -> KeysSet element
-updateAll change =
+    ->
+        (KeysSet element
+         -> KeysSet element
+        )
+alter change =
     \keysSet ->
-        keysSet |> map change (uniqueness keysSet)
+        keysSet |> map change (keysSet |> uniqueness)

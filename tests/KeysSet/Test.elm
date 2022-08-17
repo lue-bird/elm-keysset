@@ -1,4 +1,7 @@
-module KeysSetTest exposing (suite)
+module KeysSet.Test exposing (suite)
+
+{-| Anyone have the motivation to make those fuzz tests?
+-}
 
 import Expect
 import KeysSet exposing (KeysSet, unique)
@@ -93,25 +96,25 @@ scanTest =
                 casedLetters =
                     KeysSet.promising
                         [ unique .lowercase, unique .uppercase ]
-                        |> KeysSet.insertAll
+                        |> KeysSet.insertList
                             [ { lowercase = 'a', uppercase = 'A' }
                             , { lowercase = 'b', uppercase = 'B' }
                             ]
 
                 lowercase char =
                     casedLetters
-                        |> KeysSet.at .uppercase char
+                        |> KeysSet.element ( .uppercase, char )
                         |> Maybe.map .lowercase
 
                 uppercase char =
                     casedLetters
-                        |> KeysSet.at .lowercase char
+                        |> KeysSet.element ( .lowercase, char )
                         |> Maybe.map .uppercase
 
                 ratedOperators =
                     KeysSet.promising
                         [ unique .symbol, unique .name ]
-                        |> KeysSet.insertAll
+                        |> KeysSet.insertList
                             [ { rating = 0.5, symbol = "<", name = "lt" }
                             , { rating = 0.5, symbol = ">", name = "gt" }
                             ]
@@ -128,7 +131,8 @@ scanTest =
                 )
              , test "finds most recently inserted non-unique"
                 (\() ->
-                    KeysSet.at .rating 0.5 ratedOperators
+                    ratedOperators
+                        |> KeysSet.element ( .rating, 0.5 )
                         |> Expect.equal
                             ({ rating = 0.5, symbol = ">", name = "gt" }
                                 |> Just
@@ -142,7 +146,7 @@ scanTest =
                     letterCodes =
                         KeysSet.promising
                             [ unique .letter, unique .code ]
-                            |> KeysSet.insertAll
+                            |> KeysSet.insertList
                                 [ { letter = 'a', code = 97 }
                                 , { letter = 'b', code = 98 }
                                 ]
@@ -155,7 +159,7 @@ scanTest =
                             |> KeysSet.insert
                                 { code = 97, letter = 'a' }
                 in
-                KeysSet.equal letterCodes
+                KeysSet.isEqualTo letterCodes
                     fancyCompetingLetterCodes
                     |> Expect.true "from reversed list equal to before"
             )
@@ -164,7 +168,7 @@ scanTest =
                 (\() ->
                     KeysSet.promising
                         [ unique .open, unique .closed ]
-                        |> KeysSet.insertAll
+                        |> KeysSet.insertList
                             [ { open = '(', closed = ')' }
                             , { open = '{', closed = '}' }
                             ]
@@ -183,7 +187,7 @@ scanTest =
                     mostRecentlyInserted
                         (KeysSet.promising
                             [ unique .lowercase, unique .uppercase ]
-                            |> KeysSet.insertAll
+                            |> KeysSet.insertList
                                 [ { lowercase = 'a', uppercase = 'A' }
                                 , { lowercase = 'b', uppercase = 'B' }
                                 ]
@@ -198,7 +202,7 @@ scanTest =
             (\() ->
                 KeysSet.promising
                     [ unique .username, unique .email ]
-                    |> KeysSet.insertAll
+                    |> KeysSet.insertList
                         [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
                         , { username = "gria", priority = 3, email = "miggo@inlook.com" }
                         ]
@@ -209,7 +213,7 @@ scanTest =
             (\() ->
                 KeysSet.promising
                     [ unique .username, unique .email ]
-                    |> KeysSet.insertAll
+                    |> KeysSet.insertList
                         [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
                         , { username = "gria", priority = 3, email = "miggo@inlook.com" }
                         ]
@@ -220,31 +224,32 @@ scanTest =
             letters =
                 KeysSet.promising
                     [ unique .lowercase, unique .uppercase ]
-                    |> KeysSet.insertAll
+                    |> KeysSet.insertList
                         [ { lowercase = 'a', uppercase = 'A' }
                         , { lowercase = 'b', uppercase = 'B' }
                         ]
           in
           describe "isUnique"
-            [ test "not unique"
-                (\() ->
-                    Expect.all
-                        [ KeysSet.isUnique
+            [ describe "not unique"
+                [ test "lowercase"
+                    (\() ->
+                        KeysSet.isUniqueIn letters
                             { lowercase = 'b', uppercase = 'C' }
                             -- the .lowercase already exists
-                            >> Expect.equal False
-                        , KeysSet.isUnique
+                            |> Expect.equal False
+                    )
+                , test "uppercase"
+                    (\() ->
+                        KeysSet.isUniqueIn letters
                             { lowercase = 'c', uppercase = 'A' }
                             -- the .uppercase already exists
-                            >> Expect.equal False
-                        ]
-                        letters
-                )
+                            |> Expect.equal False
+                    )
+                ]
             , test "unique"
                 (\() ->
-                    letters
-                        |> KeysSet.isUnique
-                            { lowercase = 'c', uppercase = 'C' }
+                    KeysSet.isUniqueIn letters
+                        { lowercase = 'c', uppercase = 'C' }
                         |> Expect.equal True
                 )
             ]
@@ -258,59 +263,59 @@ type alias CharWithCode =
 insertTest : Test
 insertTest =
     let
-        at0 : CharWithCode
-        at0 =
+        element0 : CharWithCode
+        element0 =
             { code = 0, char = 'A' }
 
-        at1 : CharWithCode
-        at1 =
+        element1 : CharWithCode
+        element1 =
             { code = 1, char = 'B' }
 
         with2 : KeysSet CharWithCode
         with2 =
             KeysSet.promising
                 [ unique .code, unique .char ]
-                |> KeysSet.insertAll [ at0, at1 ]
+                |> KeysSet.insertList [ element0, element1 ]
     in
     describe "insert and insertAll"
         [ test "ignored for duplicates"
             (\() ->
                 KeysSet.size
                     (with2
-                        |> KeysSet.insert at0
-                        |> KeysSet.insert at1
+                        |> KeysSet.insert element0
+                        |> KeysSet.insert element1
                     )
                     |> Expect.equal 2
             )
         , test "access code is Just letter of inserted pair"
             (\() ->
                 KeysSet.promising [ unique .code, unique .char ]
-                    |> KeysSet.insert at1
-                    |> KeysSet.at .code at1.code
+                    |> KeysSet.insert element1
+                    |> KeysSet.element ( .code, element1.code )
                     |> Maybe.map .char
-                    |> Expect.equal (Just at1.char)
+                    |> Expect.equal (Just element1.char)
             )
         , test "code is Nothing if not of inserted pair"
             (\() ->
                 KeysSet.promising [ unique .code, unique .char ]
-                    |> KeysSet.insert at1
-                    |> KeysSet.at .code at0.code
+                    |> KeysSet.insert element1
+                    |> KeysSet.element ( .code, element0.code )
                     |> Maybe.map .char
                     |> Expect.equal Nothing
             )
         , test "char is Just left of inserted pair"
             (\() ->
                 KeysSet.promising [ unique .code, unique .char ]
-                    |> KeysSet.insert at1
-                    |> KeysSet.at .char at1.char
+                    |> KeysSet.insert element1
+                    |> KeysSet.element ( .char, element1.char )
                     |> Maybe.map .code
-                    |> Expect.equal (Just at1.code)
+                    |> Expect.equal (Just element1.code)
             )
         , test "char is Nothing if not of inserted pair"
             (\() ->
                 KeysSet.promising [ unique .code, unique .char ]
-                    |> KeysSet.insert at1
-                    |> KeysSet.at .char at0.char
+                    |> KeysSet.insert element1
+                    |> KeysSet.element ( .char, element0.char )
                     |> Maybe.map .code
                     |> Expect.equal Nothing
             )
@@ -320,7 +325,7 @@ insertTest =
                     result =
                         KeysSet.promising
                             [ unique .lowercase, unique .uppercase ]
-                            |> KeysSet.insertAll
+                            |> KeysSet.insertList
                                 [ { lowercase = 'b', uppercase = 'B', rating = 0.5 }
                                 , { lowercase = 'a', uppercase = 'A', rating = 0.5 }
                                 , { lowercase = 'b', uppercase = 'C', rating = 0 }
@@ -328,10 +333,10 @@ insertTest =
                                 , { lowercase = 'c', uppercase = 'C', rating = 0.6 }
                                 ]
                 in
-                KeysSet.equal result
+                KeysSet.isEqualTo result
                     (KeysSet.promising
                         [ unique .lowercase, unique .uppercase ]
-                        |> KeysSet.insertAll
+                        |> KeysSet.insertList
                             [ { lowercase = 'c', uppercase = 'C', rating = 0.6 }
                             , { lowercase = 'b', uppercase = 'B', rating = 0.5 }
                             , { lowercase = 'a', uppercase = 'A', rating = 0.5 }
@@ -358,7 +363,7 @@ removeTest =
                 ab =
                     KeysSet.promising
                         [ unique .code, unique .char ]
-                        |> KeysSet.insertAll
+                        |> KeysSet.insertList
                             [ { code = 0, char = 'A' }
                             , { code = 1, char = 'B' }
                             ]
@@ -367,20 +372,20 @@ removeTest =
                 (\() ->
                     ab
                         |> KeysSet.insert { code = 2, char = 'C' }
-                        |> KeysSet.remove .code 2
+                        |> KeysSet.elementRemove ( .code, 2 )
                         |> Expect.equal ab
                 )
             , test "nothing to remove"
                 (\() ->
                     openClosedBrackets
-                        |> KeysSet.remove .open ")"
+                        |> KeysSet.elementRemove ( .open, ")" )
                         --> no change, .open is never ")"
                         |> Expect.equal openClosedBrackets
                 )
             , test "something to remove"
                 (\() ->
                     openClosedBrackets
-                        |> KeysSet.remove .closed ")"
+                        |> KeysSet.elementRemove ( .closed, ")" )
                         |> KeysSet.toList
                         |> Expect.equalLists []
                 )
@@ -388,12 +393,12 @@ removeTest =
                 (\() ->
                     KeysSet.promising
                         [ unique .open, unique .closed ]
-                        |> KeysSet.insertAll
+                        |> KeysSet.insertList
                             [ { open = "[", closed = "]", meaning = List }
                             , { open = "<", closed = ">", meaning = Custom }
                             , { open = "\\", closed = "/", meaning = Custom }
                             ]
-                        |> KeysSet.remove .meaning Custom
+                        |> KeysSet.elementRemove ( .meaning, Custom )
                         |> KeysSet.toList
                         |> Expect.equalLists
                             [ { open = "[", closed = "]", meaning = List }
@@ -404,24 +409,30 @@ removeTest =
             operators =
                 KeysSet.promising
                     [ unique .symbol, unique .name ]
-                    |> KeysSet.insertAll
+                    |> KeysSet.insertList
                         [ { symbol = ">", name = "gt" }
                         , { symbol = "<", name = "lt" }
                         , { symbol = "==", name = "eq" }
                         ]
           in
-          test "when"
+          test "mapTry"
             (\() ->
                 operators
-                    |> KeysSet.when
-                        (\operator -> (operator.symbol |> String.length) == 1)
-                    |> KeysSet.equal
+                    |> KeysSet.mapTry
+                        (\operator ->
+                            case operator.symbol |> String.length of
+                                1 ->
+                                    operator.name |> Just
+
+                                _ ->
+                                    Nothing
+                        )
+                        [ unique identity ]
+                    |> KeysSet.isEqualTo
                         (KeysSet.promising
-                            [ unique .symbol, unique .name ]
-                            |> KeysSet.insertAll
-                                [ { symbol = ">", name = "gt" }
-                                , { symbol = "<", name = "lt" }
-                                ]
+                            [ unique identity ]
+                            |> KeysSet.insertList
+                                [ "gt", "lt" ]
                         )
                     |> Expect.equal True
             )
@@ -443,28 +454,26 @@ transformTest =
                     brackets =
                         KeysSet.promising
                             [ unique .open, unique .closed ]
-                            |> KeysSet.insertAll
+                            |> KeysSet.insertList
                                 [ { open = '(', closed = ')' }
                                 , { open = '{', closed = '}' }
                                 ]
 
                     openingAndClosing =
                         brackets
-                            |> KeysSet.fold
+                            |> KeysSet.foldFrom []
                                 (\{ open, closed } ->
                                     (::) (String.fromList [ open, closed ])
                                 )
-                                []
                 in
-                Expect.equalLists
-                    openingAndClosing
-                    [ "()", "{}" ]
+                openingAndClosing
+                    |> Expect.equalLists [ "()", "{}" ]
             )
         , test "toList example"
             (\() ->
                 KeysSet.promising
                     [ unique .open, unique .closed ]
-                    |> KeysSet.insertAll
+                    |> KeysSet.insertList
                         [ { open = '(', closed = ')' }
                         , { open = '{', closed = '}' }
                         ]
@@ -487,21 +496,21 @@ readmeExamplesTest =
                     brackets =
                         KeysSet.promising
                             [ unique .open, unique .closed ]
-                            |> KeysSet.insertAll
+                            |> KeysSet.insertList
                                 [ { open = '(', closed = ')' }
                                 , { open = '{', closed = '}' }
                                 ]
 
                     typeChar char =
                         brackets
-                            |> KeysSet.at .open char
+                            |> KeysSet.element ( .open, char )
                             |> Maybe.map
                                 (\{ closed } ->
                                     String.fromList [ char, closed ]
                                 )
                             |> Maybe.withDefault
                                 (brackets
-                                    |> KeysSet.at .closed char
+                                    |> KeysSet.element ( .closed, char )
                                     |> Maybe.map
                                         (\{ open } ->
                                             String.fromList [ open, char ]
@@ -517,14 +526,16 @@ readmeExamplesTest =
                 let
                     lowerUppercaseLetters =
                         KeysSet.promising [ unique .lowercase, unique .uppercase ]
-                            |> KeysSet.insertAll
+                            |> KeysSet.insertList
                                 [ { lowercase = 'a', uppercase = 'A' }
                                 , { lowercase = 'b', uppercase = 'B' }
                                 , { lowercase = 'c', uppercase = 'C' }
                                 ]
 
                     upperCase char =
-                        lowerUppercaseLetters |> KeysSet.at .lowercase char |> Maybe.map .uppercase
+                        lowerUppercaseLetters
+                            |> KeysSet.element ( .lowercase, char )
+                            |> Maybe.map .uppercase
                 in
                 Expect.equal ([ 'c', 'a', 'x' ] |> List.map upperCase)
                     [ Just 'C', Just 'A', Nothing ]
@@ -534,14 +545,16 @@ readmeExamplesTest =
                 let
                     elements =
                         KeysSet.promising [ unique .atomicNumber, unique .symbol ]
-                            |> KeysSet.insertAll
+                            |> KeysSet.insertList
                                 [ { symbol = "H", name = "Hydrogen", atomicNumber = 1 }
                                 , { symbol = "He", name = "Helium", atomicNumber = 2 }
                                 ]
 
                     atomicNumberOfElementWithName : String -> Maybe Int
                     atomicNumberOfElementWithName name =
-                        elements |> KeysSet.at .name name |> Maybe.map .atomicNumber
+                        elements
+                            |> KeysSet.element ( .name, name )
+                            |> Maybe.map .atomicNumber
                 in
                 [ atomicNumberOfElementWithName "Helium"
                 , atomicNumberOfElementWithName "Hydrogen"

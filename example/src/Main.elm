@@ -78,12 +78,12 @@ update msg model =
                                 String.length text
                                     > String.length (.textInOpenCloseBrackets model)
                             then
-                                case KeysSet.at .open last brackets of
+                                case brackets |> KeysSet.element ( .open, last ) of
                                     Just { closed } ->
                                         text ++ String.fromChar closed
 
                                     Nothing ->
-                                        case KeysSet.at .closed last brackets of
+                                        case brackets |> KeysSet.element ( .closed, last ) of
                                             Just { open } ->
                                                 before ++ String.fromList [ open, last ]
 
@@ -91,12 +91,12 @@ update msg model =
                                                 text
 
                             else
-                                case KeysSet.at .open last brackets of
+                                case brackets |> KeysSet.element ( .open, last ) of
                                     Just _ ->
                                         before
 
                                     Nothing ->
-                                        case KeysSet.at .closed last brackets of
+                                        case brackets |> KeysSet.element ( .closed, last ) of
                                             Just _ ->
                                                 before
 
@@ -169,7 +169,7 @@ letterInfos =
         , unique .inAlphabet
         ]
         |> KeysSet.insert aLetterInfo
-        |> KeysSet.insertAll
+        |> KeysSet.insertList
             [ { inAlphabet = 1, lowercase = 'b', uppercase = 'B' }
             , { inAlphabet = 2, lowercase = 'c', uppercase = 'C' }
             , { inAlphabet = 5, lowercase = 'f', uppercase = 'F' }
@@ -180,17 +180,17 @@ letterInfos =
 
 casedLetterByLowercase : Char -> Maybe LetterInfo
 casedLetterByLowercase char =
-    KeysSet.at .lowercase char letterInfos
+    letterInfos |> KeysSet.element ( .lowercase, char )
 
 
 casedLetterByUppercase : Char -> Maybe LetterInfo
 casedLetterByUppercase char =
-    KeysSet.at .uppercase char letterInfos
+    letterInfos |> KeysSet.element ( .uppercase, char )
 
 
 casedLetterInAlphabet : Int -> Maybe LetterInfo
 casedLetterInAlphabet inAlphabet =
-    KeysSet.at .inAlphabet inAlphabet letterInfos
+    letterInfos |> KeysSet.element ( .inAlphabet, inAlphabet )
 
 
 viewOpenCloseBrackets : String -> Ui.Element Msg
@@ -220,7 +220,7 @@ type alias OpenClosedBracket =
 brackets : KeysSet OpenClosedBracket
 brackets =
     KeysSet.promising [ unique .open, unique .closed ]
-        |> KeysSet.insertAll
+        |> KeysSet.insertList
             [ { open = '(', closed = ')' }
             , { open = '{', closed = '}' }
             , { open = '[', closed = ']' }
