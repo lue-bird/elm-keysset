@@ -182,7 +182,7 @@ scanTest =
                 (\() ->
                     let
                         mostRecentlyInserted =
-                            List.head << KeysSet.toList
+                            KeysSet.toList >> List.head
                     in
                     mostRecentlyInserted
                         (KeysSet.promising
@@ -254,10 +254,6 @@ scanTest =
                 )
             ]
         ]
-
-
-type alias CharWithCode =
-    { char : Char, code : Int }
 
 
 insertTest : Test
@@ -439,11 +435,6 @@ removeTest =
         ]
 
 
-type BracketMeaning
-    = List
-    | Custom
-
-
 transformTest : Test
 transformTest =
     describe "transform"
@@ -562,3 +553,12 @@ readmeExamplesTest =
                     |> Expect.equal [ Just 2, Just 1 ]
             )
         ]
+
+
+type alias CharWithCode =
+    { char : Char, code : Int }
+
+
+type BracketMeaning
+    = List
+    | Custom
