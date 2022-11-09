@@ -1,7 +1,5 @@
 # change log
 
-Continuing [indique/elm-keysdict](https://package.elm-lang.org/packages/indique/elm-keysdict/latest/) as `lue-bird/elm-keysset`
-
 ## 2.0.0
 
 - indirection `ElementsWithUniquenessPromises` remove
@@ -43,3 +41,6 @@ Continuing [indique/elm-keysdict](https://package.elm-lang.org/packages/indique/
 - added `KeysSet.all`
 - added `KeysSet.any`
 - added `KeysSet.isEmpty`
+
+## before
+[indique/elm-keysdict](https://package.elm-lang.org/packages/indique/elm-keysdict/latest/) → `lue-bird/elm-keysset`
