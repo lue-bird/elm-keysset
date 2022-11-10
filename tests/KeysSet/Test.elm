@@ -55,11 +55,12 @@ scanTest =
         [ describe "isEmpty"
             [ test "True for empty"
                 (\() ->
-                    Expect.true "isEmpty for filled False, ifEmpty True"
+                    Expect.onFail "isEmpty for filled False, ifEmpty True"
                         (KeysSet.isEmpty
                             (KeysSet.promising
                                 [ unique .code, unique .char ]
                             )
+                            |> Expect.equal True
                         )
                 )
             , test "False for filled"
@@ -159,9 +160,11 @@ scanTest =
                             |> KeysSet.insert
                                 { code = 97, letter = 'a' }
                 in
-                KeysSet.isEqualTo letterCodes
-                    fancyCompetingLetterCodes
-                    |> Expect.true "from reversed list equal to before"
+                Expect.onFail "from reversed list equal to before"
+                    (KeysSet.isEqualTo letterCodes
+                        fancyCompetingLetterCodes
+                        |> Expect.equal True
+                    )
             )
         , describe "toList examples"
             [ test "after insertAll"
@@ -329,16 +332,18 @@ insertTest =
                                 , { lowercase = 'c', uppercase = 'C', rating = 0.6 }
                                 ]
                 in
-                KeysSet.isEqualTo result
-                    (KeysSet.promising
-                        [ unique .lowercase, unique .uppercase ]
-                        |> KeysSet.insertList
-                            [ { lowercase = 'c', uppercase = 'C', rating = 0.6 }
-                            , { lowercase = 'b', uppercase = 'B', rating = 0.5 }
-                            , { lowercase = 'a', uppercase = 'A', rating = 0.5 }
-                            ]
+                Expect.onFail "keys are unique, others aren't"
+                    (KeysSet.isEqualTo result
+                        (KeysSet.promising
+                            [ unique .lowercase, unique .uppercase ]
+                            |> KeysSet.insertList
+                                [ { lowercase = 'c', uppercase = 'C', rating = 0.6 }
+                                , { lowercase = 'b', uppercase = 'B', rating = 0.5 }
+                                , { lowercase = 'a', uppercase = 'A', rating = 0.5 }
+                                ]
+                        )
+                        |> Expect.equal True
                     )
-                    |> Expect.true "keys are unique, others aren't"
             )
         ]
 

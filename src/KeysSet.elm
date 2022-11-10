@@ -5,7 +5,8 @@ module KeysSet exposing
     , isEqualTo, isEmpty, element, size, isUniqueIn, all, any
     , uniqueness
     , insert, insertList, elementRemove, elementAlter, alter
-    , foldFrom, toList, map, mapTry
+    , map, mapTry
+    , foldFrom, toList
     )
 
 {-|
@@ -32,18 +33,20 @@ module KeysSet exposing
 ## altering
 
 @docs insert, insertList, elementRemove, elementAlter, alter
+@docs map, mapTry
 
 
 ## transform
 
-@docs foldFrom, toList, map, mapTry
+@docs foldFrom, toList
 
 -}
 
 import List.Extra as List
 
 
-{-| Unsorted data structure that lets you specify aspects that are checked to be unique across all elements
+{-| 🦄 Unsorted data structure
+that lets you specify aspects that are checked to be unique across all elements
 
     countries : KeysSet { flag : String, code : String, name : String }
     countries =
@@ -196,7 +199,8 @@ isEqualTo :
         )
 isEqualTo keysSetToCheckAgainst =
     \keysSet ->
-        (keysSet |> toList)
+        keysSet
+            |> toList
             |> List.isPermutationOf
                 (keysSetToCheckAgainst |> toList)
 
@@ -248,9 +252,11 @@ element :
          -> Maybe element
         )
 element ( aspectAccess, keyToFind ) =
-    toList
-        >> List.find
-            (\el -> (el |> aspectAccess) == keyToFind)
+    \keysSet ->
+        keysSet
+            |> toList
+            |> List.find
+                (\el -> (el |> aspectAccess) == keyToFind)
 
 
 {-| Conveniently [`insert`](#insert) a `List` of elements
@@ -279,9 +285,7 @@ insertList :
         )
 insertList listOfElementsToInsert =
     \keysSet ->
-        List.foldl insert
-            keysSet
-            listOfElementsToInsert
+        List.foldl insert keysSet listOfElementsToInsert
 
 
 {-| How many elements there are
@@ -294,7 +298,8 @@ insertList listOfElementsToInsert =
 -}
 size : KeysSet element_ -> Int
 size =
-    toList >> List.length
+    \keysSet ->
+        keysSet |> toList |> List.length
 
 
 {-| Whether there are no elements inside
@@ -316,7 +321,8 @@ size =
 -}
 isEmpty : KeysSet element_ -> Bool
 isEmpty =
-    toList >> List.isEmpty
+    \keysSet ->
+        keysSet |> toList |> List.isEmpty
 
 
 {-| Whether this element is considered unique / would be [`insert`](#insert)ed
@@ -378,7 +384,8 @@ isUniqueIn keysSet =
 -}
 any : (element -> Bool) -> KeysSet element -> Bool
 any isOkay =
-    toList >> List.any isOkay
+    \keysSet ->
+        keysSet |> toList |> List.any isOkay
 
 
 {-| Whether all elements pass a given test.
@@ -395,7 +402,8 @@ any isOkay =
 -}
 all : (element -> Bool) -> KeysSet element -> Bool
 all isOkay =
-    toList >> List.all isOkay
+    \keysSet ->
+        keysSet |> toList |> List.all isOkay
 
 
 internalElementListAlter :
@@ -579,7 +587,8 @@ foldFrom :
          -> accumulationValue
         )
 foldFrom initial reduce =
-    toList >> List.foldl reduce initial
+    \keysSet ->
+        keysSet |> toList |> List.foldl reduce initial
 
 
 {-| Remove the element where a given aspect of the element matches a given value
@@ -627,13 +636,15 @@ elementRemove :
          -> KeysSet element
         )
 elementRemove ( elementAspectAccess, elementAspectToMatchAgainst ) =
-    internalElementListAlter
-        (List.filter
-            (\el ->
-                (el |> elementAspectAccess)
-                    /= elementAspectToMatchAgainst
-            )
-        )
+    \keysSet ->
+        keysSet
+            |> internalElementListAlter
+                (List.filter
+                    (\el ->
+                        (el |> elementAspectAccess)
+                            /= elementAspectToMatchAgainst
+                    )
+                )
 
 
 {-| The `List` containing all elements from most recently (= head) to least recently inserted element
@@ -643,7 +654,7 @@ elementRemove ( elementAspectAccess, elementAspectToMatchAgainst ) =
 > → You shouldn't rely on order when using functions like `fold` or `toList`
 
     mostRecentlyInserted =
-        List.head << KeysSet.toList
+        KeysSet.toList >> List.head
 
     KeysSet.promising
         [ unique .open, unique .closed ]
@@ -732,7 +743,9 @@ map elementChange uniquenessOfMappedElement =
         keysSet
             |> foldFrom
                 (promising uniquenessOfMappedElement)
-                (elementChange >> insert)
+                (\el soFar ->
+                    soFar |> insert (el |> elementChange)
+                )
 
 
 {-| Only keep elements that are transformed to `Just` by a given function
@@ -778,8 +791,8 @@ mapTry elementChangeTry uniquenessOfMappedElement =
                 (promising uniquenessOfMappedElement)
                 (\el ->
                     case el |> elementChangeTry of
-                        Just fill ->
-                            insert fill
+                        Just elementChanged ->
+                            \soFar -> soFar |> insert elementChanged
 
                         Nothing ->
                             identity
