@@ -1,5 +1,5 @@
 module Tree2 exposing
-    ( Branch, Children2
+    ( Branch, Children
     , leaf, branch, branchUnbalanced
     , height, children, trunk, end
     , trunkAlter, endRemove
@@ -8,7 +8,7 @@ module Tree2 exposing
 
 {-| Binary tree
 
-@docs Branch, Children2
+@docs Branch, Children
 
 
 ## create
@@ -66,14 +66,14 @@ Together with [`lue-bird/elm-emptiness-typed`](https://dark.elm.dmy.fr/packages/
 type Branch element
     = Branch
         { element : element
-        , children : Children2 element
+        , children : Children element
         , height : Int
         }
 
 
 {-| 2 sub-trees
 -}
-type alias Children2 element =
+type alias Children element =
     { left : Emptiable (Branch element) Possibly
     , right : Emptiable (Branch element) Possibly
     }
@@ -94,7 +94,7 @@ height =
                 branch_.height
 
 
-children : Emptiable (Branch element) Never -> Children2 element
+children : Emptiable (Branch element) Never -> Children element
 children =
     \tree ->
         let
@@ -202,7 +202,7 @@ rotateLeft :
     -> Emptiable (Branch element) Possibly
     -> element
     ->
-        (Children2 element
+        (Children element
          -> Emptiable (Branch element) never_
         )
 rotateLeft pElement pLeft rElement rightChildren =
@@ -245,7 +245,7 @@ rotateLeft pElement pLeft rElement rightChildren =
 rotateRight :
     element
     -> element
-    -> Children2 element
+    -> Children element
     ->
         (Emptiable (Branch element) Possibly
          -> Emptiable (Branch element) never_
@@ -289,7 +289,7 @@ rotateRight pElement leftElement leftChildren pRight =
 -}
 branch :
     element
-    -> Children2 element
+    -> Children element
     -> Emptiable (Branch element) never_
 branch trunkElement children_ =
     branchUnbalanced trunkElement children_
@@ -298,7 +298,7 @@ branch trunkElement children_ =
 
 branchUnbalanced :
     element
-    -> Children2 element
+    -> Children element
     -> Emptiable (Branch element) never_
 branchUnbalanced trunkElement children_ =
     Branch

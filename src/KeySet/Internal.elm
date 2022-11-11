@@ -149,6 +149,14 @@ treeInsert ordering elementToInsert tree_ =
 
         Filled treeFilled ->
             case ordering elementToInsert (treeFilled |> Tree2.trunk) of
+                EQ ->
+                    { sizeIncreased = False
+                    , tree =
+                        treeFilled
+                            |> Tree2.trunkAlter (\_ -> elementToInsert)
+                            |> emptyAdapt never
+                    }
+
                 LT ->
                     let
                         insertedForNextLeft =
@@ -181,14 +189,6 @@ treeInsert ordering elementToInsert tree_ =
                             { left = treeFilled |> Tree2.children |> .left
                             , right = insertedForNextRight.tree |> emptyAdapt (\_ -> Possible)
                             }
-                    }
-
-                EQ ->
-                    { sizeIncreased = False
-                    , tree =
-                        treeFilled
-                            |> Tree2.elementAlter (\_ -> elementToInsert)
-                            |> emptyAdapt never
                     }
 
 
