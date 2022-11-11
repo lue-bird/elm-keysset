@@ -330,11 +330,13 @@ The [`KeySet`](#KeySet) is `empty` → Nothing
 
     users : Emptiable (KeySetFilled User User.ByName) never_
     users =
-        KeySet.fromList User.byName
-            [ { name = "Bob", age = 19, height = 1.82 }
-            , { name = "Alice", age = 28, height = 1.65 }
-            , { name = "Chuck", age = 33, height = 1.75 }
-            ]
+        KeySet.fromStack User.byName
+            (Stack.topBelow
+                { name = "Bob", age = 19, height = 1.82 }
+                [ { name = "Alice", age = 28, height = 1.65 }
+                , { name = "Chuck", age = 33, height = 1.75 }
+                ]
+            )
 
     users |> KeySet.end Down
     --> { name = "Alice", age = 28, height = 1.65 }
@@ -360,9 +362,7 @@ end :
         )
 end direction =
     \keySet ->
-        keySet
-            |> tree
-            |> Tree2.end direction
+        keySet |> tree |> Tree2.end direction
 
 
 
@@ -417,12 +417,10 @@ elementAlter sorting keyToAlter emptiableElementTryMap =
     \keySet ->
         case keySet |> element sorting keyToAlter of
             Empty _ ->
-                case Emptiable.empty |> emptiableElementTryMap of
-                    Empty emptiable ->
-                        Empty emptiable
-
-                    Filled element_ ->
-                        keySet |> insert sorting element_
+                Emptiable.empty
+                    |> emptiableElementTryMap
+                    |> fillMapFlat
+                        (\element_ -> keySet |> insert sorting element_)
 
             Filled elementToAlter ->
                 case elementToAlter |> filled |> emptiableElementTryMap of
@@ -442,15 +440,27 @@ elementAlter sorting keyToAlter emptiableElementTryMap =
 {-| Convert to a `List` sorted by keys
 in a given direction
 
+    import Stack
     import KeySet
+    import Case
+    import Char.Order
+    import String.Order
 
-    KeySet.fromList
-        [ "Bob", "Alice" ]
+    -- tag should be opaque in a separate module
+    nameAlphabetical : KeySet.Sorting String String { alphabetical : () }
+    nameAlphabetical =
+        KeySet.sortingKey identity
+            { tag = { alphabetical = () }
+            , order = String.Order.greaterEarlier (Char.Order.alphabetical Case.lowerUpper)
+            }
+
+    KeySet.fromList nameAlphabetical
+        (Stack.topBelow "Bob" [ "Alice" ])
         |> KeySet.toList Up
     --> [ "Alice", "Bob" ]
 
-    KeySet.fromList
-        [ "Bob", "Alice" ]
+    KeySet.fromStack nameAlphabetical
+        (Stack.topBelow "Bob" [ "Alice" ])
         |> KeySet.toList Down
     --> [ "Bob", "Alice" ]
 
@@ -530,8 +540,7 @@ mapTry elementChangeTry mappedKey =
                             identity
 
                         Filled elementMapped ->
-                            \soFar ->
-                                soFar |> insert mappedKey elementMapped
+                            \soFar -> soFar |> insert mappedKey elementMapped
                 )
 
 
@@ -717,31 +726,32 @@ fold2From :
          -> (accumulated -> accumulated)
         )
     ->
-        { first :
+        ({ first :
             { sorting : Sorting firstElement key firstTag
             , set : Emptiable (KeySet firstElement firstTag) firstPossiblyOrNever_
             }
-        , second :
+         , second :
             { sorting : Sorting secondElement key secondTag
             , set : Emptiable (KeySet secondElement secondTag) secondPossiblyOrNever_
             }
-        }
-    -> accumulated
+         }
+         -> accumulated
+        )
 fold2From initial reduce { first, second } =
     let
         stepAll :
             firstElement
             ->
-                ({ incoming : List secondElement, semiAccumulated : accumulated }
-                 -> { incoming : List secondElement, semiAccumulated : accumulated }
+                ({ second : List secondElement, semiAccumulated : accumulated }
+                 -> { second : List secondElement, semiAccumulated : accumulated }
                 )
         stepAll firstElement =
-            \{ incoming, semiAccumulated } ->
-                case incoming of
+            \toStep ->
+                case toStep.second of
                     [] ->
-                        { incoming = []
+                        { second = []
                         , semiAccumulated =
-                            semiAccumulated |> reduce (First firstElement)
+                            toStep.semiAccumulated |> reduce (First firstElement)
                         }
 
                     secondElement :: secondRest ->
@@ -752,22 +762,21 @@ fold2From initial reduce { first, second } =
                         of
                             LT ->
                                 stepAll firstElement
-                                    { incoming = secondRest
+                                    { second = secondRest
                                     , semiAccumulated =
-                                        semiAccumulated |> reduce (Second secondElement)
+                                        toStep.semiAccumulated |> reduce (Second secondElement)
                                     }
 
                             GT ->
-                                { incoming =
-                                    secondElement :: secondRest
+                                { second = secondElement :: secondRest
                                 , semiAccumulated =
-                                    semiAccumulated |> reduce (First firstElement)
+                                    toStep.semiAccumulated |> reduce (First firstElement)
                                 }
 
                             EQ ->
-                                { incoming = secondRest
+                                { second = secondRest
                                 , semiAccumulated =
-                                    semiAccumulated
+                                    toStep.semiAccumulated
                                         |> reduce (FirstSecond ( firstElement, secondElement ))
                                 }
     in
@@ -775,13 +784,13 @@ fold2From initial reduce { first, second } =
         stepped =
             first.set
                 |> foldFrom
-                    { incoming = second.set |> toList Up
+                    { second = second.set |> toList Up
                     , semiAccumulated = initial
                     }
                     Up
                     stepAll
     in
-    stepped.incoming
+    stepped.second
         |> List.Linear.foldFrom stepped.semiAccumulated
             Up
             (\incomingElement soFar ->
