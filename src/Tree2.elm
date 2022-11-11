@@ -118,126 +118,126 @@ trunk =
 -- create
 
 
+{-| Will balance it out. Don't need to? → [`branchUnbalanced`](#branchUnbalanced)
+-}
+branch :
+    element
+    -> Children element
+    -> Emptiable (Branch element) never_
+branch trunkElement children_ =
+    branchUnbalanced trunkElement children_
+        |> balance
+
+
 balance :
     Emptiable (Branch element) Never
     -> Emptiable (Branch element) never_
 balance =
     \tree ->
-        let
-            branch_ =
-                tree |> fill |> filled
-        in
-        case ( branch_ |> children |> .left, branch_ |> children |> .right ) of
+        case
+            ( tree |> children |> .left |> fillMap filled
+            , tree |> children |> .right |> fillMap filled
+            )
+        of
             ( Empty _, Empty _ ) ->
-                leaf (branch_ |> trunk)
+                leaf (tree |> trunk)
 
-            ( Filled childrenLeftBranch, Empty _ ) ->
-                let
-                    childrenLeft =
-                        childrenLeftBranch |> filled
-                in
+            ( Filled childrenLeft, Empty _ ) ->
                 if (childrenLeft |> height) > 1 then
                     rotateRight
-                        (branch_ |> trunk)
+                        (tree |> trunk)
                         (childrenLeft |> trunk)
                         (childrenLeft |> children)
                         empty
 
                 else
                     branchUnbalanced
-                        (branch_ |> trunk)
-                        { left = childrenLeft
+                        (tree |> trunk)
+                        { left = childrenLeft |> emptyAdapt (\_ -> Possible)
                         , right = empty
                         }
 
-            ( Empty _, Filled childrenRightBranch ) ->
-                let
-                    childrenRight =
-                        childrenRightBranch |> filled
-                in
+            ( Empty _, Filled childrenRight ) ->
                 if (childrenRight |> height) > 1 then
                     rotateLeft
-                        (branch_ |> trunk)
+                        (tree |> trunk)
                         empty
                         (childrenRight |> trunk)
                         (childrenRight |> children)
 
                 else
                     branchUnbalanced
-                        (branch_ |> trunk)
-                        { left = empty, right = childrenRight }
+                        (tree |> trunk)
+                        { left = empty
+                        , right = childrenRight |> emptyAdapt (\_ -> Possible)
+                        }
 
-            ( Filled childrenLeftBranch, Filled childrenRightBranch ) ->
-                let
-                    childrenLeft =
-                        childrenLeftBranch |> filled
-
-                    childrenRight =
-                        childrenRightBranch |> filled
-                in
+            ( Filled childrenLeft, Filled childrenRight ) ->
                 if ((childrenLeft |> height) - (childrenRight |> height)) < -1 then
                     rotateLeft
-                        (branch_ |> trunk)
-                        childrenLeft
+                        (tree |> trunk)
+                        (childrenLeft |> emptyAdapt (\_ -> Possible))
                         (childrenRight |> trunk)
                         (childrenRight |> children)
 
                 else if ((childrenLeft |> height) - (childrenRight |> height)) > 1 then
                     rotateRight
-                        (branch_ |> trunk)
+                        (tree |> trunk)
                         (childrenLeft |> trunk)
                         (childrenLeft |> children)
-                        childrenRight
+                        (childrenRight |> emptyAdapt (\_ -> Possible))
 
                 else
-                    branchUnbalanced
-                        (branch_ |> trunk)
-                        { left = childrenLeft
-                        , right = childrenRight
-                        }
+                    tree |> emptyAdapt never
 
 
 rotateLeft :
     element
     -> Emptiable (Branch element) Possibly
     -> element
-    ->
-        (Children element
-         -> Emptiable (Branch element) never_
-        )
-rotateLeft pElement pLeft rElement rightChildren =
-    case rightChildren |> .left of
+    -> Children element
+    -> Emptiable (Branch element) never_
+rotateLeft pivotTrunk pivotLeft rightTrunk rightChildren =
+    case rightChildren.left |> fillMap filled of
         Empty _ ->
-            branchUnbalanced pElement
+            branchUnbalanced
+                pivotTrunk
                 { left =
                     branchUnbalanced
-                        pElement
-                        { left = pLeft, right = empty }
-                , right = rightChildren |> .right
+                        pivotTrunk
+                        { left = pivotLeft
+                        , right = empty
+                        }
+                , right = rightChildren.right
                 }
 
-        Filled (Branch childrenLeft) ->
-            if childrenLeft.height >= (rightChildren |> .right |> height) then
-                branchUnbalanced rElement
+        Filled rightLeft ->
+            if (rightLeft |> height) >= (rightChildren.right |> height) then
+                branchUnbalanced
+                    rightTrunk
                     { left =
                         branchUnbalanced
-                            pElement
-                            { left = pLeft, right = rightChildren |> .left }
-                    , right = rightChildren |> .right
+                            pivotTrunk
+                            { left = pivotLeft
+                            , right = rightChildren.left
+                            }
+                    , right = rightChildren.right
                     }
 
             else
                 branchUnbalanced
-                    childrenLeft.element
+                    (rightLeft |> trunk)
                     { left =
                         branchUnbalanced
-                            pElement
-                            { left = pLeft, right = childrenLeft.children |> .left }
+                            pivotTrunk
+                            { left = pivotLeft
+                            , right = rightLeft |> children |> .left
+                            }
                     , right =
                         branchUnbalanced
-                            rElement
-                            { left = childrenLeft.children |> .right
-                            , right = rightChildren |> .right
+                            rightTrunk
+                            { left = rightLeft |> children |> .right
+                            , right = rightChildren.right
                             }
                     }
 
@@ -250,50 +250,49 @@ rotateRight :
         (Emptiable (Branch element) Possibly
          -> Emptiable (Branch element) never_
         )
-rotateRight pElement leftElement leftChildren pRight =
-    case leftChildren |> .right of
+rotateRight pivotTrunk leftTrunk leftChildren pivotRight =
+    case leftChildren.right |> fillMap filled of
         Empty _ ->
-            branchUnbalanced leftElement
-                { left = leftChildren |> .left
+            branchUnbalanced
+                leftTrunk
+                { left = leftChildren.left
                 , right =
                     branchUnbalanced
-                        pElement
+                        pivotTrunk
                         { left = empty
-                        , right = pRight
+                        , right = pivotRight
                         }
                 }
 
-        Filled (Branch childrenRight) ->
-            if (leftChildren |> .left |> height) >= childrenRight.height then
-                branchUnbalanced leftElement
-                    { left = leftChildren |> .left
+        Filled leftRight ->
+            if (leftChildren.left |> height) >= (leftRight |> height) then
+                branchUnbalanced
+                    leftTrunk
+                    { left = leftChildren.left
                     , right =
-                        branchUnbalanced pElement
-                            { left = leftChildren |> .right, right = pRight }
+                        branchUnbalanced
+                            pivotTrunk
+                            { left = leftChildren.right
+                            , right = pivotRight
+                            }
                     }
 
             else
-                branchUnbalanced childrenRight.element
+                branchUnbalanced
+                    (leftRight |> trunk)
                     { left =
-                        branchUnbalanced leftElement
-                            { left = leftChildren |> .left
-                            , right = childrenRight.children |> .left
+                        branchUnbalanced
+                            leftTrunk
+                            { left = leftChildren.left
+                            , right = leftRight |> children |> .left
                             }
                     , right =
-                        branchUnbalanced pElement
-                            { left = childrenRight.children |> .right, right = pRight }
+                        branchUnbalanced
+                            pivotTrunk
+                            { left = leftRight |> children |> .right
+                            , right = pivotRight
+                            }
                     }
-
-
-{-| Will balance it out. Don't need to? → [`branchUnbalanced`](#branchUnbalanced)
--}
-branch :
-    element
-    -> Children element
-    -> Emptiable (Branch element) never_
-branch trunkElement children_ =
-    branchUnbalanced trunkElement children_
-        |> balance
 
 
 branchUnbalanced :
@@ -344,13 +343,9 @@ end direction =
 endDown : Emptiable (Branch element) Never -> element
 endDown =
     \tree ->
-        let
-            (Branch branch_) =
-                tree |> fill
-        in
-        case branch_.children |> .left of
+        case tree |> children |> .left of
             Empty _ ->
-                branch_.element
+                tree |> trunk
 
             Filled leftBranch ->
                 leftBranch |> filled |> endDown
@@ -359,13 +354,9 @@ endDown =
 endUp : Emptiable (Branch element) Never -> element
 endUp =
     \tree ->
-        let
-            (Branch branch_) =
-                tree |> fill
-        in
-        case branch_.children |> .right of
+        case tree |> children |> .right of
             Empty _ ->
-                branch_.element
+                tree |> trunk
 
             Filled rightBranch ->
                 rightBranch |> filled |> endUp
@@ -384,12 +375,9 @@ trunkAlter :
 trunkAlter elementChange =
     \tree ->
         tree
+            |> fillMap filled
             |> fillMap
-                (\branch_ ->
-                    let
-                        treeFilled =
-                            branch_ |> filled
-                    in
+                (\treeFilled ->
                     { element = treeFilled |> trunk |> elementChange
                     , children = treeFilled |> children
                     , height = treeFilled |> height
@@ -417,42 +405,32 @@ endRemoveDown :
     Emptiable (Branch element) Never
     -> Emptiable (Branch element) Possibly
 endRemoveDown tree =
-    let
-        (Branch branch_) =
-            tree |> fill
-    in
-    case branch_.children |> .left of
+    case tree |> children |> .left of
         Empty _ ->
-            branch_.children |> .right
+            tree |> children |> .right
 
         Filled leftBranch ->
-            branchUnbalanced
-                branch_.element
+            branch
+                (tree |> trunk)
                 { left = leftBranch |> filled |> endRemoveDown
-                , right = branch_.children |> .right
+                , right = tree |> children |> .right
                 }
-                |> balance
 
 
 endRemoveUp :
     Emptiable (Branch element) Never
     -> Emptiable (Branch element) Possibly
 endRemoveUp tree =
-    let
-        (Branch branch_) =
-            tree |> fill
-    in
-    case branch_.children |> .right of
+    case tree |> children |> .right of
         Empty _ ->
-            branch_.children |> .left
+            tree |> children |> .left
 
         Filled rightBranch ->
-            branchUnbalanced
-                branch_.element
-                { left = branch_.children |> .left
+            branch
+                (tree |> trunk)
+                { left = tree |> children |> .left
                 , right = rightBranch |> filled |> endRemoveUp
                 }
-                |> balance
 
 
 
