@@ -295,18 +295,18 @@ treeElement :
         (Emptiable (Tree2.Branch element) Possibly
          -> Emptiable element Possibly
         )
-treeElement keyConfig key =
+treeElement sorting key =
     \tree_ ->
         tree_
             |> fillMap filled
             |> fillMapFlat
                 (\treeFilled ->
-                    case keyConfig.keyOrder key (treeFilled |> Tree2.element |> keyConfig.key) of
+                    case sorting.keyOrder key (treeFilled |> Tree2.element |> sorting.key) of
                         LT ->
-                            treeFilled |> Tree2.children |> .left |> treeElement keyConfig key
+                            treeFilled |> Tree2.children |> .left |> treeElement sorting key
 
                         GT ->
-                            treeFilled |> Tree2.children |> .right |> treeElement keyConfig key
+                            treeFilled |> Tree2.children |> .right |> treeElement sorting key
 
                         EQ ->
                             treeFilled |> Tree2.element |> filled
