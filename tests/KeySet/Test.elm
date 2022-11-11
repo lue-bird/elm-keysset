@@ -28,7 +28,7 @@ suite =
         , intersectSuite
         , mapSuite
         , mapTrySuite
-        , mergeSuite
+        , fold2FromSuite
         , removeElementSuite
         , sizeSuite
         , toListSuite
@@ -39,22 +39,20 @@ suite =
 toListSuite : Test
 toListSuite =
     describe "toList"
-        [ test "empty" <|
-            \_ ->
+        [ test "empty"
+            (\_ ->
                 Emptiable.empty
                     |> KeySet.toList Up
                     |> Expect.equalLists []
-
-        --
-        , test "singleton" <|
-            \_ ->
+            )
+        , test "singleton"
+            (\_ ->
                 KeySet.only { id = 0, char = 'A' }
                     |> KeySet.toList Up
                     |> Expect.equalLists [ { id = 0, char = 'A' } ]
-
-        --
-        , test "inserts" <|
-            \_ ->
+            )
+        , test "inserts"
+            (\_ ->
                 Emptiable.empty
                     |> KeySet.insert Character.byId { id = 2, char = 'A' }
                     |> KeySet.insert Character.byId { id = 0, char = 'B' }
@@ -72,17 +70,14 @@ toListSuite =
                         , { id = 4, char = 'G' }
                         , { id = 5, char = 'C' }
                         ]
-
-        --
+            )
         , fuzz (Fuzz.list Character.fuzz) "fromList" <|
             \list ->
                 KeySet.fromList Character.byId list
                     |> KeySet.toList Up
                     |> Expect.equalLists
                         (list
-                            -- the last added value goes to KeySet
                             |> List.reverse
-                            -- keeps the first value
                             |> List.Extra.uniqueBy .id
                             |> List.sortBy .id
                         )
@@ -171,7 +166,7 @@ validateHelp sorting tree =
                     checkFurther
 
 
-elementOrder : KeySet.Sorting element key tag -> Ordering element
+elementOrder : KeySet.Sorting element key_ tag_ -> Ordering element
 elementOrder =
     \sorting ->
         Order.by
@@ -182,68 +177,62 @@ elementOrder =
 insertSuite : Test
 insertSuite =
     describe "insert"
-        [ fuzz Character.fuzz "Emptiable.empty" <|
-            \element ->
+        [ fuzz Character.fuzz
+            "Emptiable.empty"
+            (\element ->
                 Emptiable.empty
                     |> KeySet.insert Character.byId element
                     |> validate Character.byId
                     |> Expect.ok
-
-        --
-        , test "to left" <|
-            \_ ->
+            )
+        , test "to left"
+            (\_ ->
                 KeySet.only { id = 10, char = 'a' }
                     |> KeySet.insert Character.byId { id = 5, char = 'b' }
                     |> validate Character.byId
                     |> Expect.ok
-
-        --
-        , test "to left left" <|
-            \_ ->
-                KeySet.only { id = 10, char = 'a' }
-                    |> KeySet.insert Character.byId { id = 5, char = 'b' }
-                    |> KeySet.insert Character.byId { id = 2, char = 'c' }
-                    |> validate Character.byId
-                    |> Expect.ok
-
-        --
-        , test "to left right" <|
-            \_ ->
+            )
+        , test "to left left"
+            (\_ ->
                 KeySet.only { id = 10, char = 'a' }
                     |> KeySet.insert Character.byId { id = 5, char = 'b' }
                     |> KeySet.insert Character.byId { id = 2, char = 'c' }
                     |> validate Character.byId
                     |> Expect.ok
-
-        --
-        , test "to right" <|
-            \_ ->
+            )
+        , test "to left right"
+            (\_ ->
+                KeySet.only { id = 10, char = 'a' }
+                    |> KeySet.insert Character.byId { id = 5, char = 'b' }
+                    |> KeySet.insert Character.byId { id = 2, char = 'c' }
+                    |> validate Character.byId
+                    |> Expect.ok
+            )
+        , test "to right"
+            (\_ ->
                 KeySet.only { id = 10, char = 'a' }
                     |> KeySet.insert Character.byId { id = 15, char = 'b' }
                     |> validate Character.byId
                     |> Expect.ok
-
-        --
-        , test "to right left" <|
-            \_ ->
+            )
+        , test "to right left"
+            (\_ ->
                 KeySet.only { id = 10, char = 'a' }
                     |> KeySet.insert Character.byId { id = 15, char = 'b' }
                     |> KeySet.insert Character.byId { id = 12, char = 'c' }
                     |> validate Character.byId
                     |> Expect.ok
-
-        --
-        , test "to right right" <|
-            \_ ->
+            )
+        , test "to right right"
+            (\_ ->
                 KeySet.only { id = 10, char = 'a' }
                     |> KeySet.insert Character.byId { id = 15, char = 'b' }
                     |> KeySet.insert Character.byId { id = 20, char = 'c' }
                     |> validate Character.byId
                     |> Expect.ok
-
-        --
-        , test "M-N-O-L-K-Q-P-H-I-A" <|
-            \_ ->
+            )
+        , test "M-N-O-L-K-Q-P-H-I-A"
+            (\_ ->
                 "MNOLKQPHIA"
                     |> String.toList
                     |> List.foldl
@@ -256,10 +245,11 @@ insertSuite =
                         )
                         (Ok Emptiable.empty)
                     |> Expect.ok
-
-        --
-        , fuzz2 (Fuzz.intRange -400 -100) (Fuzz.intRange 100 400) "ascending keys" <|
-            \lo hi ->
+            )
+        , fuzz2 (Fuzz.intRange -400 -100)
+            (Fuzz.intRange 100 400)
+            "ascending keys"
+            (\lo hi ->
                 List.range lo hi
                     |> List.foldr
                         (\i ->
@@ -271,10 +261,11 @@ insertSuite =
                         )
                         (Ok Emptiable.empty)
                     |> Expect.ok
-
-        --
-        , fuzz2 (Fuzz.intRange -400 -100) (Fuzz.intRange 100 400) "descending keys" <|
-            \lo hi ->
+            )
+        , fuzz2 (Fuzz.intRange -400 -100)
+            (Fuzz.intRange 100 400)
+            "descending keys"
+            (\lo hi ->
                 List.range lo hi
                     |> List.foldl
                         (\i ->
@@ -286,10 +277,10 @@ insertSuite =
                         )
                         (Ok Emptiable.empty)
                     |> Expect.ok
-
-        --
-        , fuzz (Fuzz.list (Fuzz.intRange -200 200)) "random keys" <|
-            \list ->
+            )
+        , fuzz (Fuzz.list (Fuzz.intRange -200 200))
+            "random keys"
+            (\list ->
                 list
                     |> List.foldl
                         (\i ->
@@ -301,30 +292,34 @@ insertSuite =
                         )
                         (Ok Emptiable.empty)
                     |> Expect.ok
+            )
         ]
 
 
 removeElementSuite : Test
 removeElementSuite =
     describe "elementRemove"
-        [ fuzz Fuzz.int "Emptiable.empty" <|
-            \key ->
+        [ fuzz Fuzz.int
+            "Emptiable.empty"
+            (\key ->
                 Emptiable.empty
                     |> KeySet.elementRemove Character.byId key
                     |> validate Character.byId
                     |> Expect.ok
-
-        --
-        , fuzz2 Fuzz.int Fuzz.int "KeySet.only" <|
-            \put delete ->
+            )
+        , fuzz2 Fuzz.int
+            Fuzz.int
+            "KeySet.only"
+            (\put delete ->
                 KeySet.only { id = put, char = '0' }
                     |> KeySet.elementRemove Character.byId delete
                     |> validate Character.byId
                     |> Expect.ok
-
-        --
-        , fuzz2 (Fuzz.list Character.fuzz) (Fuzz.list Fuzz.int) "KeySet.fromList" <|
-            \puts deletes ->
+            )
+        , fuzz2 (Fuzz.list Character.fuzz)
+            (Fuzz.list Fuzz.int)
+            "KeySet.fromList"
+            (\puts deletes ->
                 List.foldl
                     (\key ->
                         Result.andThen
@@ -335,10 +330,10 @@ removeElementSuite =
                     (Ok (KeySet.fromList Character.byId puts))
                     deletes
                     |> Expect.ok
-
-        --
-        , fuzz (Fuzz.list Character.fuzz) "clear" <|
-            \list ->
+            )
+        , fuzz (Fuzz.list Character.fuzz)
+            "clear"
+            (\list ->
                 List.foldl
                     (\{ id } ->
                         Result.andThen
@@ -350,24 +345,24 @@ removeElementSuite =
                     list
                     |> Result.map (Expect.equal Emptiable.empty)
                     |> Result.withDefault (Expect.fail "wasn't empty")
+            )
         ]
 
 
 elementAlterSuite : Test
 elementAlterSuite =
     describe "elementAlter"
-        [ test "Nothing to Nothing" <|
-            \_ ->
+        [ test "Nothing to Nothing"
+            (\_ ->
                 KeySet.fromList Character.byId
                     [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
                     |> KeySet.elementAlter Character.byId 2 (\_ -> Emptiable.empty)
                     |> KeySet.toList Up
                     |> Expect.equalLists
                         [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
-
-        --
-        , test "Nothing to Just" <|
-            \_ ->
+            )
+        , test "Nothing to Just"
+            (\_ ->
                 KeySet.fromList Character.byId
                     [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
                     |> KeySet.elementAlter Character.byId 2 (\_ -> filled { id = 2, char = 'C' })
@@ -377,26 +372,25 @@ elementAlterSuite =
                         , { id = 1, char = 'B' }
                         , { id = 2, char = 'C' }
                         ]
-
-        --
-        , test "Just to Nothing" <|
-            \_ ->
+            )
+        , test "Just to Nothing"
+            (\_ ->
                 KeySet.fromList Character.byId
                     [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
                     |> KeySet.elementAlter Character.byId 1 (\_ -> Emptiable.empty)
                     |> KeySet.toList Up
                     |> Expect.equalLists
                         [ { id = 0, char = 'A' } ]
-
-        --
-        , test "Just to Just" <|
-            \_ ->
+            )
+        , test "Just to Just"
+            (\_ ->
                 KeySet.fromList Character.byId
                     [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
                     |> KeySet.elementAlter Character.byId 1 (fillMap (\c -> { c | char = 'C' }))
                     |> KeySet.toList Up
                     |> Expect.equalLists
                         [ { id = 0, char = 'A' }, { id = 1, char = 'C' } ]
+            )
         ]
 
 
@@ -407,22 +401,22 @@ elementAlterSuite =
 sizeSuite : Test
 sizeSuite =
     describe "size"
-        [ test "Emptiable.empty" <|
-            \_ ->
+        [ test "Emptiable.empty"
+            (\_ ->
                 Emptiable.empty
                     |> KeySet.size
                     |> Expect.equal 0
-
-        --
-        , fuzz Character.fuzz "KeySet.only" <|
-            \character ->
+            )
+        , fuzz Character.fuzz
+            "KeySet.only"
+            (\character ->
                 KeySet.only character
                     |> KeySet.size
                     |> Expect.equal 1
-
-        --
-        , fuzz (Fuzz.list Character.fuzz) "KeySet.fromList" <|
-            \list ->
+            )
+        , fuzz (Fuzz.list Character.fuzz)
+            "KeySet.fromList"
+            (\list ->
                 let
                     uniq =
                         List.Extra.uniqueBy .id list
@@ -430,6 +424,7 @@ sizeSuite =
                 KeySet.fromList Character.byId list
                     |> KeySet.size
                     |> Expect.equal (List.length uniq)
+            )
         ]
 
 
@@ -440,15 +435,17 @@ sizeSuite =
 elementSuite : Test
 elementSuite =
     describe "element"
-        [ fuzz Fuzz.int "Emptiable.empty" <|
-            \key ->
+        [ fuzz Fuzz.int
+            "Emptiable.empty"
+            (\key ->
                 Emptiable.empty
                     |> KeySet.element Character.byId key
                     |> Expect.equal Emptiable.empty
-
-        --
-        , fuzz2 Fuzz.int Fuzz.int "KeySet.only" <|
-            \x y ->
+            )
+        , fuzz2 Fuzz.int
+            Fuzz.int
+            "KeySet.only"
+            (\x y ->
                 KeySet.only { id = x, char = 'A' }
                     |> KeySet.element Character.byId y
                     |> Expect.equal
@@ -458,10 +455,11 @@ elementSuite =
                          else
                             Emptiable.empty
                         )
-
-        --
-        , fuzz2 Fuzz.int (Fuzz.list Character.fuzz) "KeySet.fromList" <|
-            \key list ->
+            )
+        , fuzz2 Fuzz.int
+            (Fuzz.list Character.fuzz)
+            "KeySet.fromList"
+            (\key list ->
                 KeySet.fromList Character.byId list
                     |> KeySet.element Character.byId key
                     |> Expect.equal
@@ -470,6 +468,7 @@ elementSuite =
                             |> List.Extra.find ((==) key << .id)
                             |> Emptiable.fromMaybe
                         )
+            )
         ]
 
 
@@ -477,20 +476,19 @@ endSuite : Test
 endSuite =
     describe "end"
         [ describe "Up"
-            [ fuzz Character.fuzz "only" <|
-                \character ->
+            [ fuzz Character.fuzz
+                "only"
+                (\character ->
                     KeySet.only character
                         |> KeySet.end Up
                         |> Expect.equal character
-
-            --
+                )
             , fuzz
                 (Fuzz.map Stack.fromTopBelow
                     (Fuzz.pair Character.fuzz (Fuzz.list Character.fuzz))
                 )
                 "fromStack"
-              <|
-                \stack ->
+                (\stack ->
                     KeySet.fromStack Character.byId stack
                         |> KeySet.end Up
                         |> Expect.equal
@@ -504,22 +502,22 @@ endSuite =
                                             element
                                     )
                             )
+                )
             ]
         , describe "Down"
-            [ fuzz Character.fuzz "only" <|
-                \character ->
+            [ fuzz Character.fuzz
+                "only"
+                (\character ->
                     KeySet.only character
                         |> KeySet.end Down
                         |> Expect.equal character
-
-            --
+                )
             , fuzz
                 (Fuzz.map Stack.fromTopBelow
                     (Fuzz.pair Character.fuzz (Fuzz.list Character.fuzz))
                 )
                 "fromStack"
-              <|
-                \stack ->
+                (\stack ->
                     KeySet.fromStack Character.byId stack
                         |> KeySet.end Down
                         |> Expect.equal
@@ -533,14 +531,15 @@ endSuite =
                                             element
                                     )
                             )
+                )
             ]
         ]
 
 
 mapSuite : Test
 mapSuite =
-    test "KeySet.map" <|
-        \_ ->
+    test "KeySet.map"
+        (\_ ->
             [ { id = 3, char = 'A' }
             , { id = 1, char = 'B' }
             , { id = 4, char = 'C' }
@@ -556,6 +555,7 @@ mapSuite =
                     , { id = 40, char = 'C' }
                     , { id = 50, char = 'D' }
                     ]
+        )
 
 
 
@@ -565,8 +565,9 @@ mapSuite =
 foldFromSuite : Test
 foldFromSuite =
     describe "foldFrom"
-        [ fuzz (Fuzz.list Character.fuzz) "Up" <|
-            \list ->
+        [ fuzz (Fuzz.list Character.fuzz)
+            "Up"
+            (\list ->
                 KeySet.fromList Character.byId list
                     |> KeySet.foldFrom [] Up (\element acc -> element :: acc)
                     |> Expect.equalLists
@@ -575,8 +576,10 @@ foldFromSuite =
                             |> List.sortBy .id
                             |> List.reverse
                         )
-        , fuzz (Fuzz.list Character.fuzz) "Down" <|
-            \list ->
+            )
+        , fuzz (Fuzz.list Character.fuzz)
+            "Down"
+            (\list ->
                 KeySet.fromList Character.byId list
                     |> KeySet.foldFrom [] Down (\element acc -> element :: acc)
                     |> Expect.equalLists
@@ -584,14 +587,15 @@ foldFromSuite =
                             |> List.Extra.uniqueBy .id
                             |> List.sortBy .id
                         )
+            )
         ]
 
 
 mapTrySuite : Test
 mapTrySuite =
     describe "mapTry"
-        [ test "filter" <|
-            \_ ->
+        [ test "filter"
+            (\_ ->
                 [ { id = 3, char = 'A' }
                 , { id = 1, char = 'B' }
                 , { id = 4, char = 'C' }
@@ -614,31 +618,30 @@ mapTrySuite =
                         , { id = 4, char = 'C' }
                         , { id = 5, char = 'D' }
                         ]
+            )
         ]
 
 
 unifyWithSuite : Test
 unifyWithSuite =
     describe "union"
-        [ test "left is empty" <|
-            \_ ->
+        [ test "left is empty"
+            (\_ ->
                 Emptiable.empty
                     |> KeySet.unifyWith Character.byId
                         (KeySet.only { id = 0, char = 'A' })
                     |> KeySet.toList Up
                     |> Expect.equalLists [ { id = 0, char = 'A' } ]
-
-        --
-        , test "right is empty" <|
-            \_ ->
+            )
+        , test "right is empty"
+            (\_ ->
                 KeySet.only { id = 0, char = 'A' }
                     |> KeySet.unifyWith Character.byId Emptiable.empty
                     |> KeySet.toList Up
                     |> Expect.equalLists [ { id = 0, char = 'A' } ]
-
-        --
-        , test "unions" <|
-            \_ ->
+            )
+        , test "unions"
+            (\_ ->
                 KeySet.fromList Character.byId
                     [ { id = 0, char = 'A' }
                     , { id = 1, char = 'B' }
@@ -662,6 +665,7 @@ unifyWithSuite =
                         , { id = 4, char = 'e' }
                         , { id = 5, char = 'f' }
                         ]
+            )
         ]
 
 
@@ -672,24 +676,22 @@ unifyWithSuite =
 intersectSuite : Test
 intersectSuite =
     describe "intersect"
-        [ test "left is empty" <|
-            \_ ->
+        [ test "left is empty"
+            (\_ ->
                 KeySet.only { id = 0, char = 'A' }
                     |> KeySet.intersect Character.byId Emptiable.empty
                     |> KeySet.toList Up
                     |> Expect.equalLists []
-
-        --
-        , test "right is empty" <|
-            \_ ->
+            )
+        , test "right is empty"
+            (\_ ->
                 Emptiable.empty
                     |> KeySet.intersect Character.byId (KeySet.only { id = 0, char = 'A' })
                     |> KeySet.toList Up
                     |> Expect.equalLists []
-
-        --
-        , test "intersects" <|
-            \_ ->
+            )
+        , test "intersects"
+            (\_ ->
                 KeySet.fromList Character.byId
                     [ { id = 2, char = 'c' }
                     , { id = 3, char = 'd' }
@@ -709,31 +711,30 @@ intersectSuite =
                         [ { id = 2, char = 'c' }
                         , { id = 3, char = 'd' }
                         ]
+            )
         ]
 
 
 exceptSuite : Test
 exceptSuite =
     describe "diff"
-        [ test "left is empty" <|
-            \_ ->
+        [ test "left is empty"
+            (\_ ->
                 Emptiable.empty
                     |> KeySet.except Character.byId
                         (KeySet.only { id = 0, char = 'A' })
                     |> KeySet.toList Up
                     |> Expect.equalLists []
-
-        --
-        , test "right is empty" <|
-            \_ ->
+            )
+        , test "right is empty"
+            (\_ ->
                 KeySet.only { id = 0, char = 'A' }
                     |> KeySet.except Character.byId Emptiable.empty
                     |> KeySet.toList Up
                     |> Expect.equalLists [ { id = 0, char = 'A' } ]
-
-        --
-        , test "diffs" <|
-            \_ ->
+            )
+        , test "diffs"
+            (\_ ->
                 KeySet.fromList Character.byId
                     [ { id = 0, char = 'A' }
                     , { id = 1, char = 'B' }
@@ -753,13 +754,14 @@ exceptSuite =
                         [ { id = 0, char = 'A' }
                         , { id = 1, char = 'B' }
                         ]
+            )
         ]
 
 
-mergeSuite : Test
-mergeSuite =
+fold2FromSuite : Test
+fold2FromSuite =
     let
-        testMerge =
+        testFold2 =
             KeySet.fold2From
                 []
                 (\toBeMerged soFar ->
@@ -778,9 +780,9 @@ mergeSuite =
                             )
                 )
     in
-    describe "merge"
-        [ test "left is empty" <|
-            \_ ->
+    describe "foldFrom"
+        [ test "left is empty"
+            (\_ ->
                 { first =
                     { sorting = Character.byId
                     , set = KeySet.only { id = 0, char = 'A' }
@@ -790,14 +792,13 @@ mergeSuite =
                     , set = Emptiable.empty
                     }
                 }
-                    |> testMerge
+                    |> testFold2
                     |> Expect.equalLists
                         [ "0A"
                         ]
-
-        --
-        , test "right is empty" <|
-            \_ ->
+            )
+        , test "right is empty"
+            (\_ ->
                 { first =
                     { sorting = Character.byId
                     , set = Emptiable.empty
@@ -807,15 +808,14 @@ mergeSuite =
                     , set = KeySet.only { id = 3, char = 'A' }
                     }
                 }
-                    |> testMerge
+                    |> testFold2
                     |> Expect.equalLists
                         [ "AAA"
                         ]
-
-        --
-        , test "merges" <|
-            \_ ->
-                testMerge
+            )
+        , test "merges"
+            (\_ ->
+                testFold2
                     { first =
                         { sorting = Character.byId
                         , set =
@@ -845,61 +845,5 @@ mergeSuite =
                         , "B"
                         , ""
                         ]
+            )
         ]
-
-
-
--- C O M B I N E
-
-
-draw : Emptiable (Branch element) Possibly -> String
-draw =
-    \tree ->
-        tree
-            |> drawHelp
-            |> String.join "\n"
-
-
-drawHelp : Emptiable (Branch element) Possibly -> List String
-drawHelp =
-    \tree ->
-        case tree |> fillMap filled of
-            Empty _ ->
-                [ "empty" ]
-
-            Filled treeFilled ->
-                ([ "height: "
-                 , treeFilled |> Tree2.height |> String.fromInt
-                 , ", element: "
-                 , treeFilled |> Tree2.element |> Debug.toString
-                 ]
-                    |> String.concat
-                )
-                    :: shiftRight
-                        (treeFilled |> Tree2.children |> .right |> drawHelp)
-                    ++ shiftLeft
-                        (treeFilled |> Tree2.children |> .left |> drawHelp)
-
-
-shiftRight : List String -> List String
-shiftRight lines =
-    case lines of
-        [] ->
-            []
-
-        first :: rest ->
-            "| | "
-                :: ("| +-" ++ first)
-                :: List.map ((++) "|   ") rest
-
-
-shiftLeft : List String -> List String
-shiftLeft lines =
-    case lines of
-        [] ->
-            []
-
-        first :: rest ->
-            "|   "
-                :: ("+---" ++ first)
-                :: List.map ((++) "    ") rest
