@@ -417,10 +417,12 @@ elementAlter sorting keyToAlter emptiableElementTryMap =
     \keySet ->
         case keySet |> element sorting keyToAlter of
             Empty _ ->
-                Emptiable.empty
-                    |> emptiableElementTryMap
-                    |> fillMapFlat
-                        (\element_ -> keySet |> insert sorting element_)
+                case Emptiable.empty |> emptiableElementTryMap of
+                    Empty emptiable ->
+                        keySet |> emptyAdapt (\_ -> emptiable)
+
+                    Filled elementNew ->
+                        keySet |> insert sorting elementNew
 
             Filled elementToAlter ->
                 case elementToAlter |> filled |> emptiableElementTryMap of
