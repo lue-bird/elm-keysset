@@ -2,7 +2,7 @@ module Tree2 exposing
     ( Branch, Children2
     , leaf, branch, branchUnbalanced
     , height, children, trunk, end
-    , endRemove, elementAlter
+    , trunkAlter, endRemove
     , foldFrom, foldOnto
     )
 
@@ -25,7 +25,7 @@ module Tree2 exposing
 
 ## alter
 
-@docs endRemove, elementAlter
+@docs trunkAlter, endRemove
 
 
 ## transform
@@ -375,13 +375,13 @@ endUp =
 -- alter
 
 
-elementAlter :
+trunkAlter :
     (element -> element)
     ->
         (Emptiable (Branch element) possiblyOrNever
          -> Emptiable (Branch element) possiblyOrNever
         )
-elementAlter elementChange =
+trunkAlter elementChange =
     \tree ->
         tree
             |> fillMap
