@@ -1,10 +1,9 @@
 module Tree2 exposing
     ( Branch, Children2
     , leaf, branch, branchUnbalanced
-    , height, children, end
+    , height, children, trunk, end
     , endRemove, elementAlter
     , foldFrom, foldOnto
-    , trunk
     )
 
 {-| Binary tree
@@ -21,7 +20,7 @@ module Tree2 exposing
 
 ## scan
 
-@docs height, children, end, element
+@docs height, children, trunk, end
 
 
 ## alter
