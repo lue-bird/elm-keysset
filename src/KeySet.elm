@@ -739,19 +739,19 @@ fold2From :
         )
 fold2From initial reduce { first, second } =
     let
-        stepAll :
+        secondAccumulate :
             firstElement
             ->
-                ({ second : List secondElement, semiAccumulated : accumulated }
-                 -> { second : List secondElement, semiAccumulated : accumulated }
+                ({ list : List secondElement, accumulated : accumulated }
+                 -> { list : List secondElement, accumulated : accumulated }
                 )
-        stepAll firstElement =
-            \toStep ->
-                case toStep.second of
+        secondAccumulate firstElement =
+            \soFar ->
+                case soFar.list of
                     [] ->
-                        { second = []
-                        , semiAccumulated =
-                            toStep.semiAccumulated |> reduce (First firstElement)
+                        { list = []
+                        , accumulated =
+                            soFar.accumulated |> reduce (First firstElement)
                         }
 
                     secondElement :: secondRest ->
@@ -761,38 +761,38 @@ fold2From initial reduce { first, second } =
                                 (firstElement |> (first.sorting |> Typed.untag |> .key))
                         of
                             LT ->
-                                stepAll firstElement
-                                    { second = secondRest
-                                    , semiAccumulated =
-                                        toStep.semiAccumulated |> reduce (Second secondElement)
+                                secondAccumulate firstElement
+                                    { list = secondRest
+                                    , accumulated =
+                                        soFar.accumulated |> reduce (Second secondElement)
                                     }
 
                             GT ->
-                                { second = secondElement :: secondRest
-                                , semiAccumulated =
-                                    toStep.semiAccumulated |> reduce (First firstElement)
+                                { list = secondElement :: secondRest
+                                , accumulated =
+                                    soFar.accumulated |> reduce (First firstElement)
                                 }
 
                             EQ ->
-                                { second = secondRest
-                                , semiAccumulated =
-                                    toStep.semiAccumulated
+                                { list = secondRest
+                                , accumulated =
+                                    soFar.accumulated
                                         |> reduce (FirstSecond ( firstElement, secondElement ))
                                 }
     in
     let
-        stepped =
+        secondAccumulated =
             first.set
                 |> foldFrom
-                    { second = second.set |> toList Up
-                    , semiAccumulated = initial
+                    { list = second.set |> toList Up
+                    , accumulated = initial
                     }
                     Up
-                    stepAll
+                    secondAccumulate
     in
-    stepped.second
-        |> List.Linear.foldFrom stepped.semiAccumulated
+    secondAccumulated.list
+        |> List.Linear.foldFrom secondAccumulated.accumulated
             Up
-            (\incomingElement soFar ->
-                soFar |> reduce (Second incomingElement)
+            (\secondLeftoverElement soFar ->
+                soFar |> reduce (Second secondLeftoverElement)
             )
