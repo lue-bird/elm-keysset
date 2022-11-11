@@ -143,7 +143,7 @@ balance =
                 leaf (tree |> trunk)
 
             ( Filled childrenLeft, Empty _ ) ->
-                if (childrenLeft |> height) > 1 then
+                if (childrenLeft |> height) >= 2 then
                     rotateRight
                         (tree |> trunk)
                         (childrenLeft |> trunk)
@@ -158,7 +158,7 @@ balance =
                         }
 
             ( Empty _, Filled childrenRight ) ->
-                if (childrenRight |> height) > 1 then
+                if (childrenRight |> height) >= 2 then
                     rotateLeft
                         (tree |> trunk)
                         empty
@@ -173,14 +173,18 @@ balance =
                         }
 
             ( Filled childrenLeft, Filled childrenRight ) ->
-                if ((childrenLeft |> height) - (childrenRight |> height)) < -1 then
+                let
+                    leftMinusRight =
+                        (childrenLeft |> height) - (childrenRight |> height)
+                in
+                if leftMinusRight <= -2 then
                     rotateLeft
                         (tree |> trunk)
                         (childrenLeft |> emptyAdapt (\_ -> Possible))
                         (childrenRight |> trunk)
                         (childrenRight |> children)
 
-                else if ((childrenLeft |> height) - (childrenRight |> height)) > 1 then
+                else if leftMinusRight >= 2 then
                     rotateRight
                         (tree |> trunk)
                         (childrenLeft |> trunk)
