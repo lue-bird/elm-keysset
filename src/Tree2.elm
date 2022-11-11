@@ -525,8 +525,7 @@ foldUpFrom initial reduce =
                             |> children
                             |> .left
                             |> foldUpFrom initial reduce
-                            |> reduce
-                                (treeFilled |> trunk)
+                            |> reduce (treeFilled |> trunk)
                         )
                         reduce
 
@@ -553,6 +552,5 @@ foldDown reduce initial =
                             |> children
                             |> .right
                             |> foldDown reduce initial
-                            |> reduce
-                                (treeFilled |> trunk)
+                            |> reduce (treeFilled |> trunk)
                         )
