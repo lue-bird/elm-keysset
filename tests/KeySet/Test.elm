@@ -354,7 +354,7 @@ removeElementSuite =
 elementAlterSuite : Test
 elementAlterSuite =
     describe "elementAlter"
-        [ test "Nothing to Nothing"
+        [ test "empty to empty"
             (\_ ->
                 KeySet.fromList Character.byId
                     [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
@@ -363,7 +363,7 @@ elementAlterSuite =
                     |> Expect.equalLists
                         [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
             )
-        , test "Nothing to Just"
+        , test "empty to filled"
             (\_ ->
                 KeySet.fromList Character.byId
                     [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
@@ -375,7 +375,7 @@ elementAlterSuite =
                         , { id = 2, char = 'C' }
                         ]
             )
-        , test "Just to Nothing"
+        , test "filled to empty"
             (\_ ->
                 KeySet.fromList Character.byId
                     [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
@@ -384,7 +384,7 @@ elementAlterSuite =
                     |> Expect.equalLists
                         [ { id = 0, char = 'A' } ]
             )
-        , test "Just to Just"
+        , test "filled to filled"
             (\_ ->
                 KeySet.fromList Character.byId
                     [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
