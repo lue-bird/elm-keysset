@@ -377,9 +377,9 @@ A `KeysSet` ony makes sense when the **keys describe something different**
           - needs an `elm-review` tool to auto-generate `Record.Typed`
           - 👎 chaining with `onTie` is slightly more verbose than `onTieNext [ ... ]`
           - 👍 chaining with `onTie` is more obvious and easier to read than `onTieNext [ ... ]`
-  - `KeySet`, `KeysSet` combine
+  - set with multiple elements per key (= multi-set/bag) add
+  - `KeySet` functionality include in `KeysSet`?
       - 👍 `KeysSet` functionality while still providing `log n` for the most prominent key
       - 👎 minimally more complex API
       - only one prominent key? can we create a `KeySet` for each?
-  - `Set`/`Sorting`/`Unique` with multiple values per key add?
   - ✨ your idea
