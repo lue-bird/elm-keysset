@@ -782,7 +782,7 @@ fold2FromSuite =
                             )
                 )
     in
-    describe "foldFrom"
+    describe "fold2From"
         [ test "left is empty"
             (\_ ->
                 { first =
