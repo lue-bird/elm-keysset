@@ -1,6 +1,6 @@
 > lookups with arbitrary keys
 
-  - 🗃️ [`KeySet`](KeySet) for one key, `log n` runtime
+  - 🗃️ [`KeySet`](#KeySet) for one key, `log n` runtime
   - 🦄 [`KeysSet`](#KeysSet) for multiple keys, `n` runtime
   - 🔭 [future ideas](#future-ideas)
 
