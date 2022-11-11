@@ -71,8 +71,9 @@ toListSuite =
                         , { id = 5, char = 'C' }
                         ]
             )
-        , fuzz (Fuzz.list Character.fuzz) "fromList" <|
-            \list ->
+        , fuzz (Fuzz.list Character.fuzz)
+            "fromList"
+            (\list ->
                 KeySet.fromList Character.byId list
                     |> KeySet.toList Up
                     |> Expect.equalLists
@@ -81,6 +82,7 @@ toListSuite =
                             |> List.Extra.uniqueBy .id
                             |> List.sortBy .id
                         )
+            )
         ]
 
 
@@ -238,9 +240,9 @@ insertSuite =
                     |> List.foldl
                         (\char ->
                             Result.andThen
-                                (validate Character.byId
-                                    << KeySet.insert Character.byId
-                                        { char = char, id = Char.toCode char }
+                                (KeySet.insert Character.byId
+                                    { char = char, id = Char.toCode char }
+                                    >> validate Character.byId
                                 )
                         )
                         (Ok Emptiable.empty)
@@ -254,9 +256,9 @@ insertSuite =
                     |> List.foldr
                         (\i ->
                             Result.andThen
-                                (validate Character.byId
-                                    << KeySet.insert Character.byId
-                                        { id = i, char = Char.fromCode i }
+                                (KeySet.insert Character.byId
+                                    { id = i, char = Char.fromCode i }
+                                    >> validate Character.byId
                                 )
                         )
                         (Ok Emptiable.empty)
@@ -270,9 +272,9 @@ insertSuite =
                     |> List.foldl
                         (\i ->
                             Result.andThen
-                                (validate Character.byId
-                                    << KeySet.insert Character.byId
-                                        { id = i, char = Char.fromCode i }
+                                (KeySet.insert Character.byId
+                                    { id = i, char = Char.fromCode i }
+                                    >> validate Character.byId
                                 )
                         )
                         (Ok Emptiable.empty)
@@ -285,9 +287,9 @@ insertSuite =
                     |> List.foldl
                         (\i ->
                             Result.andThen
-                                (validate Character.byId
-                                    << KeySet.insert Character.byId
-                                        { id = i, char = Char.fromCode i }
+                                (KeySet.insert Character.byId
+                                    { id = i, char = Char.fromCode i }
+                                    >> validate Character.byId
                                 )
                         )
                         (Ok Emptiable.empty)
@@ -323,8 +325,8 @@ removeElementSuite =
                 List.foldl
                     (\key ->
                         Result.andThen
-                            (validate Character.byId
-                                << KeySet.elementRemove Character.byId key
+                            (KeySet.elementRemove Character.byId key
+                                >> validate Character.byId
                             )
                     )
                     (Ok (KeySet.fromList Character.byId puts))
@@ -337,8 +339,8 @@ removeElementSuite =
                 List.foldl
                     (\{ id } ->
                         Result.andThen
-                            (validate Character.byId
-                                << KeySet.elementRemove Character.byId id
+                            (KeySet.elementRemove Character.byId id
+                                >> validate Character.byId
                             )
                     )
                     (Ok (KeySet.fromList Character.byId list))
@@ -465,7 +467,7 @@ elementSuite =
                     |> Expect.equal
                         (list
                             |> List.reverse
-                            |> List.Extra.find ((==) key << .id)
+                            |> List.Extra.find (\character -> character.id == key)
                             |> Emptiable.fromMaybe
                         )
             )
