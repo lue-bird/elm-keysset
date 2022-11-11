@@ -9,8 +9,8 @@
 
 Contains no functions.
 Still, each [`Sorting`](KeySet#Sorting)
-used to access/operate will be the same
-(enforced through attaching an opaque tag). See ↓ example
+used to access/operate is enforced to be the same
+(by attaching an opaque tag). See ↓ example
 
 → Solves problems listed in [prior art](#prior-art),
 alongside other [goodies](#goodies)
@@ -30,7 +30,7 @@ users =
 
 users |> KeySet.end Down
 --→ user0, no Maybe, log n performance
---  assuming user0 will be sorted as the smallest
+--  assuming user0 is sorted as the smallest
 
 users |> KeySet.element User.byEmailHostFirst user3.email
 --→ Emptiable.filled user3, Emptiable since we can never be sure that works
