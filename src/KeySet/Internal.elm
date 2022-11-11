@@ -148,7 +148,7 @@ treeInsert ordering elementToInsert tree_ =
             }
 
         Filled treeFilled ->
-            case ordering elementToInsert (treeFilled |> Tree2.element) of
+            case ordering elementToInsert (treeFilled |> Tree2.trunk) of
                 LT ->
                     let
                         insertedForNextLeft =
@@ -160,7 +160,7 @@ treeInsert ordering elementToInsert tree_ =
                     { sizeIncreased = insertedForNextLeft.sizeIncreased
                     , tree =
                         Tree2.branch
-                            (treeFilled |> Tree2.element)
+                            (treeFilled |> Tree2.trunk)
                             { left = insertedForNextLeft.tree |> emptyAdapt (\_ -> Possible)
                             , right = treeFilled |> Tree2.children |> .right
                             }
@@ -177,7 +177,7 @@ treeInsert ordering elementToInsert tree_ =
                     { sizeIncreased = insertedForNextRight.sizeIncreased
                     , tree =
                         Tree2.branch
-                            (treeFilled |> Tree2.element)
+                            (treeFilled |> Tree2.trunk)
                             { left = treeFilled |> Tree2.children |> .left
                             , right = insertedForNextRight.tree |> emptyAdapt (\_ -> Possible)
                             }
@@ -236,7 +236,7 @@ treeElementRemove keyConfig key =
             |> fillMap filled
             |> fillMapFlat
                 (\treeFilled ->
-                    case keyConfig.keyOrder key (treeFilled |> Tree2.element |> keyConfig.key) of
+                    case keyConfig.keyOrder key (treeFilled |> Tree2.trunk |> keyConfig.key) of
                         LT ->
                             treeFilled
                                 |> Tree2.children
@@ -245,7 +245,7 @@ treeElementRemove keyConfig key =
                                 |> fillMap
                                     (\nextLeft ->
                                         Tree2.branch
-                                            (treeFilled |> Tree2.element)
+                                            (treeFilled |> Tree2.trunk)
                                             { left = nextLeft
                                             , right = treeFilled |> Tree2.children |> .right
                                             }
@@ -259,7 +259,7 @@ treeElementRemove keyConfig key =
                                 |> fillMap
                                     (\nextRight ->
                                         Tree2.branch
-                                            (treeFilled |> Tree2.element)
+                                            (treeFilled |> Tree2.trunk)
                                             { left = treeFilled |> Tree2.children |> .left
                                             , right = nextRight
                                             }

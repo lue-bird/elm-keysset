@@ -301,7 +301,7 @@ treeElement sorting key =
             |> fillMap filled
             |> fillMapFlat
                 (\treeFilled ->
-                    case sorting.keyOrder key (treeFilled |> Tree2.element |> sorting.key) of
+                    case sorting.keyOrder key (treeFilled |> Tree2.trunk |> sorting.key) of
                         LT ->
                             treeFilled |> Tree2.children |> .left |> treeElement sorting key
 
@@ -309,7 +309,7 @@ treeElement sorting key =
                             treeFilled |> Tree2.children |> .right |> treeElement sorting key
 
                         EQ ->
-                            treeFilled |> Tree2.element |> filled
+                            treeFilled |> Tree2.trunk |> filled
                 )
 
 

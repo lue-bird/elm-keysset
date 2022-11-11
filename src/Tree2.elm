@@ -1,9 +1,10 @@
 module Tree2 exposing
     ( Branch, Children2
     , leaf, branch, branchUnbalanced
-    , height, children, end, element
+    , height, children, end
     , endRemove, elementAlter
     , foldFrom, foldOnto
+    , trunk
     )
 
 {-| Binary tree
@@ -104,8 +105,8 @@ children =
         branch_.children
 
 
-element : Emptiable (Branch element) Never -> element
-element =
+trunk : Emptiable (Branch element) Never -> element
+trunk =
     \tree ->
         let
             (Branch branch_) =
@@ -129,7 +130,7 @@ balance =
         in
         case ( branch_ |> children |> .left, branch_ |> children |> .right ) of
             ( Empty _, Empty _ ) ->
-                leaf (branch_ |> element)
+                leaf (branch_ |> trunk)
 
             ( Filled childrenLeftBranch, Empty _ ) ->
                 let
@@ -138,14 +139,14 @@ balance =
                 in
                 if (childrenLeft |> height) > 1 then
                     rotateRight
-                        (branch_ |> element)
-                        (childrenLeft |> element)
+                        (branch_ |> trunk)
+                        (childrenLeft |> trunk)
                         (childrenLeft |> children)
                         empty
 
                 else
                     branchUnbalanced
-                        (branch_ |> element)
+                        (branch_ |> trunk)
                         { left = childrenLeft
                         , right = empty
                         }
@@ -157,14 +158,14 @@ balance =
                 in
                 if (childrenRight |> height) > 1 then
                     rotateLeft
-                        (branch_ |> element)
+                        (branch_ |> trunk)
                         empty
-                        (childrenRight |> element)
+                        (childrenRight |> trunk)
                         (childrenRight |> children)
 
                 else
                     branchUnbalanced
-                        (branch_ |> element)
+                        (branch_ |> trunk)
                         { left = empty, right = childrenRight }
 
             ( Filled childrenLeftBranch, Filled childrenRightBranch ) ->
@@ -177,21 +178,21 @@ balance =
                 in
                 if ((childrenLeft |> height) - (childrenRight |> height)) < -1 then
                     rotateLeft
-                        (branch_ |> element)
+                        (branch_ |> trunk)
                         childrenLeft
-                        (childrenRight |> element)
+                        (childrenRight |> trunk)
                         (childrenRight |> children)
 
                 else if ((childrenLeft |> height) - (childrenRight |> height)) > 1 then
                     rotateRight
-                        (branch_ |> element)
-                        (childrenLeft |> element)
+                        (branch_ |> trunk)
+                        (childrenLeft |> trunk)
                         (childrenLeft |> children)
                         childrenRight
 
                 else
                     branchUnbalanced
-                        (branch_ |> element)
+                        (branch_ |> trunk)
                         { left = childrenLeft
                         , right = childrenRight
                         }
@@ -390,7 +391,7 @@ elementAlter elementChange =
                         treeFilled =
                             branch_ |> filled
                     in
-                    { element = treeFilled |> element |> elementChange
+                    { element = treeFilled |> trunk |> elementChange
                     , children = treeFilled |> children
                     , height = treeFilled |> height
                     }
@@ -525,7 +526,7 @@ foldUpFrom initial reduce =
                             |> .left
                             |> foldUpFrom initial reduce
                             |> reduce
-                                (treeFilled |> element)
+                                (treeFilled |> trunk)
                         )
                         reduce
 
@@ -553,5 +554,5 @@ foldDown reduce initial =
                             |> .right
                             |> foldDown reduce initial
                             |> reduce
-                                (treeFilled |> element)
+                                (treeFilled |> trunk)
                         )

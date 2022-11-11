@@ -124,7 +124,7 @@ validateHelp sorting tree =
                             if abs (lh - rh) > 1 then
                                 Err
                                     ([ "height diff ["
-                                     , treeFilled |> Tree2.element |> Debug.toString
+                                     , treeFilled |> Tree2.trunk |> Debug.toString
                                      , "]: "
                                      , lh |> String.fromInt
                                      , " vs "
@@ -142,15 +142,15 @@ validateHelp sorting tree =
                         )
             in
             case
-                fillMap (elementOrder sorting (treeFilled |> Tree2.element))
-                    (treeFilled |> Tree2.children |> .left |> fillMap (filled >> Tree2.element))
+                fillMap (elementOrder sorting (treeFilled |> Tree2.trunk))
+                    (treeFilled |> Tree2.children |> .left |> fillMap (filled >> Tree2.trunk))
             of
                 Empty _ ->
                     checkFurther
 
                 Filled LT ->
                     [ "element ["
-                    , treeFilled |> Tree2.element |> Debug.toString
+                    , treeFilled |> Tree2.trunk |> Debug.toString
                     , "] is less than left"
                     ]
                         |> String.concat
@@ -158,7 +158,7 @@ validateHelp sorting tree =
 
                 Filled GT ->
                     [ "element ["
-                    , treeFilled |> Tree2.element |> Debug.toString
+                    , treeFilled |> Tree2.trunk |> Debug.toString
                     , "] is more than right"
                     ]
                         |> String.concat
