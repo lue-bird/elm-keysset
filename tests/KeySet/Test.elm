@@ -14,6 +14,7 @@ import Stack
 import Test exposing (Test, describe, fuzz, fuzz2, test)
 import Tree2 exposing (Branch)
 import Typed
+import Util exposing (recover)
 
 
 suite : Test
@@ -29,7 +30,7 @@ suite =
         , mapSuite
         , mapTrySuite
         , fold2FromSuite
-        , removeElementSuite
+        , elementRemoveTest
         , sizeSuite
         , toListSuite
         , unifyWithSuite
@@ -45,7 +46,7 @@ toListSuite =
                     |> KeySet.toList Up
                     |> Expect.equalLists []
             )
-        , test "singleton"
+        , test "only"
             (\_ ->
                 KeySet.only { id = 0, char = 'A' }
                     |> KeySet.toList Up
@@ -78,7 +79,6 @@ toListSuite =
                     |> KeySet.toList Up
                     |> Expect.equalLists
                         (list
-                            |> List.reverse
                             |> List.Extra.uniqueBy .id
                             |> List.sortBy .id
                         )
@@ -94,78 +94,114 @@ validate :
         )
 validate sorting =
     \keySet ->
-        Result.andThen
-            (\( _, s ) ->
-                if s == (keySet |> KeySet.size) then
+        case
+            keySet
+                |> KeySet.Internal.tree
+                |> validateHelp sorting
+        of
+            Err error ->
+                [ error
+                , " for\n\n"
+                , keySet |> KeySet.toList Up |> Debug.toString
+                ]
+                    |> String.concat
+                    |> Err
+
+            Ok { size } ->
+                if size == (keySet |> KeySet.size) then
                     Ok keySet
 
                 else
-                    Err ("tracking size [" ++ String.fromInt (keySet |> KeySet.size) ++ "] does not match with real one [" ++ String.fromInt s ++ "]")
-            )
-            (keySet |> KeySet.Internal.tree |> validateHelp sorting)
+                    [ "tracking size ["
+                    , keySet |> KeySet.size |> String.fromInt
+                    , "] does not match with real one ["
+                    , size |> String.fromInt
+                    , "]"
+                    , " for\n\n"
+                    , keySet |> KeySet.toList Up |> Debug.toString
+                    ]
+                        |> String.concat
+                        |> Err
 
 
 validateHelp :
     KeySet.Sorting element key_ tag_
     ->
         (Emptiable (Branch element) Possibly
-         -> Result String ( Int, Int )
+         -> Result String { height : Int, size : Int }
         )
 validateHelp sorting tree =
     case tree |> fillMap filled of
         Empty _ ->
-            Ok ( 0, 0 )
+            { height = 0, size = 0 } |> Ok
 
         Filled treeFilled ->
             let
                 checkFurther =
                     Result.andThen
-                        (\( ( lh, ls ), ( rh, rs ) ) ->
-                            if abs (lh - rh) > 1 then
-                                Err
-                                    ([ "height diff ["
-                                     , treeFilled |> Tree2.trunk |> Debug.toString
-                                     , "]: "
-                                     , lh |> String.fromInt
-                                     , " vs "
-                                     , rh |> String.fromInt
-                                     ]
-                                        |> String.concat
-                                    )
+                        (\children ->
+                            if ((children.left.height - children.right.height) |> abs) <= 1 then
+                                { height =
+                                    1 + max children.left.height children.right.height
+                                , size =
+                                    1 + children.left.size + children.right.size
+                                }
+                                    |> Ok
 
                             else
-                                Ok ( 1 + max lh rh, 1 + ls + rs )
+                                [ "height diff ["
+                                , treeFilled |> Tree2.trunk |> Debug.toString
+                                , "]: "
+                                , children.left.height |> String.fromInt
+                                , " vs "
+                                , children.right.height |> String.fromInt
+                                ]
+                                    |> String.concat
+                                    |> Err
                         )
-                        (Result.map2 Tuple.pair
+                        (Result.map2 (\left right -> { left = left, right = right })
                             (treeFilled |> Tree2.children |> .left |> validateHelp sorting)
                             (treeFilled |> Tree2.children |> .right |> validateHelp sorting)
                         )
             in
-            case
-                fillMap (elementOrder sorting (treeFilled |> Tree2.trunk))
-                    (treeFilled |> Tree2.children |> .left |> fillMap (filled >> Tree2.trunk))
-            of
-                Empty _ ->
-                    checkFurther
+            if
+                case treeFilled |> Tree2.children |> .left of
+                    Empty _ ->
+                        False
 
-                Filled LT ->
-                    [ "element ["
-                    , treeFilled |> Tree2.trunk |> Debug.toString
-                    , "] is less than left"
-                    ]
-                        |> String.concat
-                        |> Err
+                    Filled left ->
+                        elementOrder sorting
+                            (treeFilled |> Tree2.trunk)
+                            (left |> filled |> Tree2.trunk)
+                            /= GT
+            then
+                [ "element ["
+                , treeFilled |> Tree2.trunk |> Debug.toString
+                , "] is less than left"
+                ]
+                    |> String.concat
+                    |> Err
 
-                Filled GT ->
-                    [ "element ["
-                    , treeFilled |> Tree2.trunk |> Debug.toString
-                    , "] is more than right"
-                    ]
-                        |> String.concat
-                        |> Err
+            else if
+                case treeFilled |> Tree2.children |> .right of
+                    Empty _ ->
+                        False
 
-                Filled EQ ->
-                    checkFurther
+                    Filled right ->
+                        elementOrder sorting
+                            (treeFilled |> Tree2.trunk)
+                            (right |> filled |> Tree2.trunk)
+                            /= LT
+            then
+                [ "element ["
+                , treeFilled |> Tree2.trunk |> Debug.toString
+                , "] is more than right"
+                ]
+                    |> String.concat
+                    |> Err
+
+            else
+                checkFurther
 
 
 elementOrder : KeySet.Sorting element key_ tag_ -> Ordering element
@@ -298,8 +334,8 @@ insertSuite =
         ]
 
 
-removeElementSuite : Test
-removeElementSuite =
+elementRemoveTest : Test
+elementRemoveTest =
     describe "elementRemove"
         [ fuzz Fuzz.int
             "Emptiable.empty"
@@ -311,16 +347,17 @@ removeElementSuite =
             )
         , fuzz2 Fuzz.int
             Fuzz.int
-            "KeySet.only"
+            "only"
             (\put delete ->
                 KeySet.only { id = put, char = '0' }
                     |> KeySet.elementRemove Character.byId delete
                     |> validate Character.byId
                     |> Expect.ok
             )
-        , fuzz2 (Fuzz.list Character.fuzz)
+        , fuzz2
+            (Fuzz.list Character.fuzz)
             (Fuzz.list Fuzz.int)
-            "KeySet.fromList"
+            "fromList"
             (\puts deletes ->
                 List.foldl
                     (\key ->
@@ -346,7 +383,7 @@ removeElementSuite =
                     (Ok (KeySet.fromList Character.byId list))
                     list
                     |> Result.map (Expect.equal Emptiable.empty)
-                    |> Result.withDefault (Expect.fail "wasn't empty")
+                    |> recover Expect.fail
             )
         ]
 
@@ -396,10 +433,6 @@ elementAlterSuite =
         ]
 
 
-
--- transform
-
-
 sizeSuite : Test
 sizeSuite =
     describe "size"
@@ -410,14 +443,14 @@ sizeSuite =
                     |> Expect.equal 0
             )
         , fuzz Character.fuzz
-            "KeySet.only"
+            "only"
             (\character ->
                 KeySet.only character
                     |> KeySet.size
                     |> Expect.equal 1
             )
         , fuzz (Fuzz.list Character.fuzz)
-            "KeySet.fromList"
+            "fromList"
             (\list ->
                 let
                     uniq =
@@ -425,13 +458,9 @@ sizeSuite =
                 in
                 KeySet.fromList Character.byId list
                     |> KeySet.size
-                    |> Expect.equal (List.length uniq)
+                    |> Expect.equal (uniq |> List.length)
             )
         ]
-
-
-
--- M A N I P U L A T I O N
 
 
 elementSuite : Test
@@ -446,7 +475,7 @@ elementSuite =
             )
         , fuzz2 Fuzz.int
             Fuzz.int
-            "KeySet.only"
+            "only"
             (\x y ->
                 KeySet.only { id = x, char = 'A' }
                     |> KeySet.element Character.byId y
@@ -458,15 +487,15 @@ elementSuite =
                             Emptiable.empty
                         )
             )
-        , fuzz2 Fuzz.int
+        , fuzz2
+            Fuzz.int
             (Fuzz.list Character.fuzz)
-            "KeySet.fromList"
+            "fromList"
             (\key list ->
                 KeySet.fromList Character.byId list
                     |> KeySet.element Character.byId key
                     |> Expect.equal
                         (list
-                            |> List.reverse
                             |> List.Extra.find (\character -> character.id == key)
                             |> Emptiable.fromMaybe
                         )
@@ -526,7 +555,7 @@ endSuite =
                             (stack
                                 |> Stack.fold Down
                                     (\element soFar ->
-                                        if element.id <= soFar.id then
+                                        if element.id > soFar.id then
                                             soFar
 
                                         else
@@ -558,10 +587,6 @@ mapSuite =
                     , { id = 50, char = 'D' }
                     ]
         )
-
-
-
--- scan
 
 
 foldFromSuite : Test
@@ -598,13 +623,13 @@ mapTrySuite =
     describe "mapTry"
         [ test "filter"
             (\_ ->
-                [ { id = 3, char = 'A' }
-                , { id = 1, char = 'B' }
-                , { id = 4, char = 'C' }
-                , { id = 5, char = 'D' }
-                , { id = 2, char = 'E' }
-                ]
-                    |> KeySet.fromList Character.byId
+                KeySet.fromList Character.byId
+                    [ { id = 3, char = 'A' }
+                    , { id = 1, char = 'B' }
+                    , { id = 4, char = 'C' }
+                    , { id = 5, char = 'D' }
+                    , { id = 2, char = 'E' }
+                    ]
                     |> KeySet.mapTry
                         (\element ->
                             if element.id > 3 || element.char == 'B' then
@@ -626,7 +651,7 @@ mapTrySuite =
 
 unifyWithSuite : Test
 unifyWithSuite =
-    describe "union"
+    describe "unifyWith"
         [ test "left is empty"
             (\_ ->
                 Emptiable.empty
@@ -669,10 +694,6 @@ unifyWithSuite =
                         ]
             )
         ]
-
-
-
--- T R A N S F O R M
 
 
 intersectSuite : Test
@@ -770,20 +791,22 @@ fold2FromSuite =
                     soFar
                         |> (::)
                             (case toBeMerged of
-                                KeySet.Second incoming ->
-                                    String.fromList (List.repeat incoming.id incoming.char)
+                                KeySet.First first ->
+                                    (first.id |> String.fromInt) ++ (first.char |> String.fromChar)
 
-                                KeySet.First base ->
-                                    String.fromList (List.repeat base.id base.char)
+                                KeySet.Second second ->
+                                    String.fromList (List.repeat second.id second.char)
 
                                 KeySet.FirstSecond ( first, second ) ->
                                     String.fromList (List.repeat first.id first.char)
-                                        ++ (second.char |> String.fromChar)
+                                        ++ ((second.id |> String.fromInt)
+                                                ++ (second.char |> String.fromChar)
+                                           )
                             )
                 )
     in
     describe "fold2From"
-        [ test "left is empty"
+        [ test "second is empty"
             (\_ ->
                 { first =
                     { sorting = Character.byId
@@ -799,7 +822,7 @@ fold2FromSuite =
                         [ "0A"
                         ]
             )
-        , test "right is empty"
+        , test "first is empty"
             (\_ ->
                 { first =
                     { sorting = Character.byId
@@ -842,8 +865,8 @@ fold2FromSuite =
                     |> Expect.equalLists
                         [ "5f"
                         , "4e"
-                        , "DDDd"
-                        , "CCc"
+                        , "ddd3d"
+                        , "CC2c"
                         , "B"
                         , ""
                         ]
