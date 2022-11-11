@@ -759,32 +759,38 @@ exceptSuite =
 mergeSuite : Test
 mergeSuite =
     let
-        testMergeWith =
-            KeySet.mergeFrom
+        testMerge =
+            KeySet.fold2From
                 []
-                Character.byId
-                (\toBeMerged acc ->
-                    acc
+                (\toBeMerged soFar ->
+                    soFar
                         |> (::)
                             (case toBeMerged of
-                                KeySet.Incoming incoming ->
+                                KeySet.Second incoming ->
                                     String.fromList (List.repeat incoming.id incoming.char)
 
-                                KeySet.Base base ->
+                                KeySet.First base ->
                                     String.fromList (List.repeat base.id base.char)
 
-                                KeySet.Both { incoming, base } ->
-                                    String.fromList (List.repeat incoming.id incoming.char)
-                                        ++ (base.char |> String.fromChar)
+                                KeySet.FirstSecond ( first, second ) ->
+                                    String.fromList (List.repeat first.id first.char)
+                                        ++ (second.char |> String.fromChar)
                             )
                 )
     in
     describe "merge"
         [ test "left is empty" <|
             \_ ->
-                testMergeWith
-                    { key = .id, set = Emptiable.empty }
-                    (KeySet.only { id = 0, char = 'A' })
+                { first =
+                    { sorting = Character.byId
+                    , set = KeySet.only { id = 0, char = 'A' }
+                    }
+                , second =
+                    { sorting = Character.byId
+                    , set = Emptiable.empty
+                    }
+                }
+                    |> testMerge
                     |> Expect.equalLists
                         [ "0A"
                         ]
@@ -792,9 +798,16 @@ mergeSuite =
         --
         , test "right is empty" <|
             \_ ->
-                Emptiable.empty
-                    |> testMergeWith
-                        { key = .id, set = KeySet.only { id = 3, char = 'A' } }
+                { first =
+                    { sorting = Character.byId
+                    , set = Emptiable.empty
+                    }
+                , second =
+                    { sorting = Character.byId
+                    , set = KeySet.only { id = 3, char = 'A' }
+                    }
+                }
+                    |> testMerge
                     |> Expect.equalLists
                         [ "AAA"
                         ]
@@ -802,23 +815,28 @@ mergeSuite =
         --
         , test "merges" <|
             \_ ->
-                testMergeWith
-                    { key = .id
-                    , set =
-                        KeySet.fromList Character.byId
-                            [ { id = 0, char = 'A' }
-                            , { id = 1, char = 'B' }
-                            , { id = 2, char = 'c' }
-                            , { id = 3, char = 'd' }
-                            ]
+                testMerge
+                    { first =
+                        { sorting = Character.byId
+                        , set =
+                            KeySet.fromList Character.byId
+                                [ { id = 2, char = 'C' }
+                                , { id = 3, char = 'd' }
+                                , { id = 4, char = 'e' }
+                                , { id = 5, char = 'f' }
+                                ]
+                        }
+                    , second =
+                        { sorting = Character.byId
+                        , set =
+                            KeySet.fromList Character.byId
+                                [ { id = 0, char = 'A' }
+                                , { id = 1, char = 'B' }
+                                , { id = 2, char = 'c' }
+                                , { id = 3, char = 'd' }
+                                ]
+                        }
                     }
-                    (KeySet.fromList Character.byId
-                        [ { id = 2, char = 'C' }
-                        , { id = 3, char = 'd' }
-                        , { id = 4, char = 'e' }
-                        , { id = 5, char = 'f' }
-                        ]
-                    )
                     |> Expect.equalLists
                         [ "5f"
                         , "4e"

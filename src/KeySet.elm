@@ -6,7 +6,7 @@ module KeySet exposing
     , insert, elementRemove, elementAlter
     , map, mapTry
     , unifyWith, except, intersect
-    , mergeFrom, BaseOrIncomingOrBoth(..)
+    , fold2From, FirstOrSecondOrBoth(..)
     , toList
     , foldFrom, foldOnto, fold
     )
@@ -38,7 +38,7 @@ module KeySet exposing
 ## combine
 
 @docs unifyWith, except, intersect
-@docs mergeFrom, BaseOrIncomingOrBoth
+@docs fold2From, FirstOrSecondOrBoth
 
 
 ## transform
@@ -51,6 +51,7 @@ module KeySet exposing
 import Emptiable exposing (Emptiable(..), emptyAdapt, fillMap, fillMapFlat, filled)
 import KeySet.Internal
 import Linear exposing (Direction(..))
+import List.Linear
 import Order exposing (Ordering)
 import Possibly exposing (Possibly(..))
 import Stack exposing (Stacked)
@@ -670,103 +671,105 @@ except sorting toExclude =
                 )
 
 
-{-| Describes an un[merge](#mergeFrom)d element whose key is present
+{-| Unresolved element state while merging a "first" and "second" structure
 
-  - Only in the `Incoming` [`KeySet`](#KeySet)
-  - Only in the current = `Base` [`KeySet`](#KeySet)
-  - In `Both`
+  - only in the `First` structure
+  - only in the `Second` structure
+  - in both `FirstSecond`
+
+`FirstSecond` has a tuple instead of a more descriptive record to make matching easier
 
 -}
-type BaseOrIncomingOrBoth base incoming
-    = Base base
-    | Incoming incoming
-    | Both { base : base, incoming : incoming }
+type FirstOrSecondOrBoth first second
+    = First first
+    | Second second
+    | FirstSecond ( first, second )
 
 
-{-| Most general way of combining with a [`KeySet`](#KeySet)
+{-| Most powerful way of combining 2 [`KeySet`](#KeySet)s
 
-Traverses all the keys from lowest to highest,
+Traverses all the keys from both [`KeySet`](#KeySet)s _from lowest to highest_,
 accumulating whatever you want
-for when a given key appears
+for when a key appears in either the [`FirstOrSecondOrBoth`](#FirstOrSecondOrBoth)
+of the [`KeySet`](#KeySet)s
 
-  - Only in the incoming [`KeySet`](#KeySet)
-  - Only in the current [`KeySet`](#KeySet)
-  - In both
+You will find this as "merge" in most other dictionaries/sets
 
 -}
-mergeFrom :
+fold2From :
     accumulated
-    -> Sorting baseElement key tag_
     ->
-        (BaseOrIncomingOrBoth baseElement incomingElement
+        (FirstOrSecondOrBoth firstElement secondElement
          -> (accumulated -> accumulated)
         )
     ->
-        { key : incomingElement -> key
-        , set : Emptiable (KeySet incomingElement incomingTag_) incomingPossiblyOrNever_
+        { first :
+            { sorting : Sorting firstElement key firstTag
+            , set : Emptiable (KeySet firstElement firstTag) firstPossiblyOrNever_
+            }
+        , second :
+            { sorting : Sorting secondElement key secondTag
+            , set : Emptiable (KeySet secondElement secondTag) secondPossiblyOrNever_
+            }
         }
-    ->
-        (Emptiable (KeySet baseElement baseTag_) possiblyOrNever_
-         -> accumulated
-        )
-mergeFrom initial sorting reduce left =
+    -> accumulated
+fold2From initial reduce { first, second } =
     let
         stepAll :
-            baseElement
+            firstElement
             ->
-                ({ incoming : List incomingElement, semiAccumulated : accumulated }
-                 -> { incoming : List incomingElement, semiAccumulated : accumulated }
+                ({ incoming : List secondElement, semiAccumulated : accumulated }
+                 -> { incoming : List secondElement, semiAccumulated : accumulated }
                 )
-        stepAll rElement =
+        stepAll firstElement =
             \{ incoming, semiAccumulated } ->
                 case incoming of
                     [] ->
                         { incoming = []
                         , semiAccumulated =
-                            semiAccumulated |> reduce (Base rElement)
+                            semiAccumulated |> reduce (First firstElement)
                         }
 
-                    incomingElement :: incomingRest ->
+                    secondElement :: secondRest ->
                         case
-                            (sorting |> Typed.untag |> .keyOrder)
-                                (incomingElement |> left.key)
-                                (rElement |> (sorting |> Typed.untag |> .key))
+                            (first.sorting |> Typed.untag |> .keyOrder)
+                                (secondElement |> (second.sorting |> Typed.untag |> .key))
+                                (firstElement |> (first.sorting |> Typed.untag |> .key))
                         of
                             LT ->
-                                stepAll rElement
-                                    { incoming = incomingRest
+                                stepAll firstElement
+                                    { incoming = secondRest
                                     , semiAccumulated =
-                                        semiAccumulated |> reduce (Incoming incomingElement)
+                                        semiAccumulated |> reduce (Second secondElement)
                                     }
 
                             GT ->
                                 { incoming =
-                                    incomingElement :: incomingRest
+                                    secondElement :: secondRest
                                 , semiAccumulated =
-                                    semiAccumulated |> reduce (Base rElement)
+                                    semiAccumulated |> reduce (First firstElement)
                                 }
 
                             EQ ->
-                                { incoming = incomingRest
+                                { incoming = secondRest
                                 , semiAccumulated =
                                     semiAccumulated
-                                        |> reduce (Both { base = rElement, incoming = incomingElement })
+                                        |> reduce (FirstSecond ( firstElement, secondElement ))
                                 }
     in
-    \keySetBase ->
-        let
-            stepped =
-                keySetBase
-                    |> foldFrom
-                        { incoming = left.set |> toList Up
-                        , semiAccumulated = initial
-                        }
-                        Up
-                        stepAll
-        in
-        stepped.incoming
-            |> List.foldl
-                (\incomingElement soFar ->
-                    soFar |> reduce (Incoming incomingElement)
-                )
-                stepped.semiAccumulated
+    let
+        stepped =
+            first.set
+                |> foldFrom
+                    { incoming = second.set |> toList Up
+                    , semiAccumulated = initial
+                    }
+                    Up
+                    stepAll
+    in
+    stepped.incoming
+        |> List.Linear.foldFrom stepped.semiAccumulated
+            Up
+            (\incomingElement soFar ->
+                soFar |> reduce (Second incomingElement)
+            )
