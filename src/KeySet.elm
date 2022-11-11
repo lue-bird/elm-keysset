@@ -77,12 +77,6 @@ import Typed exposing (Checked, Public, Typed)
                 ]
             )
 
-    type alias User =
-        { name : String
-        , age : Int
-        , height : Float
-        }
-
 where
 
     module User exposing (ByName, User(..), byName)
@@ -113,7 +107,7 @@ type alias KeySet element tag =
 Create using [`sortingKey`](#sortingKey), as shown in
 
   - [`KeySet` example](#KeySet)
-  - [readme example](https://dark.elm.dmy.fr/packages/lue-bird/elm-keysset/latest/)
+  - [readme example](https://dark.elm.dmy.fr/packages/lue-bird/elm-keysset/latest/#KeySet)
 
 -}
 type alias Sorting element key tag =
@@ -136,7 +130,7 @@ For example, to create a [`Sorting`](#Sorting) to use with a simple set, use
 more in
 
   - [`KeySet` example](#KeySet)
-  - [readme example](https://dark.elm.dmy.fr/packages/lue-bird/elm-keysset/latest/)
+  - [readme example](https://dark.elm.dmy.fr/packages/lue-bird/elm-keysset/latest/#KeySet)
 
 -}
 sortingKey :
@@ -158,7 +152,7 @@ sortingKey elementKey keySorting =
 -- create
 
 
-{-| Create a [`KeysSet`](#KeySet) with one given element
+{-| [`KeysSet`](#KeySet) containing a single given element
 -}
 only : element -> Emptiable (KeySet element tag_) never_
 only singleElement =
@@ -218,8 +212,13 @@ fromStack sorting =
 -- scan
 
 
-{-| Determine the number of elements in the [`KeysSet`](#KeySet).
-It takes constant time to determine the size.
+{-| Number of elements in the [`KeysSet`](#KeySet).
+Runtime `1`.
+
+    KeySet.only "Hello"
+        |> KeySet.size
+    --> 1
+
 -}
 size : Emptiable (KeySet element_ tag_) possiblyOrNever_ -> Int
 size =
@@ -237,24 +236,39 @@ tree =
 {-| Get the value associated with a key. If the key is not found, return Nothing.
 This is useful when you are not sure if a key will be in the [`KeysSet`](#KeySet).
 
-    import KeySet exposing (Dict)
+    import KeySet exposing (KeySet)
+    import Emptiable exposing (Emptiable, filled)
 
     type Animal
         = Mouse
         | Cat
 
-    animals : Dict String Animal
+    animals : Emptiable (KeySet String { byName : () }) never_
     animals =
-        KeySet.fromList [ ( "Tom", Cat ), ( "Jerry", Mouse ) ]
+        KeySet.fromStack animalByName
+            (Stack.topBelow
+                { name = "Tom", kind = Cat }
+                [ { name = "Jerry", kind = Mouse }
+                ]
+            )
 
-    KeySet.element (String.Order.greaterEarlier (Char.Order.alphabetically Order.lowerUpper)) "Tom" animals
-    --> Just Cat
+    -- should be opaque and should use an opaque tag
+    animalByName : KeySet.Sorting Animal String { byName : () }
+    animalByName =
+        KeySet.sortingKey .name
+            { tag = { byName = () }
+            , order =
+                String.Order.greaterEarlier (Char.Order.alphabetically Order.lowerUpper)
+            }
 
-    KeySet.element (String.Order.greaterEarlier (Char.Order.alphabetically Order.lowerUpper)) "Jerry" animals
-    --> Just Mouse
+    animals |> KeySet.element animalByName "Tom"
+    --> filled Cat
 
-    KeySet.element (String.Order.greaterEarlier (Char.Order.alphabetically Order.lowerUpper)) "Spike" animals
-    --> Nothing
+    animals |> KeySet.element animalByName "Jerry"
+    --> filled Mouse
+
+    animals |> KeySet.element animalByName "Spike"
+    --> Emptiable.empty
 
 -}
 element :
