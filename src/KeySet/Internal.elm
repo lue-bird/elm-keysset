@@ -1,5 +1,5 @@
 module KeySet.Internal exposing
-    ( KeySetFilled
+    ( KeySet
     , only
     , size, tree
     , insert, elementRemove
@@ -7,7 +7,7 @@ module KeySet.Internal exposing
 
 {-| Lookup with one key
 
-@docs KeySetFilled
+@docs KeySet
 
 
 ## create
@@ -32,9 +32,10 @@ import Order exposing (Ordering)
 import Possibly exposing (Possibly(..))
 import Tree2 exposing (Branch)
 import Typed exposing (Checked, Public, Typed)
+import Util exposing (when)
 
 
-type KeySetFilled element tag
+type KeySet element tag
     = KeySet
         { tree : Emptiable (Branch element) Never
         , size : Int
@@ -47,53 +48,58 @@ type alias Sorting element key tag =
         tag
         Public
         { key : element -> key
-        , keyOrder :
-            Ordering key
+        , keyOrder : Ordering key
         }
 
 
-only : element -> Emptiable (KeySetFilled element tag_) never_
+
+-- create
+
+
+only : element -> Emptiable (KeySet element tag_) never_
 only singleElement =
     KeySet
         { size = 1
-        , tree = Tree2.leaf singleElement
+        , tree = singleElement |> Tree2.leaf
         }
         |> filled
-
-
-size : Emptiable (KeySetFilled element_ tag_) possiblyOrNever_ -> Int
-size =
-    \keySet ->
-        case keySet of
-            Empty _ ->
-                0
-
-            Filled (KeySet keySetInternal) ->
-                keySetInternal.size
 
 
 
 -- scan
 
 
+size : Emptiable (KeySet element_ tag_) possiblyOrNever_ -> Int
+size =
+    \keySet ->
+        case keySet of
+            Empty _ ->
+                0
+
+            Filled (KeySet internal) ->
+                internal.size
+
+
 tree :
-    Emptiable (KeySetFilled element tag_) possiblyOrNever
+    Emptiable (KeySet element tag_) possiblyOrNever
     -> Emptiable (Branch element) possiblyOrNever
 tree =
     \keySet ->
         keySet
             |> fillMap
-                (\(KeySet keySetInternal) ->
-                    keySetInternal.tree |> fill
-                )
+                (\(KeySet internal) -> internal.tree |> fill)
+
+
+
+-- alter
 
 
 insert :
     Sorting element key_ tag
     -> element
     ->
-        (Emptiable (KeySetFilled element tag) possiblyOrNever_
-         -> Emptiable (KeySetFilled element tag) never_
+        (Emptiable (KeySet element tag) possiblyOrNever_
+         -> Emptiable (KeySet element tag) never_
         )
 insert sorting elementToInsert =
     \keySet ->
@@ -103,23 +109,18 @@ insert sorting elementToInsert =
                     |> tree
                     |> emptyAdapt (\_ -> Possible)
                     |> treeInsert (elementKeyOrder sorting) elementToInsert
-
-            nextCount =
-                if inserted.sizeIncreased then
-                    \n -> n + 1
-
-                else
-                    identity
         in
         inserted.tree
             |> fillMap
                 (\branch ->
-                    KeySet { size = keySet |> size |> nextCount, tree = branch |> filled }
+                    KeySet
+                        { size =
+                            keySet
+                                |> size
+                                |> when inserted.sizeIncreased (\n -> n + 1)
+                        , tree = branch |> filled
+                        }
                 )
-
-
-
--- alter
 
 
 elementKeyOrder : Sorting element key_ tag_ -> Ordering element
@@ -140,64 +141,65 @@ treeInsert :
             , tree : Emptiable (Branch element) never_
             }
         )
-treeInsert ordering elementToInsert tree_ =
-    case tree_ |> fillMap filled of
-        Empty _ ->
-            { sizeIncreased = True
-            , tree = Tree2.leaf elementToInsert
-            }
+treeInsert ordering elementToInsert =
+    \tree_ ->
+        case tree_ |> fillMap filled of
+            Empty _ ->
+                { sizeIncreased = True
+                , tree = elementToInsert |> Tree2.leaf
+                }
 
-        Filled treeFilled ->
-            case ordering elementToInsert (treeFilled |> Tree2.trunk) of
-                EQ ->
-                    { sizeIncreased = False
-                    , tree =
-                        treeFilled
-                            |> Tree2.trunkAlter (\_ -> elementToInsert)
-                            |> emptyAdapt never
-                    }
-
-                LT ->
-                    let
-                        insertedForNextLeft =
+            Filled treeFilled ->
+                case ordering elementToInsert (treeFilled |> Tree2.trunk) of
+                    EQ ->
+                        { sizeIncreased = False
+                        , tree =
                             treeFilled
-                                |> Tree2.children
-                                |> .left
-                                |> treeInsert ordering elementToInsert
-                    in
-                    { sizeIncreased = insertedForNextLeft.sizeIncreased
-                    , tree =
-                        Tree2.branch
-                            (treeFilled |> Tree2.trunk)
-                            { left = insertedForNextLeft.tree |> emptyAdapt (\_ -> Possible)
-                            , right = treeFilled |> Tree2.children |> .right
-                            }
-                    }
+                                |> emptyAdapt never
+                                |> Tree2.trunkAlter (\_ -> elementToInsert)
+                        }
 
-                GT ->
-                    let
-                        insertedForNextRight =
-                            treeFilled
-                                |> Tree2.children
-                                |> .right
-                                |> treeInsert ordering elementToInsert
-                    in
-                    { sizeIncreased = insertedForNextRight.sizeIncreased
-                    , tree =
-                        Tree2.branch
-                            (treeFilled |> Tree2.trunk)
-                            { left = treeFilled |> Tree2.children |> .left
-                            , right = insertedForNextRight.tree |> emptyAdapt (\_ -> Possible)
-                            }
-                    }
+                    LT ->
+                        let
+                            leftWithInserted =
+                                treeFilled
+                                    |> Tree2.children
+                                    |> .left
+                                    |> treeInsert ordering elementToInsert
+                        in
+                        { sizeIncreased = leftWithInserted.sizeIncreased
+                        , tree =
+                            Tree2.branch
+                                (treeFilled |> Tree2.trunk)
+                                { left = leftWithInserted.tree |> emptyAdapt (\_ -> Possible)
+                                , right = treeFilled |> Tree2.children |> .right
+                                }
+                        }
+
+                    GT ->
+                        let
+                            rightWithInserted =
+                                treeFilled
+                                    |> Tree2.children
+                                    |> .right
+                                    |> treeInsert ordering elementToInsert
+                        in
+                        { sizeIncreased = rightWithInserted.sizeIncreased
+                        , tree =
+                            Tree2.branch
+                                (treeFilled |> Tree2.trunk)
+                                { left = treeFilled |> Tree2.children |> .left
+                                , right = rightWithInserted.tree |> emptyAdapt (\_ -> Possible)
+                                }
+                        }
 
 
 elementRemove :
     Sorting element key tag
     -> key
     ->
-        (Emptiable (KeySetFilled element tag) possiblyOrNever_
-         -> Emptiable (KeySetFilled element tag) Possibly
+        (Emptiable (KeySet element tag) possiblyOrNever_
+         -> Emptiable (KeySet element tag) Possibly
         )
 elementRemove sorting keyToRemove =
     \keySet ->
@@ -275,7 +277,7 @@ treeElementRemove keyConfig key =
                                         treeFilled |> Tree2.children |> .left
 
                                     Filled rightBranch ->
-                                        Tree2.branchUnbalanced
+                                        Tree2.branch
                                             (rightBranch |> filled |> Tree2.end Down)
                                             { left = treeFilled |> Tree2.children |> .left
                                             , right = rightBranch |> filled |> Tree2.endRemove Down
@@ -287,7 +289,7 @@ treeElementRemove keyConfig key =
                                         treeFilled |> Tree2.children |> .right
 
                                     Filled leftBranch ->
-                                        Tree2.branchUnbalanced
+                                        Tree2.branch
                                             (leftBranch |> filled |> Tree2.end Up)
                                             { left = leftBranch |> filled |> Tree2.endRemove Up
                                             , right = treeFilled |> Tree2.children |> .right
