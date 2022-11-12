@@ -1,6 +1,7 @@
 {
   "root": "../src",
   "tests": [
-    "KeysSet"
+    "KeysSet",
+    "KeySet"
   ]
 }
