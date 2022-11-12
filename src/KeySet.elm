@@ -109,6 +109,8 @@ Create using [`sortingKey`](#sortingKey), as shown in
   - [`KeySet` example](#KeySet)
   - [readme example](https://dark.elm.dmy.fr/packages/lue-bird/elm-keysset/latest/#KeySet)
 
+You can just ignore the `Typed` thing but if you're curious → [`typed-value`](https://dark.elm.dmy.fr/packages/lue-bird/elm-typed-value/latest/)
+
 -}
 type alias Sorting element key tag =
     Typed
