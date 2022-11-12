@@ -94,7 +94,7 @@ where
     byName =
         KeySet.sortingKey .name
             { tag = ByName
-            , order = String.Order.greaterEarlier (Char.Order.alphabetically Order.lowerUpper)
+            , order = String.Order.greaterEarlier (Char.Order.alphabetically Case.lowerUpper)
             }
 
 -}
@@ -236,14 +236,23 @@ tree =
 {-| Get the value associated with a key. If the key is not found, return Nothing.
 This is useful when you are not sure if a key will be in the [`KeysSet`](#KeySet).
 
+    import Emptiable exposing (Emptiable, filled, fillMap)
+    import Stack
     import KeySet exposing (KeySet)
-    import Emptiable exposing (Emptiable, filled)
+    import Case
+    import Char.Order
+    import String.Order
 
-    type Animal
+    type alias Animal =
+        { name : String
+        , kind : AnimalKind
+        }
+
+    type AnimalKind
         = Mouse
         | Cat
 
-    animals : Emptiable (KeySet String { byName : () }) never_
+    animals : Emptiable (KeySet Animal { byName : () }) never_
     animals =
         KeySet.fromStack animalByName
             (Stack.topBelow
@@ -258,16 +267,16 @@ This is useful when you are not sure if a key will be in the [`KeysSet`](#KeySet
         KeySet.sortingKey .name
             { tag = { byName = () }
             , order =
-                String.Order.greaterEarlier (Char.Order.alphabetically Order.lowerUpper)
+                String.Order.greaterEarlier (Char.Order.alphabetically Case.lowerUpper)
             }
 
-    animals |> KeySet.element animalByName "Tom"
+    animals |> KeySet.element animalByName "Tom" |> fillMap .kind
     --> filled Cat
 
-    animals |> KeySet.element animalByName "Jerry"
+    animals |> KeySet.element animalByName "Jerry" |> fillMap .kind
     --> filled Mouse
 
-    animals |> KeySet.element animalByName "Spike"
+    animals |> KeySet.element animalByName "Spike" |> fillMap .kind
     --> Emptiable.empty
 
 -}
@@ -318,9 +327,16 @@ treeElement sorting key =
   - minimum → `end Down`
   - maximum → `end Up`
 
-The [`KeySet`](#KeySet) is `empty` → Nothing
+[`KeySet`](#KeySet) is `empty` → Nothing
 
+    import Linear exposing (Direction(..))
+    import Emptiable exposing (Emptiable)
+    import Stack
     import KeySet exposing (KeySet)
+    import Case
+    import Char.Order
+    import String.Order
+
 
     type alias User =
         { name : String
@@ -328,15 +344,24 @@ The [`KeySet`](#KeySet) is `empty` → Nothing
         , height : Float
         }
 
-    users : Emptiable (KeySetFilled User User.ByName) never_
+    users : Emptiable (KeySet User { userByName : () }) never_
     users =
-        KeySet.fromStack User.byName
+        KeySet.fromStack userByName
             (Stack.topBelow
                 { name = "Bob", age = 19, height = 1.82 }
                 [ { name = "Alice", age = 28, height = 1.65 }
                 , { name = "Chuck", age = 33, height = 1.75 }
                 ]
             )
+
+    -- ↓ and tag should be opaque
+    userByName : KeySet.Sorting User String { userByName : () }
+    userByName =
+        KeySet.sortingKey .name
+            { tag = { userByName = () }
+            , order =
+                String.Order.greaterEarlier (Char.Order.alphabetically Case.lowerUpper)
+            }
 
     users |> KeySet.end Down
     --> { name = "Alice", age = 28, height = 1.65 }
@@ -442,6 +467,7 @@ elementAlter sorting keyToAlter emptiableElementTryMap =
 {-| Convert to a `List` sorted by keys
 in a given direction
 
+    import Linear exposing (Direction(..))
     import Stack
     import KeySet
     import Case
@@ -453,10 +479,10 @@ in a given direction
     nameAlphabetical =
         KeySet.sortingKey identity
             { tag = { alphabetical = () }
-            , order = String.Order.greaterEarlier (Char.Order.alphabetical Case.lowerUpper)
+            , order = String.Order.greaterEarlier (Char.Order.alphabetically Case.lowerUpper)
             }
 
-    KeySet.fromList nameAlphabetical
+    KeySet.fromStack nameAlphabetical
         (Stack.topBelow "Bob" [ "Alice" ])
         |> KeySet.toList Up
     --> [ "Alice", "Bob" ]
@@ -550,16 +576,22 @@ mapTry elementChangeTry mappedKey =
 then reducing what's accumulated in a given [`Direction`](https://package.elm-lang.org/packages/lue-bird/elm-linear-direction/latest/)
 
     import Linear exposing (Direction(..))
+    import Stack
     import KeySet
     import Int.Order
 
-    KeySet.fromStack
-        (KeySet.sorting identity -- tag should be opaque instead
-            { tag = { increasing = () }, order = Int.Order.increasing }
-        )
-        (Stack.topBelow 4 [ 2, 8, 4 ])
-        |> KeySet.fold Up (/)
-    --> 0.0625
+    KeySet.fromStack intIncreasing
+        (Stack.topBelow 1 [ 2, 8, 16 ])
+        |> KeySet.fold Down (\n soFar -> soFar - n)
+    --> 5
+
+    -- ↓ and tag should be opaque
+    intIncreasing : KeySet.Sorting Int Int { increasing : () }
+    intIncreasing =
+        KeySet.sortingKey identity
+            { tag = { increasing = () }
+            , order = Int.Order.increasing
+            }
 
 -}
 fold :
@@ -578,15 +610,28 @@ fold direction reduce =
 then reducing what's accumulated in a given [`Direction`](https://package.elm-lang.org/packages/lue-bird/elm-linear-direction/latest/)
 
     import Linear exposing (Direction(..))
-    import Stack exposing (topBelow)
+    import Stack
+    import Int.Order
+    import KeySet
 
-    topBelow 234 [ 345, 543 ]
-        |> Stack.foldOnto Stack.only Down Stack.onTopLay
+    KeySet.fromStack intIncreasing
+        (Stack.topBelow 234 [ 345, 543 ])
+        |> KeySet.foldOnto Stack.only Up Stack.onTopLay
+    --> Stack.topBelow 543 [ 345, 234 ]
+    --  the type knows it's never empty
+
+    -- ↓ and tag should be opaque
+    intIncreasing : KeySet.Sorting Int Int { increasing : () }
+    intIncreasing =
+        KeySet.sortingKey identity
+            { tag = { increasing = () }
+            , order = Int.Order.increasing
+            }
 
 A simpler version is
 
-    Stack.fold =
-        Stack.foldOnto identity
+    KeySet.fold =
+        KeySet.foldOnto identity
 
 -}
 foldOnto :
@@ -608,6 +653,31 @@ foldOnto firstToInitial direction reduce =
 
   - `Up` from lowest key to highest
   - `Down` from highest key to lowest
+
+```
+import Linear exposing (Direction(..))
+import Stack
+import Int.Order
+import KeySet
+
+KeySet.fromStack intIncreasing
+    (Stack.topBelow 234 [ 345, 543 ])
+    |> KeySet.foldFrom [] Down (::)
+--> [ 234, 345, 543 ]
+
+KeySet.fromStack intIncreasing
+    (Stack.topBelow False [ True, False ])
+    |> KeySet.foldFrom 0 Up (||)
+--> True
+
+-- ↓ and tag should be opaque
+intIncreasing : KeySet.Sorting Int Int { increasing : () }
+intIncreasing =
+    KeySet.sortingKey identity
+        { tag = { increasing = () }
+        , order = Int.Order.increasing
+        }
+```
 
 -}
 foldFrom :

@@ -16,9 +16,7 @@ used to access/operate is enforced to be the same
 alongside other [goodies](#goodies)
 
 ```elm
-module App exposing (users)
-
-import User exposing (User)
+import User exposing (User(..))
 import Emptiable exposing (Emptiable)
 import KeySet exposing (KeySet)
 import Stack
@@ -26,14 +24,22 @@ import Stack
 users : Emptiable (KeySet User User.ByEmailHostFirst) neverEmpty_
 users =
     KeySet.fromStack User.byEmailHostFirst
-        (Stack.topBelow user0 [ user1, user0, user3 ])
+        (Stack.topBelow
+            (User { name = "Fred", email = ..@out.tech.. })
+            [ User { name = "Ann", email = ..ann@mail.xyz.. }
+            , User { name = "Annother", email = ..ann@mail.xyz.. }
+            , User { name = "Bright", email = ..@snail.studio.. }
+            ]
+        )
 
-users |> KeySet.end Down
---→ user0, no Maybe, log n performance
---  assuming user0 is sorted as the smallest
+users |> KeySet.size
+--→ 3
 
-users |> KeySet.element User.byEmailHostFirst user3.email
---→ Emptiable.filled user3, Emptiable since we can never be sure that works
+users |> KeySet.element User.byEmailHostFirst ..ann@mail.xyz..
+--→ Emptiable.filled { name = "Ann", email = ..ann@mail.xyz.. }
+
+users |> KeySet.end Down -- minimum
+--→ { name = "Ann", email = ..ann@mail.xyz.. } no Maybe
 ```
 ```elm
 module User exposing (User(..), ByEmailHostFirst, byEmailHostFirst)
@@ -66,21 +72,24 @@ emailHostFirst =
 ```
 No typeclasses :)
 
-Feel free to adapt this structure how you like it best.
+Feel free to adapt this structure how you like it best,
+for example separating [`Sorting`](KeySet#Sorting)s from data to each their own `module Data.By`
 
 ## goodies
 
-  - using an [`Ordering key = key -> key -> Order`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/Order) means
+  - ⚖ sorting by [`Ordering key = key -> key -> Order`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/Order)
       - 👍 no reliance on `comparable`
       - 👍 no inconvenient `key -> String`
-  - `element -> key` function as part of a given [`Sorting`](KeySet#Sorting)
+  - 🔑 `element -> key` function as part of a given [`Sorting`](KeySet#Sorting)
       - 👍 simpler type
       - 👍 simpler internals :)
-  - emptiability is part of the type
+  - 🗃 emptiability is part of the type
       - just use the same API with emptiable or non-empty conveniently
       - 👍 extra safety possible. Got enough elements? → `KeySet.end Up|Down`, `foldOnto`, `fold` don't need `Maybe`
       - 🧩 [`allowable-state`](https://dark.elm.dmy.fr/packages/lue-bird/elm-allowable-state/latest/)
-          - ☁ [`emptiness-typed`](https://package.elm-lang.org/packages/lue-bird/elm-emptiness-typed/latest/)
+      - 🧩 [`emptiness-typed`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/)
+  - ↔ supply the direction as an argument
+      - 🧩 [`linear-direction`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/)
 
 ## prior art
 
@@ -140,6 +149,12 @@ Feel free to adapt this structure how you like it best.
       - 👎 `n` runtime
       - 👍 no setup
       - 👍 simple type
+  - tagging keys and the structure
+      - examples
+          - [`joneshf/elm-tagged` `Tagged.Set`, `Tagged.Dict`](https://dark.elm.dmy.fr/packages/joneshf/elm-tagged/latest/Tagged-Dict)
+      - idea is quite similar to `KeySet` but
+      - 👎 relies on `comparable`
+      - 👎 everyone can tag without the tag name so only security by a bit more obscurity
 
 # `KeysSet`
 > look up elements by their unique aspects
