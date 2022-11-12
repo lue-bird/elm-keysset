@@ -99,7 +99,7 @@ where
 
 -}
 type alias KeySet element tag =
-    KeySet.Internal.KeySetFilled element tag
+    KeySet.Internal.KeySet element tag
 
 
 {-| Configure what's considered a key inside a [`KeySet`](#KeySet)
@@ -160,7 +160,7 @@ only singleElement =
 
 
 {-| Convert to a [`KeysSet`](#KeySet),
-ignoring elements whose keys already exist earlier in the `List`
+ignoring elements whose keys already exist **earlier** in the `List`
 
 For construction, use [`fromStack`](#fromStack),
 proving to the compiler what you already know
@@ -173,13 +173,13 @@ fromList :
 fromList sorting =
     \list ->
         list
-            |> List.foldl
+            |> List.foldr
                 (\el soFar -> soFar |> insert sorting el)
                 Emptiable.empty
 
 
 {-| Convert to a [`KeysSet`](#KeySet),
-ignoring elements whose keys already exist earlier in the [`Stack`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/Stack)
+ignoring elements whose keys already exist **earlier** in the [`Stack`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/Stack)
 
     Keyset.fromStack User.ByHandle
         (Stack.topBelow
@@ -203,7 +203,7 @@ fromStack sorting =
                     stacked
                         |> filled
                         |> Stack.foldOnto only
-                            Up
+                            Down
                             (\el soFar -> soFar |> insert sorting el)
                 )
 
