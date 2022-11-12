@@ -476,7 +476,7 @@ elementAlter sorting keyToAlter emptiableElementTryMap =
 
 
 {-| Convert to a `List` sorted by keys
-in a given direction
+in a given [`Direction`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/Linear#Direction)
 
     import Linear exposing (Direction(..))
     import Stack
