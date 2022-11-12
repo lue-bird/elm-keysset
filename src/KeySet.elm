@@ -639,7 +639,7 @@ then reducing what's accumulated in a given [`Direction`](https://package.elm-la
             , order = Int.Order.increasing
             }
 
-A simpler version is
+A simpler version is [`fold`](#fold)
 
     KeySet.fold =
         KeySet.foldOnto identity
