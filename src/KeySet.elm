@@ -710,7 +710,7 @@ foldFrom initial direction reduce =
 -- combine
 
 
-{-| Combine two.
+{-| Combine with another [`KeySet`](#KeySet).
 On key collision, keep the current [`KeySet`](#KeySet)'s element
 -}
 unifyWith :
