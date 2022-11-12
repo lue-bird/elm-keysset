@@ -61,19 +61,19 @@ import Typed exposing (Checked, Public, Typed)
 
 {-| 🗃️ Non-empty AVL-tree-based look-up. Elements and keys can be of any type
 
-[`insert`](#insert), [`elementRemove`](#elementRemove), [`element`](#element) are runtime `log n`
+[`insert`](#insert), [`elementRemove`](#elementRemove), [`element`](#element), [`end`](#end) runtime is `log n`
 
     import KeySet exposing (KeySet)
     import Stack
-    import User
+    import User exposing (User(..))
 
     users : Emptiable (KeySet User User.ByName) never_
     users =
         KeySet.fromStack User.byName
             (Stack.topBelow
-                { name = "Alice", age = 28, height = 1.65 }
-                [ { name = "Bob", age = 19, height = 1.82 }
-                , { name = "Chuck", age = 33, height = 1.75 }
+                (User { name = "Alice", age = 28, height = 1.65 })
+                [ User { name = "Bob", age = 19, height = 1.82 }
+                , User { name = "Chuck", age = 33, height = 1.75 }
                 ]
             )
 
@@ -85,7 +85,7 @@ where
     import Order
 
     type User
-        = User { name : String, email : Email }
+        = User { name : String, age : Int, height : Float }
 
     type ByName
         = ByName
@@ -213,7 +213,7 @@ fromStack sorting =
 
 
 {-| Number of elements in the [`KeysSet`](#KeySet).
-Runtime `1`.
+Runtime `1`
 
     KeySet.only "Hello"
         |> KeySet.size
@@ -233,8 +233,8 @@ tree =
     \keySet -> keySet |> KeySet.Internal.tree
 
 
-{-| Get the value associated with a key. If the key is not found, return Nothing.
-This is useful when you are not sure if a key will be in the [`KeysSet`](#KeySet).
+{-| Access the element associated with a given key.
+If no element with the given key is not present, `Emptiable.empty`
 
     import Emptiable exposing (Emptiable, filled, fillMap)
     import Stack
@@ -395,7 +395,7 @@ end direction =
 
 
 {-| Insert a given element.
-Replaces value when there is a collision.
+Replaces the element when there is a key collision
 -}
 insert :
     Sorting element key_ tag
@@ -410,7 +410,7 @@ insert sorting elementToInsert =
 
 
 {-| Remove its element whose key matches the given one.
-If the key is not found, no changes are made.
+If the key is not found, no changes are made
 -}
 elementRemove :
     Sorting element key tag
@@ -425,7 +425,18 @@ elementRemove sorting keyToRemove =
             |> KeySet.Internal.elementRemove sorting keyToRemove
 
 
-{-| Change the element for a specific key with a given function.
+{-| Change the element for a given key in a given way
+
+  - The input is the same as asking for the [`element`](#element) with the same key
+  - Outputting `empty` is the same as calling [`elementRemove`](#elementRemove) with the same key
+
+Operations with `Emptiable` that might be handy
+
+  - [`fillMap`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/Emptiable#fillMap)
+  - [`fillMapFlat`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/Emptiable#fillMapFlat)
+  - [`fillElseOnEmpty`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/Emptiable#fillElseOnEmpty)
+  - [`filled`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/Emptiable#filled)
+
 -}
 elementAlter :
     Sorting element key tag
