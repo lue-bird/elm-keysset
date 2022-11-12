@@ -1,5 +1,9 @@
 # change log
 
+### 2.1.0
+
+- `KeySet` add
+
 ## 2.0.0
 
 - indirection `ElementsWithUniquenessPromises` remove
