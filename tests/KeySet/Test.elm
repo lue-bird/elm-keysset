@@ -149,12 +149,17 @@ validateHelp sorting tree =
                                     |> Ok
 
                             else
-                                [ "height diff ["
+                                [ "height below ["
                                 , treeFilled |> Tree2.trunk |> Debug.toString
                                 , "]: "
                                 , children.left.height |> String.fromInt
                                 , " vs "
                                 , children.right.height |> String.fromInt
+                                , " - so \n\n"
+                                , treeFilled |> Tree2.children |> .left |> Tree2.foldFrom [] Down (::) |> Debug.toString
+                                , "\nvs\n"
+                                , treeFilled |> Tree2.children |> .right |> Tree2.foldFrom [] Down (::) |> Debug.toString
+                                , "\n"
                                 ]
                                     |> String.concat
                                     |> Err
@@ -221,14 +226,16 @@ insertSuite =
                 Emptiable.empty
                     |> KeySet.insert Character.byId element
                     |> validate Character.byId
-                    |> Expect.ok
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
             )
         , test "to left"
             (\_ ->
                 KeySet.only { id = 10, char = 'a' }
                     |> KeySet.insert Character.byId { id = 5, char = 'b' }
                     |> validate Character.byId
-                    |> Expect.ok
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
             )
         , test "to left left"
             (\_ ->
@@ -236,7 +243,8 @@ insertSuite =
                     |> KeySet.insert Character.byId { id = 5, char = 'b' }
                     |> KeySet.insert Character.byId { id = 2, char = 'c' }
                     |> validate Character.byId
-                    |> Expect.ok
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
             )
         , test "to left right"
             (\_ ->
@@ -244,14 +252,16 @@ insertSuite =
                     |> KeySet.insert Character.byId { id = 5, char = 'b' }
                     |> KeySet.insert Character.byId { id = 2, char = 'c' }
                     |> validate Character.byId
-                    |> Expect.ok
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
             )
         , test "to right"
             (\_ ->
                 KeySet.only { id = 10, char = 'a' }
                     |> KeySet.insert Character.byId { id = 15, char = 'b' }
                     |> validate Character.byId
-                    |> Expect.ok
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
             )
         , test "to right left"
             (\_ ->
@@ -259,7 +269,8 @@ insertSuite =
                     |> KeySet.insert Character.byId { id = 15, char = 'b' }
                     |> KeySet.insert Character.byId { id = 12, char = 'c' }
                     |> validate Character.byId
-                    |> Expect.ok
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
             )
         , test "to right right"
             (\_ ->
@@ -267,7 +278,8 @@ insertSuite =
                     |> KeySet.insert Character.byId { id = 15, char = 'b' }
                     |> KeySet.insert Character.byId { id = 20, char = 'c' }
                     |> validate Character.byId
-                    |> Expect.ok
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
             )
         , test "M-N-O-L-K-Q-P-H-I-A"
             (\_ ->
@@ -282,54 +294,65 @@ insertSuite =
                                 )
                         )
                         (Ok Emptiable.empty)
-                    |> Expect.ok
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
             )
-        , fuzz2 (Fuzz.intRange -400 -100)
-            (Fuzz.intRange 100 400)
-            "ascending keys"
-            (\lo hi ->
-                List.range lo hi
-                    |> List.foldr
-                        (\i ->
-                            Result.andThen
-                                (KeySet.insert Character.byId
-                                    { id = i, char = Char.fromCode i }
-                                    >> validate Character.byId
-                                )
-                        )
-                        (Ok Emptiable.empty)
-                    |> Expect.ok
-            )
-        , fuzz2 (Fuzz.intRange -400 -100)
-            (Fuzz.intRange 100 400)
+        , fuzz2 (Fuzz.intRange -40 -10)
+            (Fuzz.intRange 10 40)
             "descending keys"
-            (\lo hi ->
-                List.range lo hi
-                    |> List.foldl
-                        (\i ->
+            (\idLow idHigh ->
+                List.range idLow idHigh
+                    |> List.foldr
+                        (\id ->
                             Result.andThen
                                 (KeySet.insert Character.byId
-                                    { id = i, char = Char.fromCode i }
+                                    { id = id
+                                    , char = Char.fromCode (40 + ('A' |> Char.toCode) + id)
+                                    }
                                     >> validate Character.byId
                                 )
                         )
                         (Ok Emptiable.empty)
-                    |> Expect.ok
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
             )
-        , fuzz (Fuzz.list (Fuzz.intRange -200 200))
-            "random keys"
-            (\list ->
-                list
+        , fuzz2
+            (Fuzz.intRange -40 -10)
+            (Fuzz.intRange 10 40)
+            "ascending keys"
+            (\idLow idHigh ->
+                List.range idLow idHigh
                     |> List.foldl
-                        (\i ->
+                        (\id ->
                             Result.andThen
                                 (KeySet.insert Character.byId
-                                    { id = i, char = Char.fromCode i }
+                                    { id = id
+                                    , char = Char.fromCode (40 + ('A' |> Char.toCode) + id)
+                                    }
                                     >> validate Character.byId
                                 )
                         )
                         (Ok Emptiable.empty)
-                    |> Expect.ok
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
+            )
+        , fuzz (Fuzz.list (Fuzz.intRange -20 20))
+            "random ids"
+            (\ids ->
+                ids
+                    |> List.foldl
+                        (\id ->
+                            Result.andThen
+                                (KeySet.insert Character.byId
+                                    { id = id
+                                    , char = Char.fromCode (20 + ('A' |> Char.toCode) + id)
+                                    }
+                                    >> validate Character.byId
+                                )
+                        )
+                        (Ok Emptiable.empty)
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
             )
         ]
 
@@ -343,7 +366,8 @@ elementRemoveTest =
                 Emptiable.empty
                     |> KeySet.elementRemove Character.byId key
                     |> validate Character.byId
-                    |> Expect.ok
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
             )
         , fuzz2 Fuzz.int
             Fuzz.int
@@ -352,7 +376,8 @@ elementRemoveTest =
                 KeySet.only { id = put, char = '0' }
                     |> KeySet.elementRemove Character.byId delete
                     |> validate Character.byId
-                    |> Expect.ok
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
             )
         , fuzz2
             (Fuzz.list Character.fuzz)
@@ -368,7 +393,8 @@ elementRemoveTest =
                     )
                     (Ok (KeySet.fromList Character.byId puts))
                     deletes
-                    |> Expect.ok
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
             )
         , fuzz (Fuzz.list Character.fuzz)
             "clear"
