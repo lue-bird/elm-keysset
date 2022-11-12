@@ -81,6 +81,7 @@ for example separating [`Sorting`](KeySet#Sorting)s from data to each their own 
   - ⚖ sorting by [`Ordering key = key -> key -> Order`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/Order)
       - 👍 no reliance on `comparable`
       - 👍 no inconvenient `key -> String`
+      - 🧩 [`linear-direction` `Order`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/Order)
   - 🔑 `element -> key` function as part of a given [`Sorting`](KeySet#Sorting)
       - 👍 simpler type
       - 👍 simpler internals :)
