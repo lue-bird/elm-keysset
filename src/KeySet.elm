@@ -519,7 +519,7 @@ toList direction =
 
 
 {-| Change each element based on its current value.
-Runtime `n * log n` because keys could be different (most other keySets have runtime `n`)
+Runtime `n * log n` because keys could be different (many other dicts/sets have runtime `n`)
 -}
 map :
     (element -> mappedElement)
