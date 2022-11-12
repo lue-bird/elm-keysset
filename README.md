@@ -7,19 +7,20 @@
 
 # `KeySet`
 
-Contains no functions.
+Holds no functions.
 Still, each [`Sorting`](KeySet#Sorting)
-used to access/operate is enforced to be the same
-(by attaching an opaque tag). See ↓ example
+required to access/operate is enforced to be the same
+(by attaching an opaque tag).
+See ↓ example
 
-→ Solves problems listed in [prior art](#prior-art),
+→ Solves problems listed in [prior art](#prior-art)
 alongside other [goodies](#goodies)
 
 ```elm
-import User exposing (User(..))
 import Emptiable exposing (Emptiable)
-import KeySet exposing (KeySet)
 import Stack
+import KeySet exposing (KeySet)
+import User exposing (User(..))
 
 users : Emptiable (KeySet User User.ByEmailHostFirst) neverEmpty_
 users =
