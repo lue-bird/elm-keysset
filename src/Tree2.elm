@@ -1,12 +1,12 @@
 module Tree2 exposing
     ( Branch, Children
-    , leaf, branch, branchUnbalanced
+    , leaf, branch
     , height, children, trunk, end
     , trunkAlter, endRemove
     , foldFrom, foldOnto
     )
 
-{-| Binary tree
+{-| Tree with a branching factor of 2
 
 @docs Branch, Children
 
@@ -15,7 +15,7 @@ module Tree2 exposing
 
 `Emptiable.empty`,
 
-@docs leaf, branch, branchUnbalanced
+@docs leaf, branch
 
 
 ## scan
@@ -118,187 +118,6 @@ trunk =
 -- create
 
 
-{-| Will balance it out. Don't need to? → [`branchUnbalanced`](#branchUnbalanced)
--}
-branch :
-    element
-    -> Children element
-    -> Emptiable (Branch element) never_
-branch trunkElement children_ =
-    branchUnbalanced trunkElement children_
-        |> balance
-
-
-balance :
-    Emptiable (Branch element) Never
-    -> Emptiable (Branch element) never_
-balance =
-    \tree ->
-        case
-            ( tree |> children |> .left |> fillMap filled
-            , tree |> children |> .right |> fillMap filled
-            )
-        of
-            ( Empty _, Empty _ ) ->
-                leaf (tree |> trunk)
-
-            ( Filled childrenLeft, Empty _ ) ->
-                if (childrenLeft |> height) >= 2 then
-                    rotateRight
-                        (tree |> trunk)
-                        (childrenLeft |> trunk)
-                        (childrenLeft |> children)
-                        empty
-
-                else
-                    branchUnbalanced
-                        (tree |> trunk)
-                        { left = childrenLeft |> emptyAdapt (\_ -> Possible)
-                        , right = empty
-                        }
-
-            ( Empty _, Filled childrenRight ) ->
-                if (childrenRight |> height) >= 2 then
-                    rotateLeft
-                        (tree |> trunk)
-                        empty
-                        (childrenRight |> trunk)
-                        (childrenRight |> children)
-
-                else
-                    branchUnbalanced
-                        (tree |> trunk)
-                        { left = empty
-                        , right = childrenRight |> emptyAdapt (\_ -> Possible)
-                        }
-
-            ( Filled childrenLeft, Filled childrenRight ) ->
-                let
-                    leftMinusRight =
-                        (childrenLeft |> height) - (childrenRight |> height)
-                in
-                if leftMinusRight <= -2 then
-                    rotateLeft
-                        (tree |> trunk)
-                        (childrenLeft |> emptyAdapt (\_ -> Possible))
-                        (childrenRight |> trunk)
-                        (childrenRight |> children)
-
-                else if leftMinusRight >= 2 then
-                    rotateRight
-                        (tree |> trunk)
-                        (childrenLeft |> trunk)
-                        (childrenLeft |> children)
-                        (childrenRight |> emptyAdapt (\_ -> Possible))
-
-                else
-                    tree |> emptyAdapt never
-
-
-rotateLeft :
-    element
-    -> Emptiable (Branch element) Possibly
-    -> element
-    -> Children element
-    -> Emptiable (Branch element) never_
-rotateLeft pivotTrunk pivotLeft rightTrunk rightChildren =
-    case rightChildren.left |> fillMap filled of
-        Empty _ ->
-            branchUnbalanced
-                pivotTrunk
-                { left =
-                    branchUnbalanced
-                        pivotTrunk
-                        { left = pivotLeft
-                        , right = empty
-                        }
-                , right = rightChildren.right
-                }
-
-        Filled rightLeft ->
-            if (rightLeft |> height) >= (rightChildren.right |> height) then
-                branchUnbalanced
-                    rightTrunk
-                    { left =
-                        branchUnbalanced
-                            pivotTrunk
-                            { left = pivotLeft
-                            , right = rightChildren.left
-                            }
-                    , right = rightChildren.right
-                    }
-
-            else
-                branchUnbalanced
-                    (rightLeft |> trunk)
-                    { left =
-                        branchUnbalanced
-                            pivotTrunk
-                            { left = pivotLeft
-                            , right = rightLeft |> children |> .left
-                            }
-                    , right =
-                        branchUnbalanced
-                            rightTrunk
-                            { left = rightLeft |> children |> .right
-                            , right = rightChildren.right
-                            }
-                    }
-
-
-rotateRight :
-    element
-    -> element
-    -> Children element
-    ->
-        (Emptiable (Branch element) Possibly
-         -> Emptiable (Branch element) never_
-        )
-rotateRight pivotTrunk leftTrunk leftChildren pivotRight =
-    case leftChildren.right |> fillMap filled of
-        Empty _ ->
-            branchUnbalanced
-                leftTrunk
-                { left = leftChildren.left
-                , right =
-                    branchUnbalanced
-                        pivotTrunk
-                        { left = empty
-                        , right = pivotRight
-                        }
-                }
-
-        Filled leftRight ->
-            if (leftChildren.left |> height) >= (leftRight |> height) then
-                branchUnbalanced
-                    leftTrunk
-                    { left = leftChildren.left
-                    , right =
-                        branchUnbalanced
-                            pivotTrunk
-                            { left = leftChildren.right
-                            , right = pivotRight
-                            }
-                    }
-
-            else
-                branchUnbalanced
-                    (leftRight |> trunk)
-                    { left =
-                        branchUnbalanced
-                            leftTrunk
-                            { left = leftChildren.left
-                            , right = leftRight |> children |> .left
-                            }
-                    , right =
-                        branchUnbalanced
-                            pivotTrunk
-                            { left = leftRight |> children |> .right
-                            , right = pivotRight
-                            }
-                    }
-
-
 branchUnbalanced :
     element
     -> Children element
@@ -322,6 +141,140 @@ leaf singleElement =
         singleElement
         { left = empty
         , right = empty
+        }
+
+
+{-| Branch off to sub-trees left and right. Will balance it out
+-}
+branch :
+    element
+    -> Children element
+    -> Emptiable (Branch element) never_
+branch pivotTrunk pivotChildren =
+    case
+        ( pivotChildren.left |> fillMap filled
+        , pivotChildren.right |> fillMap filled
+        )
+    of
+        ( Empty _, Empty _ ) ->
+            branchUnbalanced pivotTrunk { left = empty, right = empty }
+
+        ( Filled leftFilled, Empty _ ) ->
+            if (leftFilled |> height) >= 2 then
+                rotateRight pivotTrunk leftFilled pivotChildren.right
+
+            else
+                branchUnbalanced pivotTrunk pivotChildren
+
+        ( Empty _, Filled rightFilled ) ->
+            if (rightFilled |> height) >= 2 then
+                rotateLeft pivotTrunk pivotChildren.left rightFilled
+
+            else
+                branchUnbalanced pivotTrunk pivotChildren
+
+        ( Filled leftFilled, Filled rightFilled ) ->
+            let
+                leftToRightImbalance =
+                    (leftFilled |> height) - (rightFilled |> height)
+            in
+            if leftToRightImbalance <= -2 then
+                rotateLeft pivotTrunk pivotChildren.left rightFilled
+
+            else if leftToRightImbalance >= 2 then
+                rotateRight pivotTrunk leftFilled pivotChildren.right
+
+            else
+                branchUnbalanced pivotTrunk pivotChildren
+
+
+rotateLeft :
+    element
+    -> Emptiable (Branch element) Possibly
+    -> Emptiable (Branch element) Never
+    -> Emptiable (Branch element) never_
+rotateLeft pivotTrunk pivotLeft right =
+    let
+        new =
+            case right |> children |> .left |> fillMap filled of
+                Empty _ ->
+                    { trunk = right |> trunk
+                    , leftRight = empty
+                    , right = right |> children |> .right
+                    }
+
+                Filled rightLeftFilled ->
+                    if (rightLeftFilled |> height) > (right |> children |> .right |> height) then
+                        { trunk = rightLeftFilled |> trunk
+                        , leftRight =
+                            rightLeftFilled |> children |> .left
+                        , right =
+                            branchUnbalanced
+                                (right |> trunk)
+                                { left = rightLeftFilled |> children |> .right
+                                , right = right |> children |> .right
+                                }
+                        }
+
+                    else
+                        { trunk = right |> trunk
+                        , leftRight = right |> children |> .left
+                        , right = right |> children |> .right
+                        }
+    in
+    branchUnbalanced
+        new.trunk
+        { left =
+            branchUnbalanced
+                pivotTrunk
+                { left = pivotLeft
+                , right = new.leftRight
+                }
+        , right = new.right
+        }
+
+
+rotateRight :
+    element
+    -> Emptiable (Branch element) Never
+    -> Emptiable (Branch element) Possibly
+    -> Emptiable (Branch element) never_
+rotateRight pivotTrunk left pivotRight =
+    let
+        new =
+            case left |> children |> .right |> fillMap filled of
+                Empty _ ->
+                    { trunk = left |> trunk
+                    , left = left |> children |> .left
+                    , rightLeft = empty
+                    }
+
+                Filled leftRightFilled ->
+                    if (left |> children |> .left |> height) < (leftRightFilled |> height) then
+                        { trunk = leftRightFilled |> trunk
+                        , left =
+                            branchUnbalanced
+                                (left |> trunk)
+                                { left = left |> children |> .left
+                                , right = leftRightFilled |> children |> .left
+                                }
+                        , rightLeft = leftRightFilled |> children |> .right
+                        }
+
+                    else
+                        { trunk = left |> trunk
+                        , left = left |> children |> .left
+                        , rightLeft = left |> children |> .right
+                        }
+    in
+    branchUnbalanced
+        new.trunk
+        { left = new.left
+        , right =
+            branchUnbalanced pivotTrunk
+                { left = new.rightLeft
+                , right = pivotRight
+                }
         }
 
 
