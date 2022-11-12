@@ -63,7 +63,7 @@ emailHostFirst =
     KeySet.sortingKey (\(User user) -> user.email)
         { tag = ByEmailHostFirst
         , order =
-            Order.downOnTie
+            Order.onTieNext
                 [ Order.by Email.host
                     (String.Order.greaterEarlier (Char.Order.alphabetically Order.tie))
                 , Order.by Email.label
