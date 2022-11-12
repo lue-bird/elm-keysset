@@ -519,7 +519,7 @@ toList direction =
 
 
 {-| Change each element based on its current value.
-Runtime `n * log n` because keys could be different (many other dicts/sets have runtime `n`)
+Runtime `n * log n` because mapped keys could be different (many other dicts/sets have runtime `n`)
 -}
 map :
     (element -> mappedElement)
@@ -544,7 +544,7 @@ map elementChange mappedKey =
 
 
 {-| Try to change each element based on its current value.
-Runtime `n * log n` just like [`KeySet.map`](#map) because keys could be different
+Runtime `n * log n` just like [`KeySet.map`](#map) because mapped keys could be different
 
     {-| Keep only elements that pass a given test.
     Often called "filter"
