@@ -1,5 +1,9 @@
 # change log
 
+#### 2.1.1
+
+- readme `KeySet` example ordering correct
+
 ### 2.1.0
 
 - `KeySet` add
