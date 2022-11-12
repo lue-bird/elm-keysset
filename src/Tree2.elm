@@ -67,7 +67,7 @@ type Branch element
     = Branch
         { element : element
         , children : Children element
-        , height : Int
+        , childrenHeight : Int
         }
 
 
@@ -83,15 +83,14 @@ type alias Children element =
 --
 
 
-height : Emptiable (Branch element_) possiblyOrNever_ -> Int
-height =
+trunk : Emptiable (Branch element) Never -> element
+trunk =
     \tree ->
-        case tree of
-            Empty _ ->
-                0
-
-            Filled (Branch branch_) ->
-                branch_.height
+        let
+            (Branch branch_) =
+                tree |> fill
+        in
+        branch_.element
 
 
 children : Emptiable (Branch element) Never -> Children element
@@ -104,14 +103,25 @@ children =
         branch_.children
 
 
-trunk : Emptiable (Branch element) Never -> element
-trunk =
+childrenHeight : Emptiable (Branch element_) Never -> Int
+childrenHeight =
     \tree ->
         let
             (Branch branch_) =
                 tree |> fill
         in
-        branch_.element
+        branch_.childrenHeight
+
+
+height : Emptiable (Branch element_) possiblyOrNever_ -> Int
+height =
+    \tree ->
+        case tree |> fillMap filled of
+            Empty _ ->
+                0
+
+            Filled treeFilled ->
+                1 + (treeFilled |> childrenHeight)
 
 
 
@@ -126,11 +136,10 @@ branchUnbalanced trunkElement children_ =
     Branch
         { element = trunkElement
         , children = children_
-        , height =
-            1
-                + max
-                    (children_ |> .left |> height)
-                    (children_ |> .right |> height)
+        , childrenHeight =
+            max
+                (children_.left |> height)
+                (children_.right |> height)
         }
         |> filled
 
@@ -160,14 +169,14 @@ branch pivotTrunk pivotChildren =
             branchUnbalanced pivotTrunk { left = empty, right = empty }
 
         ( Filled leftFilled, Empty _ ) ->
-            if (leftFilled |> height) >= 2 then
+            if (leftFilled |> childrenHeight) >= 1 then
                 rotateRight pivotTrunk leftFilled pivotChildren.right
 
             else
                 branchUnbalanced pivotTrunk pivotChildren
 
         ( Empty _, Filled rightFilled ) ->
-            if (rightFilled |> height) >= 2 then
+            if (rightFilled |> childrenHeight) >= 1 then
                 rotateLeft pivotTrunk pivotChildren.left rightFilled
 
             else
@@ -176,7 +185,7 @@ branch pivotTrunk pivotChildren =
         ( Filled leftFilled, Filled rightFilled ) ->
             let
                 leftToRightImbalance =
-                    (leftFilled |> height) - (rightFilled |> height)
+                    (leftFilled |> childrenHeight) - (rightFilled |> childrenHeight)
             in
             if leftToRightImbalance <= -2 then
                 rotateLeft pivotTrunk pivotChildren.left rightFilled
@@ -337,7 +346,7 @@ trunkAlter elementChange =
                 (\treeFilled ->
                     { element = treeFilled |> trunk |> elementChange
                     , children = treeFilled |> children
-                    , height = treeFilled |> height
+                    , childrenHeight = treeFilled |> childrenHeight
                     }
                         |> Branch
                 )
@@ -434,7 +443,7 @@ foldFrom initial direction reduce =
                 treePossiblyEmpty |> foldUpFrom initial reduce
 
             Down ->
-                treePossiblyEmpty |> foldDown reduce initial
+                treePossiblyEmpty |> foldDownFrom initial reduce
 
 
 foldUpFrom :
@@ -464,14 +473,14 @@ foldUpFrom initial reduce =
                         reduce
 
 
-foldDown :
-    (element -> (accumulated -> accumulated))
-    -> accumulated
+foldDownFrom :
+    accumulated
+    -> (element -> (accumulated -> accumulated))
     ->
         (Emptiable (Branch element) Possibly
          -> accumulated
         )
-foldDown reduce initial =
+foldDownFrom initial reduce =
     \tree ->
         case tree |> fillMap filled of
             Empty _ ->
@@ -481,10 +490,11 @@ foldDown reduce initial =
                 treeFilled
                     |> children
                     |> .left
-                    |> foldDown reduce
+                    |> foldDownFrom
                         (treeFilled
                             |> children
                             |> .right
-                            |> foldDown reduce initial
+                            |> foldDownFrom initial reduce
                             |> reduce (treeFilled |> trunk)
                         )
+                        reduce
