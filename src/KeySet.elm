@@ -7,7 +7,7 @@ module KeySet exposing
     , map, mapTry
     , unifyWith, except, intersect
     , fold2From, FirstOrSecondOrBoth(..)
-    , toList
+    , toStack, toList
     , foldFrom, foldOnto, fold
     )
 
@@ -43,7 +43,7 @@ module KeySet exposing
 
 ## transform
 
-@docs toList
+@docs toStack, toList
 @docs foldFrom, foldOnto, fold
 
 -}
@@ -505,6 +505,8 @@ in a given [`Direction`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-di
         |> KeySet.toList Down
     --> [ "Bob", "Alice" ]
 
+to carry over information about (non-)emptiness → [`toStack`](#toStack)
+
 -}
 toList :
     Linear.Direction
@@ -518,6 +520,56 @@ toList direction =
             |> foldFrom []
                 (direction |> Linear.opposite)
                 (\element_ soFar -> soFar |> (::) element_)
+
+
+{-| Convert to a `List` sorted by keys
+in a given [`Direction`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/Linear#Direction)
+
+    import Linear exposing (Direction(..))
+    import Stack
+    import KeySet
+    import Case
+    import Char.Order
+    import String.Order
+
+    -- tag should be opaque in a separate module
+    nameAlphabetical : KeySet.Sorting String String { alphabetical : () }
+    nameAlphabetical =
+        KeySet.sortingKey identity
+            { tag = { alphabetical = () }
+            , order = String.Order.greaterEarlier (Char.Order.alphabetically Case.lowerUpper)
+            }
+
+    KeySet.fromStack nameAlphabetical
+        (Stack.topBelow "Bob" [ "Alice" ])
+        |> KeySet.toStack Up
+    --> Stack.topBelow "Alice" [ "Bob" ]
+
+    KeySet.fromStack nameAlphabetical
+        (Stack.topBelow "Bob" [ "Alice", "Christoph" ])
+        |> KeySet.toStack Down
+    --> Stack.topBelow "Christoph" [ "Bob", "Alice" ]
+
+The cool thing is that information about (non-)emptiness is carried over to the stack
+
+-}
+toStack :
+    Linear.Direction
+    ->
+        (Emptiable (KeySet element tag_) possiblyOrNever
+         -> Emptiable (Stacked element) possiblyOrNever
+        )
+toStack direction =
+    \keySet ->
+        keySet
+            |> fillMap filled
+            |> fillMapFlat
+                (\keySetFilled ->
+                    keySetFilled
+                        |> foldOnto Stack.only
+                            (direction |> Linear.opposite)
+                            (\element_ soFar -> soFar |> Stack.onTopLay element_)
+                )
 
 
 {-| Change each element based on its current value.
