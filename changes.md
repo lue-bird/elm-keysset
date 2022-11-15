@@ -1,3 +1,7 @@
+## 3.0.0 plans
+
+- `elementRemove` name → `remove`
+
 # change log
 
 #### 2.1.1
