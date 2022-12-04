@@ -112,6 +112,7 @@ for example separating [`Sorting`](KeySet#Sorting)s from data to each their own 
       - `key -> comparable`
           - examples
               - [`turboMaCk/any-dict`](https://dark.elm.dmy.fr/packages/turboMaCk/any-dict/latest/)
+              - [`escherlies/elm-ix-dict`](https://package.elm-lang.org/packages/escherlies/elm-ix-dict/latest)
           - `key -> String`
               - examples (in no specific order)
                   - [`matzko/elm-opaque-dict`](https://dark.elm.dmy.fr/packages/matzko/elm-opaque-dict/latest/)
@@ -394,6 +395,9 @@ A `KeysSet` ony makes sense when the **keys describe something different**
           - needs an `elm-review` tool to auto-generate `Record.Typed`
           - 👎 chaining with `onTie` is slightly more verbose than `onTieNext [ ... ]`
           - 👍 chaining with `onTie` is more obvious and easier to read than `onTieNext [ ... ]`
+  - require supplying `KeysSet.Uniqueness` from the user on each access/operation
+      - using opaque tags like `KeySet`
+      - only allow unique keys to be accessed
   - set with multiple elements per key (= multi-set/bag) add
   - `KeySet` functionality include in `KeysSet`?
       - 👍 `KeysSet` functionality while still providing `log n` for the most prominent key
