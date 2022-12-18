@@ -3,7 +3,7 @@ module Tree2 exposing
     , leaf, branch
     , height, children, trunk, end
     , trunkAlter, endRemove
-    , foldFrom, foldOnto
+    , foldFrom, foldFromOne
     )
 
 {-| Tree with a branching factor of 2
@@ -30,11 +30,11 @@ module Tree2 exposing
 
 ## transform
 
-@docs foldFrom, foldOnto
+@docs foldFrom, foldFromOne
 
 -}
 
-import Emptiable exposing (Emptiable(..), empty, emptyAdapt, fill, fillMap, filled)
+import Emptiable exposing (Emptiable(..), empty, emptyAdapt, fill, filled)
 import Linear exposing (Direction(..))
 import Possibly exposing (Possibly(..))
 
@@ -116,7 +116,7 @@ childrenHeight =
 height : Emptiable (Branch element_) possiblyOrNever_ -> Int
 height =
     \tree ->
-        case tree |> fillMap filled of
+        case tree |> Emptiable.map filled of
             Empty _ ->
                 0
 
@@ -161,8 +161,8 @@ branch :
     -> Emptiable (Branch element) never_
 branch pivotTrunk pivotChildren =
     case
-        ( pivotChildren.left |> fillMap filled
-        , pivotChildren.right |> fillMap filled
+        ( pivotChildren.left |> Emptiable.map filled
+        , pivotChildren.right |> Emptiable.map filled
         )
     of
         ( Empty _, Empty _ ) ->
@@ -205,7 +205,7 @@ rotateLeft :
 rotateLeft pivotTrunk pivotLeft right =
     let
         new =
-            case right |> children |> .left |> fillMap filled of
+            case right |> children |> .left |> Emptiable.map filled of
                 Empty _ ->
                     { trunk = right |> trunk
                     , leftRight = empty
@@ -251,7 +251,7 @@ rotateRight :
 rotateRight pivotTrunk left pivotRight =
     let
         new =
-            case left |> children |> .right |> fillMap filled of
+            case left |> children |> .right |> Emptiable.map filled of
                 Empty _ ->
                     { trunk = left |> trunk
                     , left = left |> children |> .left
@@ -341,8 +341,8 @@ trunkAlter :
 trunkAlter elementChange =
     \tree ->
         tree
-            |> fillMap filled
-            |> fillMap
+            |> Emptiable.map filled
+            |> Emptiable.map
                 (\treeFilled ->
                     { element = treeFilled |> trunk |> elementChange
                     , children = treeFilled |> children
@@ -403,7 +403,7 @@ endRemoveUp tree =
 -- transform
 
 
-foldOnto :
+foldFromOne :
     (element -> accumulated)
     -> Linear.Direction
     -> (element -> (accumulated -> accumulated))
@@ -411,7 +411,7 @@ foldOnto :
         (Emptiable (Branch element) Never
          -> accumulated
         )
-foldOnto firstToInitial direction reduce =
+foldFromOne firstToInitial direction reduce =
     \tree ->
         tree
             |> endRemove (direction |> Linear.opposite)
@@ -455,7 +455,7 @@ foldUpFrom :
         )
 foldUpFrom initial reduce =
     \tree ->
-        case tree |> fillMap filled of
+        case tree |> Emptiable.map filled of
             Empty _ ->
                 initial
 
@@ -482,7 +482,7 @@ foldDownFrom :
         )
 foldDownFrom initial reduce =
     \tree ->
-        case tree |> fillMap filled of
+        case tree |> Emptiable.map filled of
             Empty _ ->
                 initial
 

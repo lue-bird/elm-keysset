@@ -1,7 +1,7 @@
 module KeySet.Test exposing (suite)
 
 import Character
-import Emptiable exposing (Emptiable(..), fillMap, filled)
+import Emptiable exposing (Emptiable(..), filled)
 import Expect
 import Fuzz
 import KeySet exposing (KeySet)
@@ -87,17 +87,17 @@ toListSuite =
 
 
 validate :
-    KeySet.Sorting element key_ tag
+    Order.Key element key_ tag
     ->
         (Emptiable (KeySet element tag) Possibly
          -> Result String (Emptiable (KeySet element tag) Possibly)
         )
-validate sorting =
+validate orderKey =
     \keySet ->
         case
             keySet
                 |> KeySet.Internal.tree
-                |> validateHelp sorting
+                |> validateHelp orderKey
         of
             Err error ->
                 [ error
@@ -125,13 +125,13 @@ validate sorting =
 
 
 validateHelp :
-    KeySet.Sorting element key_ tag_
+    Order.Key element key_ tag_
     ->
         (Emptiable (Branch element) Possibly
          -> Result String { height : Int, size : Int }
         )
-validateHelp sorting tree =
-    case tree |> fillMap filled of
+validateHelp orderKey tree =
+    case tree |> Emptiable.map filled of
         Empty _ ->
             { height = 0, size = 0 } |> Ok
 
@@ -165,8 +165,8 @@ validateHelp sorting tree =
                                     |> Err
                         )
                         (Result.map2 (\left right -> { left = left, right = right })
-                            (treeFilled |> Tree2.children |> .left |> validateHelp sorting)
-                            (treeFilled |> Tree2.children |> .right |> validateHelp sorting)
+                            (treeFilled |> Tree2.children |> .left |> validateHelp orderKey)
+                            (treeFilled |> Tree2.children |> .right |> validateHelp orderKey)
                         )
             in
             if
@@ -175,7 +175,7 @@ validateHelp sorting tree =
                         False
 
                     Filled left ->
-                        elementOrder sorting
+                        Order.withKey orderKey
                             (treeFilled |> Tree2.trunk)
                             (left |> filled |> Tree2.trunk)
                             /= GT
@@ -193,7 +193,7 @@ validateHelp sorting tree =
                         False
 
                     Filled right ->
-                        elementOrder sorting
+                        Order.withKey orderKey
                             (treeFilled |> Tree2.trunk)
                             (right |> filled |> Tree2.trunk)
                             /= LT
@@ -207,14 +207,6 @@ validateHelp sorting tree =
 
             else
                 checkFurther
-
-
-elementOrder : KeySet.Sorting element key_ tag_ -> Ordering element
-elementOrder =
-    \sorting ->
-        Order.by
-            (sorting |> Typed.untag |> .key)
-            (sorting |> Typed.untag |> .keyOrder)
 
 
 insertSuite : Test
@@ -451,7 +443,7 @@ elementAlterSuite =
             (\_ ->
                 KeySet.fromList Character.byId
                     [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
-                    |> KeySet.elementAlter Character.byId 1 (fillMap (\c -> { c | char = 'C' }))
+                    |> KeySet.elementAlter Character.byId 1 (Emptiable.map (\c -> { c | char = 'C' }))
                     |> KeySet.toList Up
                     |> Expect.equalLists
                         [ { id = 0, char = 'A' }, { id = 1, char = 'C' } ]
@@ -835,11 +827,11 @@ fold2FromSuite =
         [ test "second is empty"
             (\_ ->
                 { first =
-                    { sorting = Character.byId
+                    { orderKey = Character.byId
                     , set = KeySet.only { id = 0, char = 'A' }
                     }
                 , second =
-                    { sorting = Character.byId
+                    { orderKey = Character.byId
                     , set = Emptiable.empty
                     }
                 }
@@ -851,11 +843,11 @@ fold2FromSuite =
         , test "first is empty"
             (\_ ->
                 { first =
-                    { sorting = Character.byId
+                    { orderKey = Character.byId
                     , set = Emptiable.empty
                     }
                 , second =
-                    { sorting = Character.byId
+                    { orderKey = Character.byId
                     , set = KeySet.only { id = 3, char = 'A' }
                     }
                 }
@@ -868,7 +860,7 @@ fold2FromSuite =
             (\_ ->
                 testFold2
                     { first =
-                        { sorting = Character.byId
+                        { orderKey = Character.byId
                         , set =
                             KeySet.fromList Character.byId
                                 [ { id = 2, char = 'C' }
@@ -878,7 +870,7 @@ fold2FromSuite =
                                 ]
                         }
                     , second =
-                        { sorting = Character.byId
+                        { orderKey = Character.byId
                         , set =
                             KeySet.fromList Character.byId
                                 [ { id = 0, char = 'A' }

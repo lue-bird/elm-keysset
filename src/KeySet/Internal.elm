@@ -26,7 +26,7 @@ module KeySet.Internal exposing
 
 -}
 
-import Emptiable exposing (Emptiable(..), emptyAdapt, fill, fillMap, fillMapFlat, filled)
+import Emptiable exposing (Emptiable(..), emptyAdapt, fill, filled)
 import Linear exposing (Direction(..))
 import Order exposing (Ordering)
 import Possibly exposing (Possibly(..))
@@ -39,16 +39,6 @@ type KeySet element tag
     = KeySet
         { tree : Emptiable (Branch element) Never
         , size : Int
-        }
-
-
-type alias Sorting element key tag =
-    Typed
-        Checked
-        tag
-        Public
-        { key : element -> key
-        , keyOrder : Ordering key
         }
 
 
@@ -86,7 +76,7 @@ tree :
 tree =
     \keySet ->
         keySet
-            |> fillMap
+            |> Emptiable.map
                 (\(KeySet internal) -> internal.tree |> fill)
 
 
@@ -95,23 +85,23 @@ tree =
 
 
 insert :
-    Sorting element key_ tag
+    Order.Key element key_ tag
     -> element
     ->
         (Emptiable (KeySet element tag) possiblyOrNever_
          -> Emptiable (KeySet element tag) never_
         )
-insert sorting elementToInsert =
+insert orderKey elementToInsert =
     \keySet ->
         let
             inserted =
                 keySet
                     |> tree
                     |> emptyAdapt (\_ -> Possible)
-                    |> treeInsert (elementKeyOrder sorting) elementToInsert
+                    |> treeInsert (Order.withKey orderKey) elementToInsert
         in
         inserted.tree
-            |> fillMap
+            |> Emptiable.map
                 (\branch ->
                     KeySet
                         { size =
@@ -123,16 +113,8 @@ insert sorting elementToInsert =
                 )
 
 
-elementKeyOrder : Sorting element key_ tag_ -> Ordering element
-elementKeyOrder =
-    \elementUnique ->
-        Order.by
-            (elementUnique |> Typed.untag |> .key)
-            (elementUnique |> Typed.untag |> .keyOrder)
-
-
 treeInsert :
-    Ordering element
+    (element -> element -> Order)
     -> element
     ->
         (Emptiable (Branch element) Possibly
@@ -143,7 +125,7 @@ treeInsert :
         )
 treeInsert ordering elementToInsert =
     \tree_ ->
-        case tree_ |> fillMap filled of
+        case tree_ |> Emptiable.map filled of
             Empty _ ->
                 { sizeIncreased = True
                 , tree = elementToInsert |> Tree2.leaf
@@ -195,26 +177,26 @@ treeInsert ordering elementToInsert =
 
 
 elementRemove :
-    Sorting element key tag
+    Order.Key element key tag
     -> key
     ->
         (Emptiable (KeySet element tag) possiblyOrNever_
          -> Emptiable (KeySet element tag) Possibly
         )
-elementRemove sorting keyToRemove =
+elementRemove orderKey keyToRemove =
     \keySet ->
         case
             keySet
                 |> tree
                 |> emptyAdapt (\_ -> Possible)
-                |> treeElementRemove (sorting |> Typed.untag) keyToRemove
+                |> treeElementRemove (orderKey |> Typed.untag) keyToRemove
         of
             Emptiable.Empty _ ->
                 keySet |> emptyAdapt (\_ -> Possible)
 
             Emptiable.Filled nextRoot ->
                 nextRoot
-                    |> fillMap
+                    |> Emptiable.map
                         (\nextBranch ->
                             KeySet
                                 { tree = nextBranch |> filled
@@ -224,8 +206,8 @@ elementRemove sorting keyToRemove =
 
 
 treeElementRemove :
-    { key : element -> key
-    , keyOrder : Ordering key
+    { toKey : element -> key
+    , keyOrder : ( key, key ) -> Order
     }
     -> key
     ->
@@ -235,16 +217,16 @@ treeElementRemove :
 treeElementRemove keyConfig key =
     \tree_ ->
         tree_
-            |> fillMap filled
-            |> fillMapFlat
+            |> Emptiable.map filled
+            |> Emptiable.mapFlat
                 (\treeFilled ->
-                    case keyConfig.keyOrder key (treeFilled |> Tree2.trunk |> keyConfig.key) of
+                    case keyConfig.keyOrder ( key, treeFilled |> Tree2.trunk |> keyConfig.toKey ) of
                         LT ->
                             treeFilled
                                 |> Tree2.children
                                 |> .left
                                 |> treeElementRemove keyConfig key
-                                |> fillMap
+                                |> Emptiable.map
                                     (\nextLeft ->
                                         Tree2.branch
                                             (treeFilled |> Tree2.trunk)
@@ -258,7 +240,7 @@ treeElementRemove keyConfig key =
                                 |> Tree2.children
                                 |> .right
                                 |> treeElementRemove keyConfig key
-                                |> fillMap
+                                |> Emptiable.map
                                     (\nextRight ->
                                         Tree2.branch
                                             (treeFilled |> Tree2.trunk)

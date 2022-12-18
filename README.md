@@ -8,7 +8,7 @@
 # `KeySet`
 
 Holds no functions.
-Still, each [`Sorting`](KeySet#Sorting)
+Still, each [`Order.Key`](Order#Key)
 required to access/operate is enforced to be the same
 (by attaching an opaque tag).
 See ↓ example
@@ -58,9 +58,9 @@ type ByEmailHostFirst
     -- ! no exposing (..) → only constructable in this module
     = ByEmailHostFirst
 
-emailHostFirst : KeySet.Sorting User Email ByEmailHostFirst
+emailHostFirst : Order.Key User Email ByEmailHostFirst
 emailHostFirst =
-    KeySet.sortingKey (\(User user) -> user.email)
+    Order.key (\(User user) -> user.email)
         { tag = ByEmailHostFirst
         , order =
             Order.onTieNext
@@ -74,20 +74,22 @@ emailHostFirst =
 No typeclasses :)
 
 Feel free to adapt this structure how you like it best,
-for example separating [`Sorting`](KeySet#Sorting)s from data to each their own `module Data.By`
+for example separating [`Order.Key`](Order#Key)s from data to each their own `module Data.By`
 
 ## goodies
 
-  - ⚖ sorting by [`Ordering key = key -> key -> Order`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/Order)
+  - ⚖orderKey by [`Ordering key = key -> key -> Order`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/Order)
       - 👍 no reliance on `comparable`
       - 👍 no inconvenient `key -> String`
       - 🧩 [`linear-direction` `Order`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/Order)
-  - 🔑 `element -> key` function as part of a given [`Sorting`](KeySet#Sorting)
+  - 🔑 `element -> key` function as part of a given [`Order.Key`](Order#Key)
       - 👍 simpler type
       - 👍 simpler internals :)
+      - same idea is also implemented in
+          - [`escherlies/elm-ix-dict`: `IxDict`](https://package.elm-lang.org/packages/escherlies/elm-ix-dict/latest/IxDict)
   - 🗃 emptiability is part of the type
       - just use the same API with emptiable or non-empty conveniently
-      - 👍 extra safety possible. Got enough elements? → `KeySet.end Up|Down`, `foldOnto`, `fold` don't need `Maybe`
+      - 👍 extra safety possible. Got enough elements? → `KeySet.end Up|Down`, `foldFromOne`, `fold` don't need `Maybe`
       - 🧩 [`allowable-state`](https://dark.elm.dmy.fr/packages/lue-bird/elm-allowable-state/latest/)
       - 🧩 [`emptiness-typed`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/)
   - ↔ supply the direction as an argument
@@ -95,8 +97,10 @@ for example separating [`Sorting`](KeySet#Sorting)s from data to each their own 
 
 ## prior art
 
-  - `Dict comparableKey value`
-      - [`elm/core` `Dict`](https://dark.elm.dmy.fr/packages/elm/core/latest/Dict)
+  - `comparableKey`
+      - examples
+          - [`elm/core` `Dict`](https://dark.elm.dmy.fr/packages/elm/core/latest/Dict)
+          - [`escherlies/elm-ix-dict`: `IxDict`](https://package.elm-lang.org/packages/escherlies/elm-ix-dict/)
       - 👎 requires a new `Dict` wrapper for each custom `type` key.
         Often more a hindrance than helpful
   - custom functions (to `comparable` or `k -> k -> Order`)
@@ -112,7 +116,6 @@ for example separating [`Sorting`](KeySet#Sorting)s from data to each their own 
       - `key -> comparable`
           - examples
               - [`turboMaCk/any-dict`](https://dark.elm.dmy.fr/packages/turboMaCk/any-dict/latest/)
-              - [`escherlies/elm-ix-dict`](https://package.elm-lang.org/packages/escherlies/elm-ix-dict/latest)
           - `key -> String`
               - examples (in no specific order)
                   - [`matzko/elm-opaque-dict`](https://dark.elm.dmy.fr/packages/matzko/elm-opaque-dict/latest/)
@@ -121,7 +124,7 @@ for example separating [`Sorting`](KeySet#Sorting)s from data to each their own 
               - 👍 avoid having an extra type variable
               - 👎 requires more work
               - 👎 more prone to bugs in `toString` implementation not returning a unique `String` for all keys
-              - 👎 slightly less performant when `toString` needs to do heavy work like sorting
+              - 👎 slightly less performant when `toString` needs to do heavy work likeorderKey
       - create the complete API from a given function
           - examples
               - [`edkelly303/elm-any-type-collections`](https://dark.elm.dmy.fr/packages/edkelly303/elm-any-type-collections/latest/Any-Dict) with a `toComparable` function

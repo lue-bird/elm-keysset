@@ -13,9 +13,9 @@ type ById
     = ById
 
 
-byId : KeySet.Sorting Character Int ById
+byId : Order.Key Character Int ById
 byId =
-    KeySet.sortingKey .id { tag = ById, order = Int.Order.increasing }
+    Order.key .id { tag = ById, order = Int.Order.increasing }
 
 
 fuzz : Fuzzer Character

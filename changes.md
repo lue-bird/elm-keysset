@@ -1,6 +1,12 @@
 ## 3.0.0 plans
 
 - `elementRemove` name → `remove`
+- `KeySet`
+    - `only` name → `one`
+    - `mapTry` type result keep `possiblyOrNever`
+- `.Order` modules move from `linear-direction`
+      - `module Maybe.Order` remove
+      - `module Case` move into `Char.Linear`
 
 # change log
 

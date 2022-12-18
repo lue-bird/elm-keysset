@@ -1,6 +1,5 @@
 module KeySet exposing
     ( KeySet
-    , Sorting, sortingKey
     , only, fromStack, fromList
     , size, element, end
     , insert, elementRemove, elementAlter
@@ -8,13 +7,12 @@ module KeySet exposing
     , unifyWith, except, intersect
     , fold2From, FirstOrSecondOrBoth(..)
     , toStack, toList
-    , foldFrom, foldOnto, fold
+    , foldFrom, foldFromOne, fold
     )
 
 {-| Lookup with one key
 
 @docs KeySet
-@docs Sorting, sortingKey
 
 
 ## create
@@ -44,11 +42,11 @@ module KeySet exposing
 ## transform
 
 @docs toStack, toList
-@docs foldFrom, foldOnto, fold
+@docs foldFrom, foldFromOne, fold
 
 -}
 
-import Emptiable exposing (Emptiable(..), emptyAdapt, fillMap, fillMapFlat, filled)
+import Emptiable exposing (Emptiable(..), emptyAdapt, filled)
 import KeySet.Internal
 import Linear exposing (Direction(..))
 import List.Linear
@@ -90,9 +88,9 @@ where
     type ByName
         = ByName
 
-    byName : KeySet.Sorting User String ByName
+    byName : Order.Key User String ByName
     byName =
-        KeySet.sortingKey .name
+        Order.key .name
             { tag = ByName
             , order = String.Order.greaterEarlier (Char.Order.alphabetically Case.lowerUpper)
             }
@@ -102,55 +100,25 @@ type alias KeySet element tag =
     KeySet.Internal.KeySet element tag
 
 
-{-| Configure what's considered a key inside a [`KeySet`](#KeySet)
 
-Create using [`sortingKey`](#sortingKey), as shown in
+{- TODO include somewhere as doc
 
-  - [`KeySet` example](#KeySet)
-  - [readme example](https://dark.elm.dmy.fr/packages/lue-bird/elm-keysset/latest/#KeySet)
+   Configure what's considered a key inside a [`KeySet`](#KeySet)
 
-You can just ignore the `Typed` thing but if you're curious → [`typed-value`](https://dark.elm.dmy.fr/packages/lue-bird/elm-typed-value/latest/)
+   Create using [`sortingKey`](#sortingKey), as shown in
 
--}
-type alias Sorting element key tag =
-    Typed
-        Checked
-        tag
-        Public
-        { key : element -> key
-        , keyOrder :
-            Ordering key
-        }
+     - [`KeySet` example](#KeySet)
+     - [readme example](https://dark.elm.dmy.fr/packages/lue-bird/elm-keysset/latest/#KeySet)
 
+   You can just ignore the `Typed` thing but if you're curious → [`typed-value`](https://dark.elm.dmy.fr/packages/lue-bird/elm-typed-value/latest/)
 
-{-| By which aspect = key and in which key `Order` the elements are [sorted](#Sorting)
+   By which aspect = key and in which key `Order` the elements are [sorted](Order#Key)
 
-For example, to create a [`Sorting`](#Sorting) to use with a simple set, use
+   For example, to create a [`Order.Key`](Order#Key) to use with a simple set, use
 
-    sortingKey identity ..tag..order..
-
-more in
-
-  - [`KeySet` example](#KeySet)
-  - [readme example](https://dark.elm.dmy.fr/packages/lue-bird/elm-keysset/latest/#KeySet)
+       Order.key identity ..tag..order..
 
 -}
-sortingKey :
-    (element -> key)
-    ->
-        { tag : tag
-        , order : Ordering key
-        }
-    -> Sorting element key tag
-sortingKey elementKey keySorting =
-    { key = elementKey
-    , keyOrder = keySorting.order
-    }
-        |> Typed.tag keySorting.tag
-        |> Typed.isChecked keySorting.tag
-
-
-
 -- create
 
 
@@ -169,14 +137,14 @@ proving to the compiler what you already know
 
 -}
 fromList :
-    Sorting element key_ tag
+    Order.Key element key_ tag
     -> List element
     -> Emptiable (KeySet element tag) Possibly
-fromList sorting =
+fromList orderKey =
     \list ->
         list
             |> List.foldr
-                (\el soFar -> soFar |> insert sorting el)
+                (\el soFar -> soFar |> insert orderKey el)
                 Emptiable.empty
 
 
@@ -194,19 +162,19 @@ ignoring elements whose keys already exist **earlier** in the [`Stack`](https://
 
 -}
 fromStack :
-    Sorting element key_ tag
+    Order.Key element key_ tag
     -> Emptiable (Stacked element) possiblyOrNever
     -> Emptiable (KeySet element tag) possiblyOrNever
-fromStack sorting =
+fromStack orderKey =
     \stack ->
         stack
-            |> fillMapFlat
+            |> Emptiable.mapFlat
                 (\stacked ->
                     stacked
                         |> filled
-                        |> Stack.foldOnto only
+                        |> Stack.foldFromOne only
                             Down
-                            (\el soFar -> soFar |> insert sorting el)
+                            (\el soFar -> soFar |> insert orderKey el)
                 )
 
 
@@ -238,7 +206,7 @@ tree =
 {-| Access the element associated with a given key.
 If no element with the given key is not present, `Emptiable.empty`
 
-    import Emptiable exposing (Emptiable, filled, fillMap)
+    import Emptiable exposing (Emptiable, filled, Emptiable.map)
     import Stack
     import KeySet exposing (KeySet)
     import Case
@@ -264,60 +232,60 @@ If no element with the given key is not present, `Emptiable.empty`
             )
 
     -- should be opaque and should use an opaque tag
-    animalByName : KeySet.Sorting Animal String { byName : () }
+    animalByName : Order.Key Animal String { byName : () }
     animalByName =
-        KeySet.sortingKey .name
+        Order.key .name
             { tag = { byName = () }
             , order =
                 String.Order.greaterEarlier (Char.Order.alphabetically Case.lowerUpper)
             }
 
-    animals |> KeySet.element animalByName "Tom" |> fillMap .kind
+    animals |> KeySet.element animalByName "Tom" |> Emptiable.map .kind
     --> filled Cat
 
-    animals |> KeySet.element animalByName "Jerry" |> fillMap .kind
+    animals |> KeySet.element animalByName "Jerry" |> Emptiable.map .kind
     --> filled Mouse
 
-    animals |> KeySet.element animalByName "Spike" |> fillMap .kind
+    animals |> KeySet.element animalByName "Spike" |> Emptiable.map .kind
     --> Emptiable.empty
 
 -}
 element :
-    Sorting element key tag
+    Order.Key element key tag
     -> key
     ->
         (Emptiable (KeySet element tag) possiblyOrNever_
          -> Emptiable element Possibly
         )
-element sorting keyToAccess =
+element orderKey keyToAccess =
     \keySet ->
         keySet
             |> tree
             |> emptyAdapt (\_ -> Possible)
-            |> treeElement (sorting |> Typed.untag) keyToAccess
+            |> treeElement (orderKey |> Typed.untag) keyToAccess
 
 
 treeElement :
-    { key : element -> key
-    , keyOrder : Ordering key
+    { toKey : element -> key
+    , keyOrder : ( key, key ) -> Order
     }
     -> key
     ->
         (Emptiable (Tree2.Branch element) Possibly
          -> Emptiable element Possibly
         )
-treeElement sorting key =
+treeElement orderKey key =
     \tree_ ->
         tree_
-            |> fillMap filled
-            |> fillMapFlat
+            |> Emptiable.map filled
+            |> Emptiable.mapFlat
                 (\treeFilled ->
-                    case sorting.keyOrder key (treeFilled |> Tree2.trunk |> sorting.key) of
+                    case orderKey.keyOrder ( key, treeFilled |> Tree2.trunk |> orderKey.toKey ) of
                         LT ->
-                            treeFilled |> Tree2.children |> .left |> treeElement sorting key
+                            treeFilled |> Tree2.children |> .left |> treeElement orderKey key
 
                         GT ->
-                            treeFilled |> Tree2.children |> .right |> treeElement sorting key
+                            treeFilled |> Tree2.children |> .right |> treeElement orderKey key
 
                         EQ ->
                             treeFilled |> Tree2.trunk |> filled
@@ -357,9 +325,9 @@ treeElement sorting key =
             )
 
     -- ↓ and tag should be opaque
-    userByName : KeySet.Sorting User String { userByName : () }
+    userByName : Order.Key User String { userByName : () }
     userByName =
-        KeySet.sortingKey .name
+        Order.key .name
             { tag = { userByName = () }
             , order =
                 String.Order.greaterEarlier (Char.Order.alphabetically Case.lowerUpper)
@@ -377,7 +345,7 @@ through the use of [`Emptiable ... Never`](https://dark.elm.dmy.fr/packages/lue-
 If you don't know whether the [`KeySet`](#KeySet) will be empty
 
     users
-        |> fillMap (\us -> us |> filled |> KeySet.end Up)
+        |> Emptiable.map (\us -> us |> filled |> KeySet.end Up)
     --: Emptiable element Possibly
 
 -}
@@ -400,31 +368,31 @@ end direction =
 Replaces the element when there is a key collision
 -}
 insert :
-    Sorting element key_ tag
+    Order.Key element key_ tag
     -> element
     ->
         (Emptiable (KeySet element tag) possiblyOrNever_
          -> Emptiable (KeySet element tag) never_
         )
-insert sorting elementToInsert =
+insert orderKey elementToInsert =
     \keySet ->
-        keySet |> KeySet.Internal.insert sorting elementToInsert
+        keySet |> KeySet.Internal.insert orderKey elementToInsert
 
 
 {-| Remove its element whose key matches the given one.
 If the key is not found, no changes are made
 -}
 elementRemove :
-    Sorting element key tag
+    Order.Key element key tag
     -> key
     ->
         (Emptiable (KeySet element tag) possiblyOrNever_
          -> Emptiable (KeySet element tag) Possibly
         )
-elementRemove sorting keyToRemove =
+elementRemove orderKey keyToRemove =
     \keySet ->
         keySet
-            |> KeySet.Internal.elementRemove sorting keyToRemove
+            |> KeySet.Internal.elementRemove orderKey keyToRemove
 
 
 {-| Change the element for a given key in a given way
@@ -434,14 +402,14 @@ elementRemove sorting keyToRemove =
 
 Operations with `Emptiable` that might be handy
 
-  - [`fillMap`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/Emptiable#fillMap)
-  - [`fillMapFlat`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/Emptiable#fillMapFlat)
+  - [`Emptiable.map`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/Emptiable#Emptiable.map)
+  - [`Emptiable.mapFlat`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/Emptiable#Emptiable.mapFlat)
   - [`fillElseOnEmpty`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/Emptiable#fillElseOnEmpty)
   - [`filled`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/Emptiable#filled)
 
 -}
 elementAlter :
-    Sorting element key tag
+    Order.Key element key tag
     -> key
     ->
         (Emptiable element Possibly
@@ -451,26 +419,26 @@ elementAlter :
         (Emptiable (KeySet element tag) possiblyOrNever_
          -> Emptiable (KeySet element tag) elementAlteredEmptyPossiblyOrNever
         )
-elementAlter sorting keyToAlter emptiableElementTryMap =
+elementAlter orderKey keyToAlter emptiableElementTryMap =
     \keySet ->
-        case keySet |> element sorting keyToAlter of
+        case keySet |> element orderKey keyToAlter of
             Empty _ ->
                 case Emptiable.empty |> emptiableElementTryMap of
                     Empty emptiable ->
                         keySet |> emptyAdapt (\_ -> emptiable)
 
                     Filled elementNew ->
-                        keySet |> insert sorting elementNew
+                        keySet |> insert orderKey elementNew
 
             Filled elementToAlter ->
                 case elementToAlter |> filled |> emptiableElementTryMap of
                     Empty emptiable ->
                         keySet
-                            |> elementRemove sorting keyToAlter
+                            |> elementRemove orderKey keyToAlter
                             |> emptyAdapt (\_ -> emptiable)
 
                     Filled elementAltered ->
-                        keySet |> insert sorting elementAltered
+                        keySet |> insert orderKey elementAltered
 
 
 
@@ -488,9 +456,9 @@ in a given [`Direction`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-di
     import String.Order
 
     -- tag should be opaque in a separate module
-    nameAlphabetical : KeySet.Sorting String String { alphabetical : () }
+    nameAlphabetical : Order.Key String String { alphabetical : () }
     nameAlphabetical =
-        KeySet.sortingKey identity
+        Order.key identity
             { tag = { alphabetical = () }
             , order = String.Order.greaterEarlier (Char.Order.alphabetically Case.lowerUpper)
             }
@@ -533,9 +501,9 @@ in a given [`Direction`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-di
     import String.Order
 
     -- tag should be opaque in a separate module
-    nameAlphabetical : KeySet.Sorting String String { alphabetical : () }
+    nameAlphabetical : Order.Key String String { alphabetical : () }
     nameAlphabetical =
-        KeySet.sortingKey identity
+        Order.key identity
             { tag = { alphabetical = () }
             , order = String.Order.greaterEarlier (Char.Order.alphabetically Case.lowerUpper)
             }
@@ -562,11 +530,11 @@ toStack :
 toStack direction =
     \keySet ->
         keySet
-            |> fillMap filled
-            |> fillMapFlat
+            |> Emptiable.map filled
+            |> Emptiable.mapFlat
                 (\keySetFilled ->
                     keySetFilled
-                        |> foldOnto Stack.only
+                        |> foldFromOne Stack.one
                             (direction |> Linear.opposite)
                             (\element_ soFar -> soFar |> Stack.onTopLay element_)
                 )
@@ -577,7 +545,7 @@ Runtime `n * log n` because mapped keys could be different (many other dicts/set
 -}
 map :
     (element -> mappedElement)
-    -> Sorting mappedElement mappedKey_ mappedTag
+    -> Order.Key mappedElement mappedKey_ mappedTag
     ->
         (Emptiable (KeySet element tag_) possiblyOrNever
          -> Emptiable (KeySet mappedElement mappedTag) possiblyOrNever
@@ -585,11 +553,11 @@ map :
 map elementChange mappedKey =
     \keySet ->
         keySet
-            |> fillMapFlat
+            |> Emptiable.mapFlat
                 (\keySetFilled ->
                     keySetFilled
                         |> filled
-                        |> foldOnto (\end_ -> end_ |> elementChange |> only)
+                        |> foldFromOne (\end_ -> end_ |> elementChange |> only)
                             Up
                             (\element_ soFar ->
                                 soFar |> insert mappedKey (element_ |> elementChange)
@@ -603,7 +571,7 @@ Runtime `n * log n` just like [`KeySet.map`](#map) because mapped keys could be 
     {-| Keep only elements that pass a given test.
     Often called "filter"
     -}
-    when sorting isGood =
+    when orderKey isGood =
         KeySet.mapTry
             (\element ->
                 if element |> isGood then
@@ -612,12 +580,12 @@ Runtime `n * log n` just like [`KeySet.map`](#map) because mapped keys could be 
                 else
                     Nothing
             )
-            sorting
+            orderKey
 
 -}
 mapTry :
     (element -> Emptiable mappedElement possiblyOrNever)
-    -> Sorting mappedElement mappedKey_ mappedTag
+    -> Order.Key mappedElement mappedKey_ mappedTag
     ->
         (Emptiable (KeySet element tag_) possiblyOrNever
          -> Emptiable (KeySet mappedElement mappedTag) Possibly
@@ -638,7 +606,8 @@ mapTry elementChangeTry mappedKey =
 
 
 {-| Fold, starting from one end as the initial accumulation value,
-then reducing what's accumulated in a given [`Direction`](https://package.elm-lang.org/packages/lue-bird/elm-linear-direction/latest/)
+then reducing what's accumulated
+in a given [`Direction`](https://package.elm-lang.org/packages/lue-bird/elm-linear-direction/latest/)
 
     import Linear exposing (Direction(..))
     import Stack
@@ -651,9 +620,9 @@ then reducing what's accumulated in a given [`Direction`](https://package.elm-la
     --> 5
 
     -- ↓ and tag should be opaque
-    intIncreasing : KeySet.Sorting Int Int { increasing : () }
+    intIncreasing : Order.Key Int Int { increasing : () }
     intIncreasing =
-        KeySet.sortingKey identity
+        Order.key identity
             { tag = { increasing = () }
             , order = Int.Order.increasing
             }
@@ -668,7 +637,7 @@ fold :
         )
 fold direction reduce =
     \keySet ->
-        keySet |> foldOnto identity direction reduce
+        keySet |> foldFromOne identity direction reduce
 
 
 {-| Fold, starting from one end element transformed to the initial accumulation value,
@@ -681,14 +650,14 @@ then reducing what's accumulated in a given [`Direction`](https://package.elm-la
 
     KeySet.fromStack intIncreasing
         (Stack.topBelow 234 [ 345, 543 ])
-        |> KeySet.foldOnto Stack.only Up Stack.onTopLay
+        |> KeySet.foldFromOne Stack.only Up Stack.onTopLay
     --> Stack.topBelow 543 [ 345, 234 ]
     --  the type knows it's never empty
 
     -- ↓ and tag should be opaque
-    intIncreasing : KeySet.Sorting Int Int { increasing : () }
+    intIncreasing : Order.Key Int Int { increasing : () }
     intIncreasing =
-        KeySet.sortingKey identity
+        Order.key identity
             { tag = { increasing = () }
             , order = Int.Order.increasing
             }
@@ -696,10 +665,10 @@ then reducing what's accumulated in a given [`Direction`](https://package.elm-la
 A simpler version is [`fold`](#fold)
 
     KeySet.fold =
-        KeySet.foldOnto identity
+        KeySet.foldFromOne identity
 
 -}
-foldOnto :
+foldFromOne :
     (element -> accumulated)
     -> Linear.Direction
     -> (element -> (accumulated -> accumulated))
@@ -707,11 +676,11 @@ foldOnto :
         (Emptiable (KeySet element tag_) Never
          -> accumulated
         )
-foldOnto firstToInitial direction reduce =
+foldFromOne firstToInitial direction reduce =
     \keySet ->
         keySet
             |> tree
-            |> Tree2.foldOnto firstToInitial direction reduce
+            |> Tree2.foldFromOne firstToInitial direction reduce
 
 
 {-| Fold over its elements from an initial accumulator value either
@@ -736,9 +705,9 @@ KeySet.fromStack intIncreasing
 --> True
 
 -- ↓ and tag should be opaque
-intIncreasing : KeySet.Sorting Int Int { increasing : () }
+intIncreasing : Order.Key Int Int { increasing : () }
 intIncreasing =
-    KeySet.sortingKey identity
+    Order.key identity
         { tag = { increasing = () }
         , order = Int.Order.increasing
         }
@@ -768,32 +737,32 @@ foldFrom initial direction reduce =
 On key collision, keep the current [`KeySet`](#KeySet)'s element
 -}
 unifyWith :
-    Sorting element key_ tag
+    Order.Key element key_ tag
     -> Emptiable (KeySet element tag) incomingPossiblyOrNever_
     ->
         (Emptiable (KeySet element tag) possiblyOrNever
          -> Emptiable (KeySet element tag) possiblyOrNever
         )
-unifyWith sorting toCombineWith =
+unifyWith orderKey toCombineWith =
     \keySet ->
         toCombineWith
             |> foldFrom keySet
                 Up
                 (\rightElement soFar ->
-                    soFar |> insert sorting rightElement
+                    soFar |> insert orderKey rightElement
                 )
 
 
 {-| Keep each element whose key also appears in a given [`KeySet`](#KeySet)
 -}
 intersect :
-    Sorting element key_ tag
+    Order.Key element key_ tag
     -> Emptiable (KeySet element tag) incomingPossiblyOrNever_
     ->
         (Emptiable (KeySet element tag) possiblyOrNever_
          -> Emptiable (KeySet element tag) Possibly
         )
-intersect sorting toIntersectWith =
+intersect orderKey toIntersectWith =
     \keySet ->
         let
             keySetEmptiablePossibly =
@@ -804,30 +773,30 @@ intersect sorting toIntersectWith =
             |> mapTry
                 (\element_ ->
                     keySetEmptiablePossibly
-                        |> element sorting
-                            (element_ |> (sorting |> Typed.untag |> .key))
+                        |> element orderKey
+                            (element_ |> (orderKey |> Typed.untag |> .toKey))
                 )
-                sorting
+                orderKey
 
 
 {-| Keep only those elements whose keys don't appear in the given [`KeySet`](#KeySet)
 -}
 except :
-    Sorting element key_ tag
+    Order.Key element key_ tag
     -> Emptiable (KeySet element tag) incomingPossiblyOrNever_
     ->
         (Emptiable (KeySet element tag) possiblyOrNever_
          -> Emptiable (KeySet element tag) Possibly
         )
-except sorting toExclude =
+except orderKey toExclude =
     \keySet ->
         toExclude
             |> foldFrom (keySet |> emptyAdapt (\_ -> Possible))
                 Up
                 (\element_ diffSoFar ->
                     diffSoFar
-                        |> elementRemove sorting
-                            (element_ |> (sorting |> Typed.untag |> .key))
+                        |> elementRemove orderKey
+                            (element_ |> (orderKey |> Typed.untag |> .toKey))
                 )
 
 
@@ -864,11 +833,11 @@ fold2From :
         )
     ->
         ({ first :
-            { sorting : Sorting firstElement key firstTag
+            { orderKey : Order.Key firstElement key firstTag
             , set : Emptiable (KeySet firstElement firstTag) firstPossiblyOrNever_
             }
          , second :
-            { sorting : Sorting secondElement key secondTag
+            { orderKey : Order.Key secondElement key secondTag
             , set : Emptiable (KeySet secondElement secondTag) secondPossiblyOrNever_
             }
          }
@@ -893,9 +862,10 @@ fold2From initial reduce { first, second } =
 
                     secondElement :: secondRest ->
                         case
-                            (first.sorting |> Typed.untag |> .keyOrder)
-                                (secondElement |> (second.sorting |> Typed.untag |> .key))
-                                (firstElement |> (first.sorting |> Typed.untag |> .key))
+                            (first.orderKey |> Typed.untag |> .keyOrder)
+                                ( secondElement |> (second.orderKey |> Typed.untag |> .toKey)
+                                , firstElement |> (first.orderKey |> Typed.untag |> .toKey)
+                                )
                         of
                             LT ->
                                 secondAccumulate firstElement
