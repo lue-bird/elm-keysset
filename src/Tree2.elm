@@ -1,8 +1,8 @@
 module Tree2 exposing
     ( Branch, Children
-    , leaf, branch
-    , height, children, trunk, end
-    , trunkAlter, endRemove
+    , one, branch
+    , size, height, children, trunk, end
+    , trunkAlter, removeEnd
     , foldFrom, foldFromOne
     )
 
@@ -15,17 +15,17 @@ module Tree2 exposing
 
 `Emptiable.empty`,
 
-@docs leaf, branch
+@docs one, branch
 
 
 ## scan
 
-@docs height, children, trunk, end
+@docs size, height, children, trunk, end
 
 
 ## alter
 
-@docs trunkAlter, endRemove
+@docs trunkAlter, removeEnd
 
 
 ## transform
@@ -44,7 +44,7 @@ import Possibly exposing (Possibly(..))
 Together with [`lue-bird/elm-emptiness-typed`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/)
 
     import Emptiable exposing (Emptiable)
-    import Possibly exposing (Possibly)ä
+    import Possibly exposing (Possibly)
 
     --- for constructed values
 
@@ -124,6 +124,26 @@ height =
                 1 + (treeFilled |> childrenHeight)
 
 
+{-| Runtime `n`
+-}
+size : Emptiable (Branch element_) possiblyOrNever_ -> Int
+size =
+    \tree ->
+        case tree |> Emptiable.map filled of
+            Empty _ ->
+                0
+
+            Filled treeFilled ->
+                1
+                    + (treeFilled |> children |> .left |> sizeRecurse)
+                    + (treeFilled |> children |> .right |> sizeRecurse)
+
+
+sizeRecurse : Emptiable (Branch element_) possiblyOrNever_ -> Int
+sizeRecurse =
+    size
+
+
 
 -- create
 
@@ -144,10 +164,10 @@ branchUnbalanced trunkElement children_ =
         |> filled
 
 
-leaf : element -> Emptiable (Branch element) never_
-leaf singleElement =
+one : element -> Emptiable (Branch element) never_
+one singleElementLeaf =
     branchUnbalanced
-        singleElement
+        singleElementLeaf
         { left = empty
         , right = empty
         }
@@ -352,13 +372,13 @@ trunkAlter elementChange =
                 )
 
 
-endRemove :
+removeEnd :
     Linear.Direction
     ->
         (Emptiable (Branch element) Never
          -> Emptiable (Branch element) Possibly
         )
-endRemove direction =
+removeEnd direction =
     case direction of
         Up ->
             endRemoveUp
@@ -370,33 +390,43 @@ endRemove direction =
 endRemoveDown :
     Emptiable (Branch element) Never
     -> Emptiable (Branch element) Possibly
-endRemoveDown tree =
-    case tree |> children |> .left of
-        Empty _ ->
-            tree |> children |> .right
+endRemoveDown =
+    \tree ->
+        let
+            children_ =
+                tree |> children
+        in
+        case children_.left of
+            Empty _ ->
+                children_.right
 
-        Filled leftBranch ->
-            branch
-                (tree |> trunk)
-                { left = leftBranch |> filled |> endRemoveDown
-                , right = tree |> children |> .right
-                }
+            Filled leftBranch ->
+                branch
+                    (tree |> trunk)
+                    { children_
+                        | left = leftBranch |> filled |> endRemoveDown
+                    }
 
 
 endRemoveUp :
     Emptiable (Branch element) Never
     -> Emptiable (Branch element) Possibly
-endRemoveUp tree =
-    case tree |> children |> .right of
-        Empty _ ->
-            tree |> children |> .left
+endRemoveUp =
+    \tree ->
+        let
+            children_ =
+                tree |> children
+        in
+        case children_.right of
+            Empty _ ->
+                children_.left
 
-        Filled rightBranch ->
-            branch
-                (tree |> trunk)
-                { left = tree |> children |> .left
-                , right = rightBranch |> filled |> endRemoveUp
-                }
+            Filled rightBranch ->
+                branch
+                    (tree |> trunk)
+                    { children_
+                        | right = rightBranch |> filled |> endRemoveUp
+                    }
 
 
 
@@ -414,7 +444,7 @@ foldFromOne :
 foldFromOne firstToInitial direction reduce =
     \tree ->
         tree
-            |> endRemove (direction |> Linear.opposite)
+            |> removeEnd (direction |> Linear.opposite)
             |> foldFrom
                 (tree
                     |> end (direction |> Linear.opposite)

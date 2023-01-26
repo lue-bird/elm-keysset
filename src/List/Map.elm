@@ -1,12 +1,11 @@
 module List.Map exposing (each)
 
-{-| [`Map`](Map#Map) a `List`
+{-| [`Map`](Map) a `List`
 
 @docs each
 
 -}
 
-import List.Extra as List
 import Map exposing (Mapping)
 import Typed
 

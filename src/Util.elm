@@ -1,15 +1,6 @@
-module Util exposing (recover, when)
+module Util exposing (recover)
 
 {-| -}
-
-
-when : Bool -> (thing -> thing) -> (thing -> thing)
-when condition conditionalChange =
-    if condition then
-        conditionalChange
-
-    else
-        identity
 
 
 recover : (error -> value) -> Result error value -> value

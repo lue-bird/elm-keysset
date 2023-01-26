@@ -1,6 +1,6 @@
 module Array.Map exposing (each, Each)
 
-{-| [`Map`](Map#Map) an `Array`
+{-| [`Map`](Map#Mapping) an `Array`
 
 @docs each, Each
 

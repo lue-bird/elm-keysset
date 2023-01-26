@@ -1,17 +1,25 @@
 module Map exposing
-    ( over
+    ( Mapping, Altering
+    , identity, Identity
+    , over, Over, OverTag
     , with
-    , Altering, Mapping
     )
 
 {-| Map content inside a nested structure
 
-@docs Map, Alter
+@docs Mapping, Altering
+
+
+## create
+
+Just [`Typed.tag`](https://dark.elm.dmy.fr/packages/lue-bird/elm-typed-value/latest/Typed#tag) any function `a -> b`.
+
+@docs identity, Identity
 
 
 ## combine
 
-@docs over
+@docs over, Over, OverTag
 
 
 ## transform
@@ -95,11 +103,33 @@ type alias Altering subject alterTag =
 
 
 
+-- create
+
+
+{-| Opaque tag for [`identity`](#identity)
+-}
+type Identity
+    = Identity
+
+
+{-| Returns what comes in without changing anything
+
+    "please edit"
+        |> Map.with Map.identity
+    --> "please edit"
+
+-}
+identity : Altering subject_ Identity
+identity =
+    Typed.tag Identity Basics.identity
+
+
+
 --
 
 
 {-| Transform elements
-as shown in a given [`Map`](#Map) with a given function
+as shown in a given [`Mapping`](#Mapping) with a given function
 
     import Record
 
@@ -119,13 +149,19 @@ over nextMap =
     \map ->
         map
             |> Typed.wrapAnd nextMap
-            |> Typed.mapTo Over
+            |> Typed.mapToWrap Over
                 (\( a, b ) -> a >> b)
 
 
 {-| Tag for [`over`](#over)
 -}
-type Over mapTag nextMapTag
+type alias Over mapTag nextMapTag =
+    ( OverTag, ( mapTag, nextMapTag ) )
+
+
+{-| Wrapper tag in [`Over`](#Over)
+-}
+type OverTag
     = Over
 
 
@@ -133,8 +169,15 @@ type Over mapTag nextMapTag
 -- transform
 
 
+{-| Apply the given change
+
+    [ 'h', 'i' ]
+        |> Map.with (Typed.tag { whatever = () } String.fromList)
+    --> "hi"
+
+-}
 with :
-    Mapping unmapped mapTag mapped
+    Mapping unmapped mapTag_ mapped
     -> (unmapped -> mapped)
 with mapped =
     mapped |> Typed.untag

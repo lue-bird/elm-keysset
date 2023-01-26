@@ -1,15 +1,14 @@
 > lookups with arbitrary keys
 
-  - 🗃️ [`KeySet`](#KeySet) for one key, `log n` runtime
-  - 🦄 [`KeysSet`](#KeysSet) for multiple keys, `n` runtime
+  - 🗃️ [`KeysSet`](#KeysSet) multiple arbitrary keys, `log n` runtime
   - 🔭 [future ideas](#future-ideas)
 
 
 # `KeySet`
 
 Holds no functions.
-Still, each [`Order.Key`](Order#Key)
-required to access/operate is enforced to be the same
+Still, the [`Keys`](Keys#Keys)
+required to access/operate are enforced to be the same
 (by attaching an opaque tag).
 See ↓ example
 
@@ -54,22 +53,35 @@ type User
         , name : String
         }
 
-type ByEmailHostFirst
+type EmailTag
     -- ! no exposing (..) → only constructable in this module
-    = ByEmailHostFirst
+    = Email
 
-emailHostFirst : Order.Key User Email ByEmailHostFirst
+email : Map User EmailTag Email
+email =
+    Typed.tag Email (\(User userData) -> userData.email)
+
+emailHostFirst : Keys User ByEmailHostFirst (Up1 x_)
 emailHostFirst =
-    Order.key (\(User user) -> user.email)
-        { tag = ByEmailHostFirst
-        , order =
-            Order.onTieNext
-                [ Order.by Email.host
-                    (String.Order.greaterEarlier (Char.Order.alphabetically Order.tie))
-                , Order.by Email.label
-                    (String.Order.greaterEarlier (Char.Order.alphabetically Order.tie))
-                ]
-        }
+    Keys.for (\email -> { email = email })
+       |> Keys.and .email ( email, emailOrder )
+
+type alias ByEmailHostFirst =
+    ...
+
+type alias ByHostFirst =
+    Order.OnTieNext
+        (Order.By Email.HostTag ...)
+        (Order.By Email.LabelTag ...)
+
+emailByHostFirst : Ordering Email ByHostFirst 
+emailByHostFirst =
+    Order.by Email.host
+        (String.Order.greaterEarlier (Char.Order.alphabetically Order.tie))
+        |> Order.onTie
+            (Order.by Email.label
+                (String.Order.greaterEarlier (Char.Order.alphabetically Order.tie))
+            )
 ```
 No typeclasses :)
 
@@ -78,15 +90,15 @@ for example separating [`Order.Key`](Order#Key)s from data to each their own `mo
 
 ## goodies
 
-  - ⚖orderKey by [`Ordering key = key -> key -> Order`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/Order)
+  - ⚖ orderKey by [`Ordering key = ... key, key -> Order`](Order#Ordering)
       - 👍 no reliance on `comparable`
       - 👍 no inconvenient `key -> String`
-      - 🧩 [`linear-direction` `Order`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/Order)
   - 🔑 `element -> key` function as part of a given [`Order.Key`](Order#Key)
       - 👍 simpler type
       - 👍 simpler internals :)
       - same idea is also implemented in
           - [`escherlies/elm-ix-dict`: `IxDict`](https://package.elm-lang.org/packages/escherlies/elm-ix-dict/latest/IxDict)
+          - [`Orasund/elm-bag` `Bag`](https://package.elm-lang.org/packages/Orasund/elm-bag/latest/Bag))
   - 🗃 emptiability is part of the type
       - just use the same API with emptiable or non-empty conveniently
       - 👍 extra safety possible. Got enough elements? → `KeySet.end Up|Down`, `foldFromOne`, `fold` don't need `Maybe`
@@ -116,6 +128,7 @@ for example separating [`Order.Key`](Order#Key)s from data to each their own `mo
       - `key -> comparable`
           - examples
               - [`turboMaCk/any-dict`](https://dark.elm.dmy.fr/packages/turboMaCk/any-dict/latest/)
+              - [`Orasund/elm-bag` `Bag`](https://package.elm-lang.org/packages/Orasund/elm-bag/latest/Bag)
           - `key -> String`
               - examples (in no specific order)
                   - [`matzko/elm-opaque-dict`](https://dark.elm.dmy.fr/packages/matzko/elm-opaque-dict/latest/)
@@ -336,74 +349,28 @@ Please take a look at [elm-bidict](https://github.com/Janiczek/elm-bidict) inste
 ## Example: partners, opposites...
 
 ```elm
+partnerKeys =
+    Keys.for
+        (\partner partnerOfPartner ->
+            { partner = partner, partnerForPartner = partnerForPartner }
+        )
+        |> Keys.and .partner
+            ( Record.Map.partner, String.Order... )
+        |> Keys.and .partnerOfPartner
+            ( Record.Map.partnerOfPartner, String.Order... )
+
 partners =
-    KeysSet.promising
-        [ unique .partner, unique .partnerOfPartner ]
-        |> KeysSet.insertList
-            [ { partner = "Ann", partnerOfPartner = "Alan" }
-            , { partner = "Alex", partnerOfPartner = "Alastair" }
-            , { partner = "Alan", partnerOfPartner = "Ann" }
-            -- wait, this is no duplicate and is inserted
-            ]
+    KeysSet.fromList partnerKeys
+        [ { partner = "Ann", partnerOfPartner = "Alan" }
+        , { partner = "Alex", partnerOfPartner = "Alastair" }
+        , { partner = "Alan", partnerOfPartner = "Ann" }
+        -- wait, this is no duplicate and is inserted
+        ]
 ```
 A `KeysSet` ony makes sense when the **keys describe something different**
 
 # future ideas
 
-  - integrate tag into `Order`, so that practically no manual opaque rules are needed
-      - for example
-        ```elm
-        Int.Order.increasing
-        --: Ordering Int Int.Order.Increasing
-
-        Order.by Record.Typed.name Int.Order.increasing
-            |> Order.onTie
-                (Order.by Record.Typed.status
-                    (String.Order.greaterEarlier
-                        (Char.Order.alphabetically Case.lowerUpper)
-                    )
-                )
-        --: Ordering
-        --:     User
-        --:     (Order.OnTieNext
-        --:         (Order.By Record.Typed.Name Int.Order.Increasing)
-        --:         (Order.By Record.Typed.Status
-        --:             (String.Order.GreaterEarlier
-        --:                 (Char.Order.Alphabetically Case.LowerUpper)
-        --:             )
-        --:         )
-        --:     )
-        ```
-        with per project one
-        ```elm
-        module Record.Typed exposing (Name, name, Status, status)
-
-        import Typed exposing (Typed, Internal, Public, tag, isChecked)
-
-        type Name -- no (..)
-            = Name
-        
-        type Status -- no (..)
-            = Status
-        
-        name : Typed Internal Name Public ({ record | name : name } -> name)
-        name =
-            .name |> tag Name |> isChecked Name
-        
-        status : Typed Internal Status Public ({ record | status : status } -> status)
-        status =
-            .status |> tag Status |> isChecked Status
-        ```
-        I think that would come out neat!
-          - needs an `elm-review` tool to auto-generate `Record.Typed`
-          - 👎 chaining with `onTie` is slightly more verbose than `onTieNext [ ... ]`
-          - 👍 chaining with `onTie` is more obvious and easier to read than `onTieNext [ ... ]`
-  - require supplying `KeysSet.Uniqueness` from the user on each access/operation
-      - using opaque tags like `KeySet`
-      - only allow unique keys to be accessed
-  - set with multiple elements per key (= multi-set/bag) add
-  - `KeySet` functionality include in `KeysSet`?
-      - 👍 `KeysSet` functionality while still providing `log n` for the most prominent key
-      - 👎 minimally more complex API
-      - only one prominent key? can we create a `KeySet` for each?
+  - set with multiple elements per key (= multi-set/bag) add?
+    or is this already covered good enough
   - ✨ your idea

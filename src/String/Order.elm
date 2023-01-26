@@ -16,11 +16,13 @@ type GreaterEarlier
 
 {-| `Order` `String`s by `Char`s first to last, specifying a [`Char` `Ordering`](Char-Order):
 
-    import Case
     import Char.Order
     import String.Linear
 
-    String.Linear.greaterEarlier (Char.Order.alphabetically Case.lowerUpper)
+    Order.with
+        (String.Linear.greaterEarlier
+            (Char.Order.alphabetically CaseChar.Order.lowerUpper)
+        )
         "hello, human!"
         "hello, Human"
     --> LT

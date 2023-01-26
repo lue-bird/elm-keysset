@@ -10,6 +10,8 @@ import Order exposing (Ordering)
 import Typed
 
 
+{-| Tag for [`greaterEarlier`](#greaterEarlier)
+-}
 type GreaterEarlier
     = GreaterEarlier
 
@@ -23,7 +25,7 @@ type GreaterEarlier
         [ 11, 22, 34 ]
     --> LT
 
-TODO rename to earlier
+TODO rename to earlier?
 
 -}
 greaterEarlier :

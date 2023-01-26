@@ -2,8 +2,9 @@
   "root": "../src",
   "tests": [
     "KeysSet",
-    "KeySet",
+    "Keys",
     "Order",
+    "Map",
     "Char.Order",
     "Int.Order",
     "Float.Order",

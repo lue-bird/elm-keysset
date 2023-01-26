@@ -3,7 +3,6 @@ module Equal exposing
     , structurally, Structurally
     , by, By
     , with
-    , Key, key, withKey
     )
 
 {-| A check on whether 2 values are equal in some aspect.
@@ -20,11 +19,6 @@ module Equal exposing
 ## transform
 
 @docs with
-
-
-## as key
-
-@docs Key, key, withKey
 
 -}
 
@@ -137,69 +131,3 @@ with :
     -> (( complete, complete ) -> Equality)
 with equaling =
     equaling |> Typed.untag
-
-
-
--- as key
-
-
-type alias Key element key byTag =
-    Typed
-        Checked
-        byTag
-        Public
-        { toKey : element -> key
-        , keyEqual : ( key, key ) -> Equality
-        }
-
-
-key :
-    Mapping element elementToKeyTag key
-    -> Equaling key keyEqualTag
-    ->
-        Key
-            element
-            key
-            (By elementToKeyTag keyEqualTag)
-key elementMapToKey elementComparing =
-    Typed.mapTo By
-        (\( elementToKey, elementCompare ) ->
-            { toKey = elementToKey
-            , keyEqual = elementCompare
-            }
-        )
-        (elementMapToKey
-            |> Typed.wrapAnd elementComparing
-        )
-
-
-{-| Convert the [`Key`](#Key) to an [`Equaling`](#Equaling) with the same tag
--}
-byKey :
-    Key element key (By mapTag mappedEqualTag)
-    -> Equaling element (By mapTag mappedEqualTag)
-byKey keyByEqual =
-    keyByEqual
-        |> Typed.map
-            (\key_ ->
-                \( a, b ) ->
-                    key_.keyEqual
-                        ( a |> key_.toKey, b |> key_.toKey )
-            )
-        |> Typed.toChecked By
-
-
-{-| Convert the [`Key`](#Key) to an `Equality` check function
--}
-withKey :
-    Key element key_ byTag_
-    -> (( element, element ) -> Equality)
-withKey =
-    \key_ ->
-        let
-            keyInfo =
-                key_ |> Typed.untag
-        in
-        \( a, b ) ->
-            keyInfo.keyEqual
-                ( a |> keyInfo.toKey, b |> keyInfo.toKey )

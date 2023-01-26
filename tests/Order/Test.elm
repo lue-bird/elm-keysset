@@ -1,5 +1,6 @@
-module Order.Test exposing (tests)
+module Order.Test exposing (suite)
 
+import Char.Map
 import Char.Order
 import Expect
 import Fuzz exposing (Fuzzer)
@@ -8,8 +9,8 @@ import Order
 import Test exposing (Test)
 
 
-tests : Test
-tests =
+suite : Test
+suite =
     Test.describe "Order"
         [ let
             unicodeNonLetter : Fuzzer Char
@@ -30,7 +31,7 @@ tests =
                     char1
                     |> Expect.equal
                         (Order.with
-                            (Order.by Char.toCode Int.Order.increasing)
+                            (Order.by Char.Map.toCode Int.Order.increasing)
                             char0
                             char1
                         )

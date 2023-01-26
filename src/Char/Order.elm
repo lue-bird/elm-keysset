@@ -1,6 +1,6 @@
 module Char.Order exposing
     ( Case(..)
-    , lowerUpper, upperLower
+    , lowerUpper, LowerUpper, upperLower
     , alphabetically, Alphabetically
     )
 
@@ -14,7 +14,7 @@ module Char.Order exposing
 
 ### order
 
-@docs lowerUpper, upperLower
+@docs lowerUpper, LowerUpper, upperLower
 
 
 ## [`Order`](Order#Ordering)
@@ -63,8 +63,8 @@ upperLower =
 
 {-| `Case` of a letter. [`Ordering`](Order#Ordering)s:
 
-  - [`Case.lowerUpper`](#lowerUpper)
-  - [`Case.upperLower`](#upperLower)
+  - [`lowerUpper`](#lowerUpper)
+  - [`upperLower`](#upperLower)
   - [`Order.tie`](Order#tie)
 
 -}
@@ -86,18 +86,17 @@ type Alphabetically
   - Just one isn't a letter → `Order` according to unicode char code
 
 ```
-import Case
-
-Char.Order.alphabetically Case.upperLower 'b' 'D'
+Char.Order.alphabetically Char.Order.upperLower 'b' 'D'
 --> LT
 
-Char.Order.alphabetically Case.upperLower 'l' 'L'
+Char.Order.alphabetically Char.Order.upperLower 'l' 'L'
 --> GT
 ```
 
 -}
 alphabetically : Ordering Case charOrderTag -> Ordering Char ( Alphabetically, charOrderTag )
 alphabetically caseOrdering =
+    -- TODO ('','🌈') should be LT, is GT
     Typed.mapToWrap Alphabetically
         (\caseOrder ( char0, char1 ) ->
             case Maybe.map2 Tuple.pair (char0 |> charCase) (char1 |> charCase) of
