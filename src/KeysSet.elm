@@ -417,14 +417,14 @@ end ( keys, key ) direction =
             |> Tree2.end direction
 
 
-filledInsert :
+fillInsertOnNoCollisions :
     Keys element tags keys_ lastIndex
     -> element
     ->
         (KeysSet element tags lastIndex
          -> Emptiable (KeysSet element tags lastIndex) never_
         )
-filledInsert keys toInsert =
+fillInsertOnNoCollisions keys toInsert =
     let
         keyArray =
             keys
@@ -529,7 +529,7 @@ insert onCollisions keys toInsertOrReplacement =
                 in
                 case collisions |> Emptiable.map filled of
                     Emptiable.Empty _ ->
-                        keysSetFill |> filledInsert keys toInsertOrReplacement
+                        keysSetFill |> fillInsertOnNoCollisions keys toInsertOrReplacement
 
                     Emptiable.Filled collisionsFilled ->
                         case onCollisions of
@@ -740,9 +740,12 @@ elementAlter preferenceOnCollisions ( keys, key ) keyToAlter elementChange =
                             keysSet
 
                         else
-                            keysSet
-                                |> remove ( keys, key ) keyToAlter
-                                |> insert PreferExisting keys elementAltered
+                            case keysSet |> remove ( keys, key ) keyToAlter of
+                                Emptiable.Empty _ ->
+                                    one keys elementAltered
+
+                                Emptiable.Filled removed ->
+                                    removed |> fillInsertOnNoCollisions keys elementAltered
 
 
 {-| Convert to a `List` sorted by keys

@@ -2,7 +2,7 @@ module Tree2 exposing
     ( Branch, Children
     , one, branch
     , size, height, children, trunk, end
-    , trunkAlter, removeEnd
+    , trunkAlter, childrenLeftAlter, childrenRightAlter, removeEnd
     , foldFrom, foldFromOne
     )
 
@@ -25,7 +25,7 @@ module Tree2 exposing
 
 ## alter
 
-@docs trunkAlter, removeEnd
+@docs trunkAlter, childrenLeftAlter, childrenRightAlter, removeEnd
 
 
 ## transform
@@ -370,6 +370,58 @@ trunkAlter elementChange =
                     }
                         |> Branch
                 )
+
+
+childrenRightAlter :
+    (Emptiable (Branch element) Possibly
+     -> Emptiable (Branch element) possiblyOrNever_
+    )
+    ->
+        (Emptiable (Branch element) Never
+         -> Emptiable (Branch element) never_
+        )
+childrenRightAlter childrenRightChange =
+    \treeFilled ->
+        let
+            children_ : Children element
+            children_ =
+                treeFilled |> children
+        in
+        branch
+            (treeFilled |> trunk)
+            { children_
+                | right =
+                    children_
+                        |> .right
+                        |> childrenRightChange
+                        |> Emptiable.emptyAdapt (\_ -> Possible)
+            }
+
+
+childrenLeftAlter :
+    (Emptiable (Branch element) Possibly
+     -> Emptiable (Branch element) possiblyOrNever_
+    )
+    ->
+        (Emptiable (Branch element) Never
+         -> Emptiable (Branch element) never_
+        )
+childrenLeftAlter childrenLeftChange =
+    \treeFilled ->
+        let
+            children_ : Children element
+            children_ =
+                treeFilled |> children
+        in
+        branch
+            (treeFilled |> trunk)
+            { children_
+                | left =
+                    children_
+                        |> .left
+                        |> childrenLeftChange
+                        |> Emptiable.emptyAdapt (\_ -> Possible)
+            }
 
 
 removeEnd :

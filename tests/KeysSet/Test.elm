@@ -66,7 +66,9 @@ validate keys =
                     case tree |> validateHelp order of
                         Err error ->
                             [ error
-                            , " for\n\n"
+                            , " for index "
+                            , index |> N.toString
+                            , " in\n\n"
                             , tree |> treeToString
                             ]
                                 |> String.concat
@@ -130,7 +132,7 @@ treeForIndex index =
 validateHelp :
     (( element, element ) -> Order)
     ->
-        (Emptiable (Branch element) Possibly
+        (Emptiable (Tree2.Branch element) Possibly
          -> Result String { height : Int }
         )
 validateHelp order tree =
@@ -185,7 +187,7 @@ validateHelp order tree =
             then
                 [ "element "
                 , treeFilled |> Tree2.trunk |> Debug.toString
-                , " is less than left"
+                , " is <= left"
                 ]
                     |> String.concat
                     |> Err
@@ -205,7 +207,7 @@ validateHelp order tree =
             then
                 [ "element "
                 , treeFilled |> Tree2.trunk |> Debug.toString
-                , " is greater than right"
+                , " is >= right"
                 ]
                     |> String.concat
                     |> Err

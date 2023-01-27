@@ -4,7 +4,7 @@ import Char.Order
 import Fuzz exposing (Fuzzer)
 import Int.Order
 import Keys exposing (Keys)
-import N exposing (N0, N1, N2, To, Up, Up0, Up1, Up2)
+import N exposing (N0, N1, To, Up)
 import Order
 import Record.Map
 
@@ -38,8 +38,7 @@ byIdOrChar =
         |> Keys.and .id ( Record.Map.id, Int.Order.increasing )
         |> Keys.and .char
             ( Record.Map.char
-            , Char.Order.alphabetically
-                Char.Order.lowerUpper
+            , Char.Order.alphabetically Char.Order.lowerUpper
             )
 
 
