@@ -82,29 +82,41 @@ type Alphabetically
 {-| `Order` `Char`s
 
   - Both are letters → `Order` alphabetically
-      - They're the same picture? → a given [`Ordering`](Order#Ordering) on their cases
-  - Just one isn't a letter → `Order` according to unicode char code
+      - They're the same picture? → a given [`Ordering`](Order#Ordering) on their [cases](#Case)
+  - Both aren't letters → `Order` according to unicode char code
+  - Only one is a letter → say the letter is greater
 
 ```
-Char.Order.alphabetically Char.Order.upperLower 'b' 'D'
+Order.with (Char.Order.alphabetically Char.Order.upperLower) 'b' 'D'
 --> LT
 
-Char.Order.alphabetically Char.Order.upperLower 'l' 'L'
+Order.with (Char.Order.alphabetically Char.Order.upperLower) 'l' 'L'
 --> GT
+
+Order.with (Char.Order.alphabetically Char.Order.upperLower) 'i' '!'
+--> GT
+
+Order.with (Char.Order.alphabetically Char.Order.upperLower) '-' '!'
+--> compare '-' '!'
 ```
 
 -}
 alphabetically : Ordering Case charOrderTag -> Ordering Char ( Alphabetically, charOrderTag )
 alphabetically caseOrdering =
-    -- TODO ('','🌈') should be LT, is GT
     Typed.mapToWrap Alphabetically
         (\caseOrder ( char0, char1 ) ->
-            case Maybe.map2 Tuple.pair (char0 |> charCase) (char1 |> charCase) of
-                Just ( case0, case1 ) ->
+            case ( char0 |> charCase, char1 |> charCase ) of
+                ( Just case0, Just case1 ) ->
                     compare (char0 |> Char.toLower) (char1 |> Char.toLower)
                         |> onEQ (\() -> caseOrder ( case0, case1 ))
 
-                Nothing ->
+                ( Nothing, Just case1 ) ->
+                    LT
+
+                ( Just case0, Nothing ) ->
+                    GT
+
+                ( Nothing, Nothing ) ->
                     compare char0 char1
         )
         caseOrdering
