@@ -1,5 +1,5 @@
 module KeysSet exposing
-    ( KeysSet, KeysSetTag
+    ( KeysSet
     , one
     , fromStack, fromList
     , size, element, end
@@ -15,7 +15,7 @@ module KeysSet exposing
 
 {-| Lookup with multiple [`Keys`](Keys#Keys)
 
-@docs KeysSet, KeysSetTag
+@docs KeysSet
 
 
 ## create
@@ -56,6 +56,7 @@ import ArraySized exposing (ArraySized)
 import Emptiable exposing (Emptiable(..), emptyAdapt, fill, filled)
 import Keys exposing (Key, Keys, keyIndex, keyOrderWith, toKeyWith)
 import KeysSet.Internal exposing (treeElement)
+import KeysSet.Tag
 import Linear exposing (Direction(..))
 import List.Linear
 import N exposing (Add1, Exactly, In, N, To, Up, n0)
@@ -123,10 +124,10 @@ where
   - [`toList`](#toList), [`toStack`](#toStack), [`foldFrom`](#foldFrom), [`fold`](#fold), [`foldFromOne`](#foldFromOne) are runtime `n`
 
 -}
-type alias KeysSet element tags lastIndex =
+type alias KeysSet element keys lastIndex =
     Typed
         Checked
-        ( KeysSetTag, tags )
+        (KeysSet.Tag.For keys)
         Public
         { size : Int
         , byKeys :
@@ -136,12 +137,6 @@ type alias KeysSet element tags lastIndex =
         }
 
 
-{-| Tags a valid [`KeysSet`](#KeysSet) with multiple elements
--}
-type KeysSetTag
-    = KeysSet
-
-
 
 -- create
 
@@ -149,24 +144,21 @@ type KeysSetTag
 {-| [`KeysSet`](#KeysSet) containing a single given element
 -}
 one :
-    Keys element tags keys_ lastIndex
+    Keys element keys lastIndex
     ->
         (element
-         -> Emptiable (KeysSet element tags lastIndex) never_
+         -> Emptiable (KeysSet element keys lastIndex) never_
         )
 one keys singleElement =
-    keys
-        |> Keys.toArray
-        |> Typed.mapToWrap KeysSet
-            (\keysArray ->
-                { size = 1
-                , byKeys =
-                    keysArray
-                        |> ArraySized.inToNumber
-                        |> ArraySized.map
-                            (\_ -> singleElement |> Tree2.one |> fill)
-                }
-            )
+    Typed.tag (KeysSet.Tag.for keys)
+        { size = 1
+        , byKeys =
+            keys
+                |> Keys.toArray
+                |> ArraySized.inToNumber
+                |> ArraySized.map
+                    (\_ -> singleElement |> Tree2.one |> fill)
+        }
         |> filled
 
 
@@ -178,9 +170,9 @@ proving to the compiler what you already know about its (non-)emptiness
 
 -}
 fromList :
-    Keys element tags keys_ lastIndex
+    Keys element keys lastIndex
     -> List element
-    -> Emptiable (KeysSet element tags lastIndex) Possibly
+    -> Emptiable (KeysSet element keys lastIndex) Possibly
 fromList keys =
     \list ->
         list
@@ -205,9 +197,9 @@ fromList keys =
 
 -}
 fromStack :
-    Keys element tags keys_ lastIndex
+    Keys element keys lastIndex
     -> Emptiable (Stacked element) possiblyOrNever
-    -> Emptiable (KeysSet element tags lastIndex) possiblyOrNever
+    -> Emptiable (KeysSet element keys lastIndex) possiblyOrNever
 fromStack keys =
     \stack ->
         stack
@@ -229,14 +221,14 @@ Runtime `1`
 
     import Atom
 
-    KeysSet.one Atom.byNumberOrSymbol
+    KeysSet.one Atom.keys
         { name = "Helium", symbol = "He", atomicNumber = 2 }
         |> KeysSet.size
     --> 1
 
 -}
 size :
-    Emptiable (KeysSet element_ tags_ lastIndex_) possiblyOrNever_
+    Emptiable (KeysSet element_ keys_ lastIndex_) possiblyOrNever_
     -> Int
 size =
     \keysSet ->
@@ -255,7 +247,7 @@ size =
 treeForIndex :
     N (In min_ (Up maxToLastIndex_ To lastIndex))
     ->
-        (KeysSet element tags_ lastIndex
+        (KeysSet element keys_ lastIndex
          -> Emptiable (Tree2.Branch element) never_
         )
 treeForIndex index =
@@ -269,11 +261,11 @@ treeForIndex index =
 
 
 tree :
-    ( Keys element tags keys lastIndex
-    , keys -> Key element key_ (Up indexToLast_ To lastIndex)
+    ( Keys element keys lastIndex
+    , keys -> Key element key_ by_ (Up indexToLast_ To lastIndex)
     )
     ->
-        (KeysSet element tags lastIndex
+        (KeysSet element keys lastIndex
          -> Emptiable (Tree2.Branch element) never_
         )
 tree key =
@@ -306,7 +298,13 @@ If no element with the given key is not present, `Emptiable.empty`
         | Cat
 
     type alias ByName =
-        ( (), Order.By Name (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper)) )
+        { name :
+            Key
+                Animal
+                (Order.By Name (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper)))
+                String
+                (Up N0 To N0)
+        }
 
     animals : Emptiable (KeysSet Animal ByName N0) never_
     animals =
@@ -324,7 +322,7 @@ If no element with the given key is not present, `Emptiable.empty`
     name =
         Typed.tag Name .name
 
-    animalByName : Keys Animal ByName { name : Key Animal String (Up N0 To N0) } N0
+    animalByName : Keys Animal ByName N0
     animalByName =
         Keys.for (\name_ -> { name = name_ })
             |> Keys.by ( .name, name )
@@ -343,12 +341,12 @@ If no element with the given key is not present, `Emptiable.empty`
 
 -}
 element :
-    ( Keys element tags keys lastIndex
-    , keys -> Key element key (Up indexToLast_ To lastIndex)
+    ( Keys element keys lastIndex
+    , keys -> Key element by_ key (Up indexToLast_ To lastIndex)
     )
     -> key
     ->
-        (Emptiable (KeysSet element tags lastIndex) possiblyOrNever_
+        (Emptiable (KeysSet element keys lastIndex) possiblyOrNever_
          -> Emptiable element Possibly
         )
 element ( keys, key ) keyToAccess =
@@ -394,7 +392,13 @@ element ( keys, key ) keyToAccess =
         }
 
     type alias ByName =
-        ( (), Order.By Name (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper)) )
+        { name :
+            Key
+                User
+                (Order.By Name (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper)))
+                String
+                (Up N0 To N0)
+        }
 
     users : Emptiable (KeysSet User ByName N0) never_
     users =
@@ -413,7 +417,7 @@ element ( keys, key ) keyToAccess =
     name =
         Typed.tag Name .name
 
-    userByName : Keys User ByName { name : Key User String (Up N0 To N0) } N0
+    userByName : Keys User ByName N0
     userByName =
         Keys.for (\name_ -> { name = name_ })
             |> Keys.by ( .name, name )
@@ -439,12 +443,12 @@ If you don't know whether the [`KeysSet`](#KeysSet) will be empty
 
 -}
 end :
-    ( Keys element tags keys lastIndex
-    , keys -> Key element key_ (Up indexToLast_ To lastIndex)
+    ( Keys element keys lastIndex
+    , keys -> Key element key_ by_ (Up indexToLast_ To lastIndex)
     )
     -> Linear.Direction
     ->
-        (Emptiable (KeysSet element tags lastIndex) Never
+        (Emptiable (KeysSet element keys lastIndex) Never
          -> element
         )
 end ( keys, key ) direction =
@@ -456,18 +460,17 @@ end ( keys, key ) direction =
 
 
 fillInsertOnNoCollision :
-    Keys element tags keys_ lastIndex
+    Keys element keys lastIndex
     -> element
     ->
-        (KeysSet element tags lastIndex
-         -> Emptiable (KeysSet element tags lastIndex) never_
+        (KeysSet element keys lastIndex
+         -> Emptiable (KeysSet element keys lastIndex) never_
         )
 fillInsertOnNoCollision keys toInsert =
     let
         keyArray =
             keys
                 |> Keys.toArray
-                |> Typed.untag
                 |> ArraySized.inToNumber
     in
     \keysSetFilled ->
@@ -487,7 +490,7 @@ fillInsertOnNoCollision keys toInsert =
                                 )
                     }
                 )
-            |> Typed.wrapToChecked KeysSet
+            |> Typed.toChecked (KeysSet.Tag.for keys)
             |> filled
 
 
@@ -501,24 +504,24 @@ To replace collisions instead → [`insertReplacingCollisions`](#insertReplacing
 
     Emptiable.empty
         |> KeysSet.insertIfNoCollision
-            BracketPair.byOpenClosed
+            BracketPair.keys
             { open = 'b', closed = 'C' }
         |> KeysSet.insertIfNoCollision
-            BracketPair.byOpenClosed
+            BracketPair.keys
             { open = 'c', closed = 'A' }
         |> KeysSet.insertIfNoCollision
-            BracketPair.byOpenClosed
+            BracketPair.keys
             { open = 'c', closed = 'C' }
-        |> KeysSet.toList ( BracketPair.byOpenClosed, .open )
+        |> KeysSet.toList ( BracketPair.keys, .open )
     --> [ { open = 'b', closed = 'C' }, { open = 'c', closed = 'A' } ]
 
 -}
 insertIfNoCollision :
-    Keys element tags keys_ lastIndex
+    Keys element keys lastIndex
     -> element
     ->
-        (Emptiable (KeysSet element tags lastIndex) possiblyOrNever_
-         -> Emptiable (KeysSet element tags lastIndex) never_
+        (Emptiable (KeysSet element keys lastIndex) possiblyOrNever_
+         -> Emptiable (KeysSet element keys lastIndex) never_
         )
 insertIfNoCollision keys toInsertOrReplacement =
     \keysSet ->
@@ -530,7 +533,7 @@ insertIfNoCollision keys toInsertOrReplacement =
                 let
                     collisions =
                         keysSetFill
-                            |> KeysSet.Internal.elementCollisions keys toInsertOrReplacement
+                            |> elementCollisions keys toInsertOrReplacement
                 in
                 case collisions |> Emptiable.map filled of
                     Emptiable.Empty _ ->
@@ -538,6 +541,41 @@ insertIfNoCollision keys toInsertOrReplacement =
 
                     Emptiable.Filled collisionsTreeFilled ->
                         keysSetFill |> filled
+
+
+elementCollisions :
+    Keys element keys lastKeyIndex
+    -> element
+    ->
+        (KeysSet element keys lastKeyIndex
+         -> Emptiable (Tree2.Branch element) Possibly
+        )
+elementCollisions keys toCollideWith =
+    \keysSet ->
+        keysSet
+            |> Typed.untag
+            |> .byKeys
+            |> ArraySized.and
+                (keys
+                    |> Keys.toArray
+                    |> ArraySized.inToNumber
+                )
+            |> ArraySized.foldFrom Emptiable.empty
+                Down
+                (\( branch, key ) soFar ->
+                    soFar
+                        |> (case
+                                branch
+                                    |> filled
+                                    |> treeElement (\el -> ( toCollideWith, el ) |> key)
+                            of
+                                Emptiable.Empty _ ->
+                                    identity
+
+                                Emptiable.Filled collision ->
+                                    KeysSet.Internal.treeInsertIfNoCollision key collision
+                           )
+                )
 
 
 {-| Insert a given element.
@@ -550,24 +588,24 @@ To keep collisions instead → [`insertIfNoCollision`](#insertIfNoCollision)
 
     Emptiable.empty
         |> KeysSet.insertReplacingCollisions
-            BracketPair.byOpenClosed
+            BracketPair.keys
             { open = 'b', closed = 'C' }
         |> KeysSet.insertReplacingCollisions
-            BracketPair.byOpenClosed
+            BracketPair.keys
             { open = 'c', closed = 'A' }
         |> KeysSet.insertReplacingCollisions
-            BracketPair.byOpenClosed
+            BracketPair.keys
             { open = 'c', closed = 'C' }
-        |> KeysSet.toList ( BracketPair.byOpenClosed, .open )
+        |> KeysSet.toList ( BracketPair.keys, .open )
     --> [ { open = 'c', closed = 'C' } ]
 
 -}
 insertReplacingCollisions :
-    Keys element tags keys_ lastIndex
+    Keys element keys lastIndex
     -> element
     ->
-        (Emptiable (KeysSet element tags lastIndex) possiblyOrNever_
-         -> Emptiable (KeysSet element tags lastIndex) never_
+        (Emptiable (KeysSet element keys lastIndex) possiblyOrNever_
+         -> Emptiable (KeysSet element keys lastIndex) never_
         )
 insertReplacingCollisions keys toInsertOrReplacement =
     \keysSet ->
@@ -579,7 +617,7 @@ insertReplacingCollisions keys toInsertOrReplacement =
                 let
                     collisions =
                         keysSetFill
-                            |> KeysSet.Internal.elementCollisions keys toInsertOrReplacement
+                            |> elementCollisions keys toInsertOrReplacement
                 in
                 case collisions |> Emptiable.map filled of
                     Emptiable.Empty _ ->
@@ -604,7 +642,6 @@ insertReplacingCollisions keys toInsertOrReplacement =
                                                     |> ArraySized.and
                                                         (keys
                                                             |> Keys.toArray
-                                                            |> Typed.untag
                                                             |> ArraySized.inToNumber
                                                         )
                                                     |> ArraySized.map
@@ -616,16 +653,16 @@ insertReplacingCollisions keys toInsertOrReplacement =
                                                         )
                                             }
                                         )
-                                    |> Typed.wrapToChecked KeysSet
+                                    |> Typed.toChecked (KeysSet.Tag.for keys)
                                     |> filled
 
 
 exceptTree :
-    Keys element tags keys_ lastIndex
+    Keys element keys lastIndex
     -> Emptiable (Tree2.Branch element) exceptionsPossiblyOrNever_
     ->
-        (Emptiable (KeysSet element tags lastIndex) Never
-         -> Emptiable (KeysSet element tags lastIndex) Possibly
+        (Emptiable (KeysSet element keys lastIndex) Never
+         -> Emptiable (KeysSet element keys lastIndex) Possibly
         )
 exceptTree keys exceptions =
     \keysSetFilled ->
@@ -636,7 +673,6 @@ exceptTree keys exceptions =
             |> ArraySized.and
                 (keys
                     |> Keys.toArray
-                    |> Typed.untag
                     |> ArraySized.inToNumber
                 )
             |> ArraySized.map
@@ -655,7 +691,7 @@ exceptTree keys exceptions =
                                 , byKeys = branches
                                 }
                             )
-                        |> Typed.wrapToChecked KeysSet
+                        |> Typed.toChecked (KeysSet.Tag.for keys)
                 )
 
 
@@ -677,13 +713,13 @@ If the key is not found, no changes are made
 
 -}
 remove :
-    ( Keys element tags keys lastIndex
-    , keys -> Key element key (Up indexToLast_ To lastIndex)
+    ( Keys element keys lastIndex
+    , keys -> Key element by_ key (Up indexToLast_ To lastIndex)
     )
     -> key
     ->
-        (Emptiable (KeysSet element tags lastIndex) possiblyOrNever_
-         -> Emptiable (KeysSet element tags lastIndex) Possibly
+        (Emptiable (KeysSet element keys lastIndex) possiblyOrNever_
+         -> Emptiable (KeysSet element keys lastIndex) Possibly
         )
 remove ( keys, key ) keyToRemove =
     \keysSet ->
@@ -702,7 +738,6 @@ remove ( keys, key ) keyToRemove =
                                 |> ArraySized.and
                                     (keys
                                         |> Keys.toArray
-                                        |> Typed.untag
                                         |> ArraySized.inToNumber
                                     )
                                 |> ArraySized.map
@@ -722,7 +757,7 @@ remove ( keys, key ) keyToRemove =
                                                     , byKeys = byKeysResult
                                                     }
                                                 )
-                                            |> Typed.wrapToChecked KeysSet
+                                            |> Typed.toChecked (KeysSet.Tag.for keys)
                                     )
                         )
 
@@ -758,14 +793,14 @@ and operate as you like
 
 -}
 elementAlterIfNoCollision :
-    ( Keys element tags keys lastIndex
-    , keys -> Key element key (Up indexToLast_ To lastIndex)
+    ( Keys element keys lastIndex
+    , keys -> Key element by_ key (Up indexToLast_ To lastIndex)
     )
     -> key
     -> (element -> element)
     ->
-        (Emptiable (KeysSet element tags lastIndex) possiblyOrNever
-         -> Emptiable (KeysSet element tags lastIndex) possiblyOrNever
+        (Emptiable (KeysSet element keys lastIndex) possiblyOrNever
+         -> Emptiable (KeysSet element keys lastIndex) possiblyOrNever
         )
 elementAlterIfNoCollision ( keys, key ) keyToAlter elementChange =
     \keysSet ->
@@ -783,7 +818,7 @@ elementAlterIfNoCollision ( keys, key ) keyToAlter elementChange =
                     collisionsTree =
                         keysSet
                             |> Emptiable.emptyAdapt (\_ -> Possible)
-                            |> Emptiable.mapFlat (KeysSet.Internal.elementCollisions keys elementAltered)
+                            |> Emptiable.mapFlat (elementCollisions keys elementAltered)
                 in
                 if (collisionsTree |> Tree2.size) >= 2 then
                     keysSet
@@ -824,14 +859,14 @@ and operate as you like
 
 -}
 elementAlterReplacingCollisions :
-    ( Keys element tags keys lastIndex
-    , keys -> Key element key (Up indexToLast_ To lastIndex)
+    ( Keys element keys lastIndex
+    , keys -> Key element by_ key (Up indexToLast_ To lastIndex)
     )
     -> key
     -> (element -> element)
     ->
-        (Emptiable (KeysSet element tags lastIndex) possiblyOrNever
-         -> Emptiable (KeysSet element tags lastIndex) possiblyOrNever
+        (Emptiable (KeysSet element keys lastIndex) possiblyOrNever
+         -> Emptiable (KeysSet element keys lastIndex) possiblyOrNever
         )
 elementAlterReplacingCollisions ( keys, key ) keyToAlter elementChange =
     \keysSet ->
@@ -863,13 +898,12 @@ in a given [`Direction`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-di
     import Char.Order
     import String.Order
 
-    nameAlphabetical : Keys String ( (), Order.By Map.Identity (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper))) (Key String String (Up N0 To N0)) N0
+    nameAlphabetical : Keys.Identity String (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper))
     nameAlphabetical =
-        Keys.for identity
-            |> Keys.by ( identity, Map.identity )
-                (String.Order.earlier
-                    (Char.Order.alphabetically Char.Order.lowerUpper)
-                )
+        Keys.identity
+            (String.Order.earlier
+                (Char.Order.alphabetically Char.Order.lowerUpper)
+            )
 
     KeysSet.fromStack nameAlphabetical
         (Stack.topBelow "Bob" [ "Alice" ])
@@ -888,11 +922,11 @@ Using `==` on [`KeysSet`](#KeysSet)s will be slower than [`toList`](#toList) if 
 
 -}
 toList :
-    ( Keys element tags keys lastIndex
-    , keys -> Key element key_ (Up indexToLast_ To lastIndex)
+    ( Keys element keys lastIndex
+    , keys -> Key element key_ by_ (Up indexToLast_ To lastIndex)
     )
     ->
-        (Emptiable (KeysSet element tags lastIndex) possiblyOrNever_
+        (Emptiable (KeysSet element keys lastIndex) possiblyOrNever_
          -> List element
         )
 toList ( keys, key ) =
@@ -924,13 +958,12 @@ in a given [`Direction`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-di
     import Keys exposing (Keys, Key)
     import KeysSet
 
-    nameAlphabetical : Keys String ( (), Order.By Map.Identity (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper))) (Key String String (Up N0 To N0)) N0
+    nameAlphabetical : Keys.Identity String (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper))
     nameAlphabetical =
-        Keys.for identity
-            |> Keys.by ( identity, Map.identity )
-                (String.Order.earlier
-                    (Char.Order.alphabetically Char.Order.lowerUpper)
-                )
+        Keys.identity
+            (String.Order.earlier
+                (Char.Order.alphabetically Char.Order.lowerUpper)
+            )
 
     KeysSet.fromStack nameAlphabetical
         (Stack.topBelow "Bob" [ "Alice" ])
@@ -974,11 +1007,11 @@ Use this to fold over its elements
 
 -}
 toStack :
-    ( Keys element tags keys lastIndex
-    , keys -> Key element key_ (Up indexToLast_ To lastIndex)
+    ( Keys element keys lastIndex
+    , keys -> Key element key_ by_ (Up indexToLast_ To lastIndex)
     )
     ->
-        (Emptiable (KeysSet element tags lastIndex) possiblyOrNever
+        (Emptiable (KeysSet element keys lastIndex) possiblyOrNever
          -> Emptiable (Stacked element) possiblyOrNever
         )
 toStack ( keys, key ) =
@@ -1002,10 +1035,10 @@ there's no promise of which element will be in the final mapped [`KeysSet`](#Key
 -}
 map :
     (element -> mappedElement)
-    -> Keys mappedElement mappedTags mappedKeys_ mappedLastIndex
+    -> Keys mappedElement mappedKeys mappedLastIndex
     ->
-        (Emptiable (KeysSet element tags_ lastIndex_) possiblyOrNever
-         -> Emptiable (KeysSet mappedElement mappedTags mappedLastIndex) possiblyOrNever
+        (Emptiable (KeysSet element keys_ lastIndex_) possiblyOrNever
+         -> Emptiable (KeysSet mappedElement mappedKeys mappedLastIndex) possiblyOrNever
         )
 map elementChange mappedKeys =
     \keysSet ->
@@ -1046,10 +1079,10 @@ there's no promise of which element will be in the final mapped [`KeysSet`](#Key
 -}
 mapTry :
     (element -> Emptiable mappedElement mappedElementPossiblyOrNever_)
-    -> Keys mappedElement mappedTags mappedKeys_ mappedLastIndex
+    -> Keys mappedElement mappedKeys mappedLastIndex
     ->
-        (Emptiable (KeysSet element tags_ lastIndex_) possiblyOrNever_
-         -> Emptiable (KeysSet mappedElement mappedTags mappedLastIndex) Possibly
+        (Emptiable (KeysSet element keys_ lastIndex_) possiblyOrNever_
+         -> Emptiable (KeysSet mappedElement mappedKeys mappedLastIndex) Possibly
         )
 mapTry elementChangeTry mappedKeys =
     \keysSet ->
@@ -1091,7 +1124,7 @@ then reducing what's accumulated
 fold :
     (element -> (element -> element))
     ->
-        (Emptiable (KeysSet element tags_ lastIndex_) Never
+        (Emptiable (KeysSet element keys_ lastIndex_) Never
          -> element
         )
 fold reduce =
@@ -1131,7 +1164,7 @@ foldFromOne :
     (element -> accumulated)
     -> (element -> (accumulated -> accumulated))
     ->
-        (Emptiable (KeysSet element tags_ lastIndex_) Never
+        (Emptiable (KeysSet element keys_ lastIndex_) Never
          -> accumulated
         )
 foldFromOne firstToInitial reduce =
@@ -1171,7 +1204,7 @@ foldFrom :
     accumulated
     -> (element -> (accumulated -> accumulated))
     ->
-        (Emptiable (KeysSet element tags_ lastIndex_) possiblyOrNever_
+        (Emptiable (KeysSet element keys_ lastIndex_) possiblyOrNever_
          -> accumulated
         )
 foldFrom initial reduce =
@@ -1191,11 +1224,11 @@ On key collision, keep the current [`KeysSet`](#KeysSet)'s element.
 
 -}
 unifyWith :
-    Keys element tags keys_ lastIndex
-    -> Emptiable (KeysSet element tags lastIndex) incomingPossiblyOrNever_
+    Keys element keys lastIndex
+    -> Emptiable (KeysSet element keys lastIndex) incomingPossiblyOrNever_
     ->
-        (Emptiable (KeysSet element tags lastIndex) possiblyOrNever
-         -> Emptiable (KeysSet element tags lastIndex) possiblyOrNever
+        (Emptiable (KeysSet element keys lastIndex) possiblyOrNever
+         -> Emptiable (KeysSet element keys lastIndex) possiblyOrNever
         )
 unifyWith orderKey toCombineWith =
     \keysSet ->
@@ -1209,13 +1242,13 @@ unifyWith orderKey toCombineWith =
 {-| Keep each element whose key also appears in a given [`KeysSet`](#KeysSet)
 -}
 intersect :
-    ( Keys element tags keys lastIndex
-    , keys -> Key element key_ (Up indexToLast_ To lastIndex)
+    ( Keys element keys lastIndex
+    , keys -> Key element key_ by_ (Up indexToLast_ To lastIndex)
     )
-    -> Emptiable (KeysSet element tags lastIndex) incomingPossiblyOrNever_
+    -> Emptiable (KeysSet element keys lastIndex) incomingPossiblyOrNever_
     ->
-        (Emptiable (KeysSet element tags lastIndex) possiblyOrNever_
-         -> Emptiable (KeysSet element tags lastIndex) Possibly
+        (Emptiable (KeysSet element keys lastIndex) possiblyOrNever_
+         -> Emptiable (KeysSet element keys lastIndex) Possibly
         )
 intersect ( keys, key ) toIntersectWith =
     \keysSet ->
@@ -1261,18 +1294,18 @@ intersect ( keys, key ) toIntersectWith =
 
 -}
 except :
-    ( Keys element tags keys lastIndex
-    , keys -> Key element key (Up indexToLast_ To lastIndex)
+    ( Keys element keys lastIndex
+    , keys -> Key element by_ key (Up indexToLast_ To lastIndex)
     )
     ->
-        ( ( Keys incomingElement incomingTags keys incomingLastIndex
-          , keys -> Key incomingElement key (Up incomingIndexToLast_ To incomingLastIndex)
+        ( ( Keys incomingElement incomingKeys incomingLastIndex
+          , incomingKeys -> Key incomingElement by_ key (Up incomingIndexToLast_ To incomingLastIndex)
           )
-        , Emptiable (KeysSet incomingElement incomingTags incomingLastIndex) incomingPossiblyOrNever_
+        , Emptiable (KeysSet incomingElement incomingKeys incomingLastIndex) incomingPossiblyOrNever_
         )
     ->
-        (Emptiable (KeysSet element tags lastIndex) possiblyOrNever_
-         -> Emptiable (KeysSet element tags lastIndex) Possibly
+        (Emptiable (KeysSet element keys lastIndex) possiblyOrNever_
+         -> Emptiable (KeysSet element keys lastIndex) Possibly
         )
 except ( keys, key ) ( ( toExcludeKeys, toExcludeKey ), toExclude ) =
     \keysSet ->
@@ -1320,22 +1353,22 @@ fold2From :
     ->
         ({ first :
             { key :
-                ( Keys firstElement firstTags firstKeys firstLastIndex
-                , firstKeys -> Key firstElement key (Up firstIndexToLastIndex_ To firstLastIndex)
+                ( Keys firstElement firstKeys firstLastIndex
+                , firstKeys -> Key firstElement by_ key (Up firstIndexToLastIndex_ To firstLastIndex)
                 )
             , set :
                 Emptiable
-                    (KeysSet firstElement firstTags firstLastIndex)
+                    (KeysSet firstElement firstKeys firstLastIndex)
                     firstPossiblyOrNever_
             }
          , second :
             { key :
-                ( Keys secondElement secondTags secondKeys secondLastIndex
-                , secondKeys -> Key secondElement key (Up secondIndexToLastIndex_ To secondLastIndex)
+                ( Keys secondElement secondKeys secondLastIndex
+                , secondKeys -> Key secondElement by_ key (Up secondIndexToLastIndex_ To secondLastIndex)
                 )
             , set :
                 Emptiable
-                    (KeysSet secondElement secondTags secondLastIndex)
+                    (KeysSet secondElement secondKeys secondLastIndex)
                     secondPossiblyOrNever_
             }
          }

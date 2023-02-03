@@ -1,4 +1,4 @@
-module Atom exposing (Atom, ByNumberOrSymbol, byNumberOrSymbol)
+module Atom exposing (Atom, Keys, keys)
 
 import Char.Order
 import Int.Order
@@ -10,16 +10,25 @@ import String.Order
 import Typed
 
 
-type alias ByNumberOrSymbol =
-    ( ( ()
-      , Order.By
-            Symbol
-            (String.Order.Earlier
-                (Char.Order.Alphabetically Char.Order.LowerUpper)
+type alias Keys =
+    { symbol :
+        Key
+            Atom
+            (Order.By
+                Symbol
+                (String.Order.Earlier
+                    (Char.Order.Alphabetically Char.Order.LowerUpper)
+                )
             )
-      )
-    , Order.By AtomicNumber Int.Order.Increasing
-    )
+            String
+            (Up N1 To N1)
+    , atomicNumber :
+        Key
+            Atom
+            (Order.By AtomicNumber Int.Order.Increasing)
+            Int
+            (Up N0 To N1)
+    }
 
 
 type alias Atom =
@@ -37,15 +46,8 @@ type AtomicNumber
     = AtomicNumber
 
 
-byNumberOrSymbol :
-    Keys
-        Atom
-        ByNumberOrSymbol
-        { symbol : Key Atom String (Up N1 To N1)
-        , atomicNumber : Key Atom Int (Up N0 To N1)
-        }
-        N1
-byNumberOrSymbol =
+keys : Keys.Keys Atom Keys N1
+keys =
     Keys.for
         (\symbol_ atomicNumber_ ->
             { symbol = symbol_, atomicNumber = atomicNumber_ }

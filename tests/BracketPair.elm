@@ -1,4 +1,4 @@
-module BracketPair exposing (BracketPair, ByOpenClosed, byOpenClosed)
+module BracketPair exposing (BracketPair, Keys, keys)
 
 import Char.Order
 import Keys
@@ -8,16 +8,26 @@ import Order
 import Typed
 
 
-type alias ByOpenClosed =
-    ( ( ()
-      , Order.By
-            Open
-            (Char.Order.Alphabetically Char.Order.LowerUpper)
-      )
-    , Order.By
-        Closed
-        (Char.Order.Alphabetically Char.Order.LowerUpper)
-    )
+type alias Keys =
+    { open :
+        Keys.Key
+            BracketPair
+            (Order.By
+                Open
+                (Char.Order.Alphabetically Char.Order.LowerUpper)
+            )
+            Char
+            (Up N1 To N1)
+    , closed :
+        Keys.Key
+            BracketPair
+            (Order.By
+                Closed
+                (Char.Order.Alphabetically Char.Order.LowerUpper)
+            )
+            Char
+            (Up N0 To N1)
+    }
 
 
 type alias BracketPair =
@@ -32,15 +42,12 @@ type Closed
     = Closed
 
 
-byOpenClosed :
+keys :
     Keys.Keys
         BracketPair
-        ByOpenClosed
-        { open : Keys.Key BracketPair Char (Up N1 To N1)
-        , closed : Keys.Key BracketPair Char (Up N0 To N1)
-        }
+        Keys
         N1
-byOpenClosed =
+keys =
     Keys.for (\open_ closed_ -> { open = open_, closed = closed_ })
         |> Keys.by ( .open, open )
             (Char.Order.alphabetically Char.Order.lowerUpper)

@@ -1,4 +1,4 @@
-module KeysSet.Internal exposing (elementCollisions, treeElement, treeExcept, treeInsertIfNoCollision, treeRemove)
+module KeysSet.Internal exposing (treeElement, treeExcept, treeInsertIfNoCollision, treeRemove)
 
 import ArraySized exposing (ArraySized)
 import Emptiable exposing (Emptiable(..), filled)
@@ -8,55 +8,6 @@ import N exposing (Add1, Exactly)
 import Possibly exposing (Possibly(..))
 import Tree2
 import Typed exposing (Checked, Public, Typed)
-
-
-type alias KeysSet element tag lastKeyIndex =
-    Typed
-        Checked
-        tag
-        Public
-        { size : Int
-        , byKeys :
-            ArraySized
-                (Tree2.Branch element)
-                (Exactly (Add1 lastKeyIndex))
-        }
-
-
-elementCollisions :
-    Keys element tags_ keys_ lastKeyIndex
-    -> element
-    ->
-        (KeysSet element tag_ lastKeyIndex
-         -> Emptiable (Tree2.Branch element) Possibly
-        )
-elementCollisions keys toCollideWith =
-    \keysSet ->
-        keysSet
-            |> Typed.untag
-            |> .byKeys
-            |> ArraySized.and
-                (keys
-                    |> Keys.toArray
-                    |> Typed.untag
-                    |> ArraySized.inToNumber
-                )
-            |> ArraySized.foldFrom Emptiable.empty
-                Down
-                (\( branch, key ) soFar ->
-                    soFar
-                        |> (case
-                                branch
-                                    |> filled
-                                    |> treeElement (\el -> ( toCollideWith, el ) |> key)
-                            of
-                                Emptiable.Empty _ ->
-                                    identity
-
-                                Emptiable.Filled collision ->
-                                    treeInsertIfNoCollision key collision
-                           )
-                )
 
 
 {-| The argument should tell where to search further

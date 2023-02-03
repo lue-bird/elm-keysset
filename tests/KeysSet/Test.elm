@@ -89,16 +89,16 @@ treeToString =
 
 validate :
     String
-    -> Keys element tags keys_ lastKeyIndex
+    -> Keys element keys lastKeyIndex
     ->
-        (Emptiable (KeysSet element tags lastKeyIndex) Possibly
+        (Emptiable (KeysSet element keys lastKeyIndex) Possibly
          -> Result String ()
         )
 validate context keys =
     \keysSet ->
         let
             keysArray =
-                keys |> Keys.toArray |> Typed.untag
+                keys |> Keys.toArray
         in
         keysArray
             |> ArraySized.and
@@ -268,22 +268,22 @@ fromListSuite =
         [ test "hardcoded"
             (\() ->
                 KeysSet.fromList
-                    BracketPair.byOpenClosed
+                    BracketPair.keys
                     [ { open = 'b', closed = 'B' }
                     , { open = 'a', closed = 'A' }
                     , { open = 'b', closed = 'C' }
                     , { open = 'c', closed = 'A' }
                     , { open = 'c', closed = 'C' }
                     ]
-                    |> KeysSet.toList ( BracketPair.byOpenClosed, .open )
+                    |> KeysSet.toList ( BracketPair.keys, .open )
                     |> Expect.equalLists
                         (KeysSet.fromList
-                            BracketPair.byOpenClosed
+                            BracketPair.keys
                             [ { open = 'b', closed = 'B' }
                             , { open = 'a', closed = 'A' }
                             , { open = 'c', closed = 'C' }
                             ]
-                            |> KeysSet.toList ( BracketPair.byOpenClosed, .open )
+                            |> KeysSet.toList ( BracketPair.keys, .open )
                         )
             )
         , fuzz (Fuzz.list Character.fuzz)
@@ -532,12 +532,12 @@ removeSuite : Test
 removeSuite =
     let
         openClosedBrackets =
-            KeysSet.one BracketPair.byOpenClosed
+            KeysSet.one BracketPair.keys
                 { open = '(', closed = ')' }
     in
     describe "remove"
         [ let
-            ab : Emptiable (KeysSet Character Character.ByIdOrChar N1) Possibly
+            ab : Emptiable (KeysSet Character Character.Keys N1) Possibly
             ab =
                 KeysSet.fromList
                     Character.keys
@@ -557,15 +557,15 @@ removeSuite =
         , test "hardcoded nothing to remove"
             (\() ->
                 openClosedBrackets
-                    |> KeysSet.remove ( BracketPair.byOpenClosed, .open ) ')'
+                    |> KeysSet.remove ( BracketPair.keys, .open ) ')'
                     --> no change, .open is never ')'
                     |> Expect.equal openClosedBrackets
             )
         , test "hardcoded something to remove"
             (\() ->
                 openClosedBrackets
-                    |> KeysSet.remove ( BracketPair.byOpenClosed, .closed ) ')'
-                    |> KeysSet.toList ( BracketPair.byOpenClosed, .closed )
+                    |> KeysSet.remove ( BracketPair.keys, .closed ) ')'
+                    |> KeysSet.toList ( BracketPair.keys, .closed )
                     |> Expect.equalLists []
             )
         , fuzz Fuzz.int
@@ -1066,19 +1066,19 @@ elementSuite =
         , let
             casedLetters =
                 KeysSet.fromList
-                    BracketPair.byOpenClosed
+                    BracketPair.keys
                     [ { open = 'a', closed = 'A' }
                     , { open = 'b', closed = 'B' }
                     ]
 
             open char =
                 casedLetters
-                    |> KeysSet.element ( BracketPair.byOpenClosed, .closed ) char
+                    |> KeysSet.element ( BracketPair.keys, .closed ) char
                     |> Emptiable.map .open
 
             closed char =
                 casedLetters
-                    |> KeysSet.element ( BracketPair.byOpenClosed, .open ) char
+                    |> KeysSet.element ( BracketPair.keys, .open ) char
                     |> Emptiable.map .closed
           in
           test "fromList hardcoded"
@@ -1170,13 +1170,13 @@ endSuite =
             , test "hardcoded"
                 (\() ->
                     KeysSet.fromStack
-                        BracketPair.byOpenClosed
+                        BracketPair.keys
                         (Stack.topBelow
                             { open = 'a', closed = 'B' }
                             [ { open = 'b', closed = 'A' }
                             ]
                         )
-                        |> KeysSet.end ( BracketPair.byOpenClosed, .open ) Down
+                        |> KeysSet.end ( BracketPair.keys, .open ) Down
                         |> Expect.equal
                             { open = 'a', closed = 'B' }
                 )
@@ -1230,11 +1230,11 @@ toListSuite =
         , test "hardcoded fromList"
             (\() ->
                 KeysSet.fromList
-                    BracketPair.byOpenClosed
+                    BracketPair.keys
                     [ { open = 'a', closed = 'A' }
                     , { open = 'b', closed = 'B' }
                     ]
-                    |> KeysSet.toList ( BracketPair.byOpenClosed, .open )
+                    |> KeysSet.toList ( BracketPair.keys, .open )
                     |> Expect.equalLists
                         [ { open = 'a', closed = 'A' }
                         , { open = 'b', closed = 'B' }
@@ -1311,25 +1311,25 @@ readmeExamplesTest =
                 let
                     brackets :
                         Emptiable
-                            (KeysSet BracketPair BracketPair.ByOpenClosed N1)
+                            (KeysSet BracketPair BracketPair.Keys N1)
                             Possibly
                     brackets =
                         KeysSet.fromList
-                            BracketPair.byOpenClosed
+                            BracketPair.keys
                             [ { open = '(', closed = ')' }
                             , { open = '{', closed = '}' }
                             ]
 
                     typeChar char =
                         case
-                            brackets |> KeysSet.element ( BracketPair.byOpenClosed, .open ) char
+                            brackets |> KeysSet.element ( BracketPair.keys, .open ) char
                         of
                             Emptiable.Filled { closed } ->
                                 [ char, closed ] |> String.fromList
 
                             Emptiable.Empty _ ->
                                 case
-                                    brackets |> KeysSet.element ( BracketPair.byOpenClosed, .closed ) char
+                                    brackets |> KeysSet.element ( BracketPair.keys, .closed ) char
                                 of
                                     Emptiable.Filled { open } ->
                                         [ open, char ] |> String.fromList
@@ -1344,7 +1344,7 @@ readmeExamplesTest =
             (\() ->
                 let
                     lowerUppercaseLetters =
-                        KeysSet.fromList BracketPair.byOpenClosed
+                        KeysSet.fromList BracketPair.keys
                             [ { open = 'a', closed = 'A' }
                             , { open = 'b', closed = 'B' }
                             , { open = 'c', closed = 'C' }
@@ -1352,7 +1352,7 @@ readmeExamplesTest =
 
                     closedFor char =
                         lowerUppercaseLetters
-                            |> KeysSet.element ( BracketPair.byOpenClosed, .open ) char
+                            |> KeysSet.element ( BracketPair.keys, .open ) char
                             |> Emptiable.map .closed
                 in
                 [ 'c', 'a', 'x' ]
@@ -1364,7 +1364,7 @@ readmeExamplesTest =
             (\() ->
                 let
                     elements =
-                        KeysSet.fromList Atom.byNumberOrSymbol
+                        KeysSet.fromList Atom.keys
                             [ { symbol = "H", name = "Hydrogen", atomicNumber = 1 }
                             , { symbol = "He", name = "Helium", atomicNumber = 2 }
                             ]
@@ -1372,7 +1372,7 @@ readmeExamplesTest =
                     atomicNumberOfElementWithSymbol : String -> Emptiable Int Possibly
                     atomicNumberOfElementWithSymbol symbol =
                         elements
-                            |> KeysSet.element ( Atom.byNumberOrSymbol, .symbol ) symbol
+                            |> KeysSet.element ( Atom.keys, .symbol ) symbol
                             |> Emptiable.map .atomicNumber
                 in
                 [ atomicNumberOfElementWithSymbol "He"

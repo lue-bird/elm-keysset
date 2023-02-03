@@ -1,4 +1,4 @@
-module Character exposing (ByIdOrChar, Character, fuzz, keys)
+module Character exposing (Character, Keys, fuzz, keys)
 
 import Char.Order
 import Fuzz exposing (Fuzzer)
@@ -16,12 +16,10 @@ type alias Character =
     }
 
 
-type alias ByIdOrChar =
-    ( ( ()
-      , Order.By Id Int.Order.Increasing
-      )
-    , Order.By CharTag (Char.Order.Alphabetically Char.Order.LowerUpper)
-    )
+type alias Keys =
+    { id : Keys.Key Character (Order.By Id Int.Order.Increasing) Int (Up N1 To N1)
+    , char : Keys.Key Character (Order.By CharTag (Char.Order.Alphabetically Char.Order.LowerUpper)) Char (Up N0 To N1)
+    }
 
 
 type Id
@@ -33,12 +31,9 @@ type CharTag
 
 
 keys :
-    Keys
+    Keys.Keys
         Character
-        ByIdOrChar
-        { id : Keys.Key Character Int (Up N1 To N1)
-        , char : Keys.Key Character Char (Up N0 To N1)
-        }
+        Keys
         N1
 keys =
     Keys.for (\id_ char_ -> { id = id_, char = char_ })
