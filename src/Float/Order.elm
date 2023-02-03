@@ -1,8 +1,8 @@
-module Float.Order exposing (increasing, decreasing)
+module Float.Order exposing (increasing, Increasing, decreasing)
 
 {-| `Order` `Float`s
 
-@docs increasing, decreasing
+@docs increasing, Increasing, decreasing
 
 -}
 
