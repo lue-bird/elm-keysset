@@ -1,5 +1,6 @@
 module Keys exposing
     ( Keys, KeysTag
+    , identity, Identity
     , for, KeysBeingBuilt
     , by
     , Key
@@ -23,6 +24,7 @@ You can just ignore the `Typed` thing but if you're curious → [`typed-value`](
 
 ## create
 
+@docs identity, Identity
 @docs for, KeysBeingBuilt
 @docs by
 
@@ -41,7 +43,7 @@ You can just ignore the `Typed` thing but if you're curious → [`typed-value`](
 
 import ArraySized exposing (ArraySized)
 import Map exposing (Mapping)
-import N exposing (Add1, Exactly, N, On, To, Up, Up0, n0, n1)
+import N exposing (Add1, Exactly, N, N0, On, To, Up, Up0, n0, n1)
 import Order exposing (Ordering)
 import Typed exposing (Checked, Internal, Public, Tagged, Typed)
 
@@ -180,6 +182,56 @@ for keysConstructor =
     }
         |> Typed.tag ()
         |> Typed.tag Keys
+
+
+{-| Ordering by the element itself.
+
+Short for
+
+    Keys.identity order =
+        for identity |> by ( identity, Map.identity ) order
+
+in [`KeysSet`](KeysSet#KeysSet)
+
+    import Map
+    import Order
+    import Int.Order
+    import N exposing (Up, To, N0)
+    import KeysSet
+
+    intIncreasing : Keys.Identity Int Int.Order.Increasing
+    intIncreasing =
+        Keys.identity Int.Order.increasing
+
+    KeysSet.fromList intIncreasing [ -1, 5, 5, 8, 7 ]
+        |> KeysSet.toList ( intIncreasing, Basics.identity )
+    --> [ -1, 5, 7, 8 ]
+
+-}
+identity : Ordering element elementOrderTag -> Identity element elementOrderTag
+identity order =
+    for Basics.identity |> by ( Basics.identity, Map.identity ) order
+
+
+{-| Resulting type of [`Keys.identity`](#identity).
+
+    import Map
+    import Order
+    import Float.Order
+    import N exposing (Up, To, N0)
+    import KeysSet
+
+    floatIncreasing : Keys.Identity Float Float.Order.Increasing
+    floatIncreasing =
+        Keys.identity Float.Order.increasing
+
+    KeysSet.fromList floatIncreasing [ -1.1, 5, 5, 8.7, 7.8 ]
+        |> KeysSet.toList ( floatIncreasing, Basics.identity )
+    --> [ -1.1, 5, 7.8, 8.7 ]
+
+-}
+type alias Identity element elementOrderTag =
+    Keys element ( (), Order.By Map.Identity elementOrderTag ) (Key element element (Up N0 To N0)) N0
 
 
 {-| Add a key
