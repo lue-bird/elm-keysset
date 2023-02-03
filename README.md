@@ -1,10 +1,6 @@
-> lookups with arbitrary keys
+> safe lookup for multiple arbitrary keys, log n
 
-  - 🗃️ [`KeysSet`](#KeysSet) multiple arbitrary keys, `log n` runtime
-  - 🔭 [future ideas](#future-ideas)
-
-
-# `KeySet`
+# 🗃️ `KeysSet`
 
 Holds no functions.
 Still, the [`Keys`](Keys#Keys)
@@ -18,10 +14,10 @@ alongside other [goodies](#goodies)
 ```elm
 import Emptiable exposing (Emptiable)
 import Stack
-import KeySet exposing (KeySet)
+import KeysSet exposing (KeysSet)
 import User exposing (User(..))
 
-users : Emptiable (KeySet User User.ByEmailHostFirst) neverEmpty_
+users : Emptiable (KeysSet User User.ByEmailHostFirst) neverEmpty_
 users =
     KeySet.fromStack User.byEmailHostFirst
         (Stack.topBelow
@@ -175,8 +171,8 @@ for example separating [`Ordering`](Order#Ordering)s from data to each their own
       - 👎 relies on `comparable`
       - 👎 everyone can tag without the tag name so only security by a bit more obscurity
 
-# `KeysSet`
-> look up elements by their unique aspects
+## more examples!
+Look up elements by their unique aspects
 
 For a `KeysSet` with some elements
 ```elm
@@ -185,23 +181,22 @@ For a `KeysSet` with some elements
 { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 ```
 
-you can specify aspects that will be unique across all elements
+you can specify aspects that will be unique across all elements TODO
 ```elm
-KeysSet.promising
-    [ unique .flag, unique .code ]
+keys =
+    Keys.for (\flag code -> { flag = flag, code = code })
+        |> Keys.by ( .flag, flag ) String.Order.earlier Char.Order.
+        |> Keys.by ( .code, code ) String.Order.earlier Char.Order.
 ```
 
 With a key and an aspect to check for matches, you can find the matching element:
 ```elm
-|> KeysSet.element ( .flag, "🇦🇶" )
+|> KeysSet.element ( keys, .flag ) "🇦🇶"
 --→ Just { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
 
-|> KeysSet.element ( .code, "LB" )
+|> KeysSet.element ( keys, .code ) "LB"
 --→ Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 ```
-
-&nbsp;
-
 
 ## 👍 How to
 

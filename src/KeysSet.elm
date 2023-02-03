@@ -3,7 +3,9 @@ module KeysSet exposing
     , one
     , fromStack, fromList
     , size, element, end
-    , insert, PreferenceOnCollisions(..), remove, elementAlter
+    , insertIfNoCollision, insertReplacingCollisions
+    , remove
+    , elementAlterIfNoCollision, elementAlterReplacingCollisions
     , map, mapTry
     , unifyWith, except, intersect
     , fold2From, FirstAndOrSecond(..)
@@ -31,7 +33,9 @@ module KeysSet exposing
 
 ## alter
 
-@docs insert, PreferenceOnCollisions, remove, elementAlter
+@docs insertIfNoCollision, insertReplacingCollisions
+@docs remove
+@docs elementAlterIfNoCollision, elementAlterReplacingCollisions
 @docs map, mapTry
 
 
@@ -183,7 +187,7 @@ fromList keys =
             |> List.Linear.foldFrom Emptiable.empty
                 Up
                 (\toInsert soFar ->
-                    soFar |> insert IfNoCollision keys toInsert
+                    soFar |> insertIfNoCollision keys toInsert
                 )
 
 
@@ -215,7 +219,7 @@ fromStack keys =
                             (\a -> a |> one keys)
                             Up
                             (\toInsert soFar ->
-                                soFar |> insert IfNoCollision keys toInsert
+                                soFar |> insertIfNoCollision keys toInsert
                             )
                 )
 
@@ -487,75 +491,36 @@ fillInsertOnNoCollision keys toInsert =
             |> filled
 
 
-{-| Strategy for dealing with the case the the element
-you wanted to have in the [`KeysSet`](#KeysSet)
-already has elements with a matching key.
-
-  - `ReplaceCollisions`: remove all elements with a matching key.
-    The element you wanted to have in the [`KeysSet`](#KeysSet) can now be there!
-  - `IfNoCollision`: leave the [`KeysSet`](#KeysSet) as it was before,
-    don't remove collisions.
-    The element you wanted to have in the [`KeysSet`](#KeysSet) won't be there!
-
-Used in [`insert`](#insert) and [`alter`](#alter)
-
--}
-type PreferenceOnCollisions
-    = ReplaceCollisions
-    | IfNoCollision
-
-
-{-| Insert a given element,
-specifying what to do when there is a key collision
-
-
-### keep collisions instead
+{-| Insert a given element.
+If the element you wanted to insert already has elements with a matching key (collisions),
+keep the existing collision elements instead.
+To replace collisions instead → [`insertReplacingCollisions`](#insertReplacingCollisions)
 
     import BracketPair
     import Emptiable
 
     Emptiable.empty
-        |> KeysSet.insert IfNoCollision
+        |> KeysSet.insertIfNoCollision
             BracketPair.byOpenClosed
             { open = 'b', closed = 'C' }
-        |> KeysSet.insert IfNoCollision
+        |> KeysSet.insertIfNoCollision
             BracketPair.byOpenClosed
             { open = 'c', closed = 'A' }
-        |> KeysSet.insert IfNoCollision
+        |> KeysSet.insertIfNoCollision
             BracketPair.byOpenClosed
             { open = 'c', closed = 'C' }
         |> KeysSet.toList ( BracketPair.byOpenClosed, .open )
     --> [ { open = 'b', closed = 'C' }, { open = 'c', closed = 'A' } ]
 
-
-### replace collisions
-
-    import BracketPair
-    import Emptiable
-
-    Emptiable.empty
-        |> KeysSet.insert ReplaceCollisions
-            BracketPair.byOpenClosed
-            { open = 'b', closed = 'C' }
-        |> KeysSet.insert ReplaceCollisions
-            BracketPair.byOpenClosed
-            { open = 'c', closed = 'A' }
-        |> KeysSet.insert ReplaceCollisions
-            BracketPair.byOpenClosed
-            { open = 'c', closed = 'C' }
-        |> KeysSet.toList ( BracketPair.byOpenClosed, .open )
-    --> [ { open = 'c', closed = 'C' } ]
-
 -}
-insert :
-    PreferenceOnCollisions
-    -> Keys element tags keys_ lastIndex
+insertIfNoCollision :
+    Keys element tags keys_ lastIndex
     -> element
     ->
         (Emptiable (KeysSet element tags lastIndex) possiblyOrNever_
          -> Emptiable (KeysSet element tags lastIndex) never_
         )
-insert onCollisions keys toInsertOrReplacement =
+insertIfNoCollision keys toInsertOrReplacement =
     \keysSet ->
         case keysSet of
             Emptiable.Empty _ ->
@@ -572,43 +537,87 @@ insert onCollisions keys toInsertOrReplacement =
                         keysSetFill |> fillInsertOnNoCollision keys toInsertOrReplacement
 
                     Emptiable.Filled collisionsTreeFilled ->
-                        case onCollisions of
-                            IfNoCollision ->
-                                keysSetFill |> filled
+                        keysSetFill |> filled
 
-                            ReplaceCollisions ->
-                                case
-                                    keysSetFill
-                                        |> filled
-                                        |> exceptTree keys collisionsTreeFilled
-                                of
-                                    Emptiable.Empty _ ->
-                                        toInsertOrReplacement |> one keys
 
-                                    Emptiable.Filled keySetFill ->
-                                        keySetFill
-                                            |> Typed.map
-                                                (\info ->
-                                                    { size = info.size + 1
-                                                    , byKeys =
-                                                        info.byKeys
-                                                            |> ArraySized.and
-                                                                (keys
-                                                                    |> Keys.toArray
-                                                                    |> Typed.untag
-                                                                    |> ArraySized.inToNumber
-                                                                )
-                                                            |> ArraySized.map
-                                                                (\( branchToAlter, branchOrder ) ->
-                                                                    branchToAlter
-                                                                        |> filled
-                                                                        |> KeysSet.Internal.treeInsertIfNoCollision branchOrder toInsertOrReplacement
-                                                                        |> fill
-                                                                )
-                                                    }
-                                                )
-                                            |> Typed.wrapToChecked KeysSet
-                                            |> filled
+{-| Insert a given element.
+If the element you wanted to insert already has elements with a matching key (collisions),
+replace all collisions.
+To keep collisions instead → [`insertIfNoCollision`](#insertIfNoCollision)
+
+    import BracketPair
+    import Emptiable
+
+    Emptiable.empty
+        |> KeysSet.insertReplacingCollisions
+            BracketPair.byOpenClosed
+            { open = 'b', closed = 'C' }
+        |> KeysSet.insertReplacingCollisions
+            BracketPair.byOpenClosed
+            { open = 'c', closed = 'A' }
+        |> KeysSet.insertReplacingCollisions
+            BracketPair.byOpenClosed
+            { open = 'c', closed = 'C' }
+        |> KeysSet.toList ( BracketPair.byOpenClosed, .open )
+    --> [ { open = 'c', closed = 'C' } ]
+
+-}
+insertReplacingCollisions :
+    Keys element tags keys_ lastIndex
+    -> element
+    ->
+        (Emptiable (KeysSet element tags lastIndex) possiblyOrNever_
+         -> Emptiable (KeysSet element tags lastIndex) never_
+        )
+insertReplacingCollisions keys toInsertOrReplacement =
+    \keysSet ->
+        case keysSet of
+            Emptiable.Empty _ ->
+                toInsertOrReplacement |> one keys
+
+            Emptiable.Filled keysSetFill ->
+                let
+                    collisions =
+                        keysSetFill
+                            |> KeysSet.Internal.elementCollisions keys toInsertOrReplacement
+                in
+                case collisions |> Emptiable.map filled of
+                    Emptiable.Empty _ ->
+                        keysSetFill |> fillInsertOnNoCollision keys toInsertOrReplacement
+
+                    Emptiable.Filled collisionsTreeFilled ->
+                        case
+                            keysSetFill
+                                |> filled
+                                |> exceptTree keys collisionsTreeFilled
+                        of
+                            Emptiable.Empty _ ->
+                                toInsertOrReplacement |> one keys
+
+                            Emptiable.Filled keySetFill ->
+                                keySetFill
+                                    |> Typed.map
+                                        (\info ->
+                                            { size = info.size + 1
+                                            , byKeys =
+                                                info.byKeys
+                                                    |> ArraySized.and
+                                                        (keys
+                                                            |> Keys.toArray
+                                                            |> Typed.untag
+                                                            |> ArraySized.inToNumber
+                                                        )
+                                                    |> ArraySized.map
+                                                        (\( branchToAlter, branchOrder ) ->
+                                                            branchToAlter
+                                                                |> filled
+                                                                |> KeysSet.Internal.treeInsertIfNoCollision branchOrder toInsertOrReplacement
+                                                                |> fill
+                                                        )
+                                            }
+                                        )
+                                    |> Typed.wrapToChecked KeysSet
+                                    |> filled
 
 
 exceptTree :
@@ -653,7 +662,18 @@ exceptTree keys exceptions =
 {-| Remove its element whose key matches the given one.
 If the key is not found, no changes are made
 
-TODO example
+    import Character
+
+    KeysSet.fromList Character.keys
+        [ { id = 0, char = 'A' }
+        , { id = 1, char = 'B' }
+        ]
+        |> KeysSet.insertIfNoCollision Character.keys { id = 2, char = 'C' }
+        |> KeysSet.remove ( Character.keys, .id ) 2
+        |> KeysSet.toList ( Character.keys, .id )
+    --> [ { id = 0, char = 'A' }
+    --> , { id = 1, char = 'B' }
+    --> ]
 
 -}
 remove :
@@ -712,21 +732,18 @@ remove ( keys, key ) keyToRemove =
 
 
 {-| Change the element with a given key in a given way
-
-
-### IfNoCollision
+Only actually alter the element if the result doesn't have existing elements with a matching key (collisions).
+To replace collisions with the result instead → [`elementAlterReplacingCollisions`](#elementAlterReplacingCollisions)
 
     import Character
 
     KeysSet.fromList Character.keys
         [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
-        |> KeysSet.elementAlter IfNoCollision
-            ( Character.keys, .id )
+        |> KeysSet.elementAlterIfNoCollision ( Character.keys, .id )
             1
             (\c -> { c | char = 'C' })
             -- gets changed
-        |> KeysSet.elementAlter IfNoCollision
-            ( Character.keys, .id )
+        |> KeysSet.elementAlterIfNoCollision ( Character.keys, .id )
             1
             (\c -> { c | id = 0 })
             -- doesn't get changed
@@ -734,25 +751,89 @@ remove ( keys, key ) keyToRemove =
         --> [ { id = 0, char = 'A' }, { id = 1, char = 'C' } ]
 
 If you want to sometimes [`remove`](#remove)
-or [`insert`](#insert) a new value on empty for example,
+or [insert](#insertIfNoCollision) a new value on empty for example,
 first ask for the [`element`](#element) with the same key, then
 match the [`Emptiable`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/Emptiable)
 and operate as you like
 
 -}
-elementAlter :
-    PreferenceOnCollisions
-    ->
-        ( Keys element tags keys lastIndex
-        , keys -> Key element key (Up indexToLast_ To lastIndex)
-        )
+elementAlterIfNoCollision :
+    ( Keys element tags keys lastIndex
+    , keys -> Key element key (Up indexToLast_ To lastIndex)
+    )
     -> key
     -> (element -> element)
     ->
         (Emptiable (KeysSet element tags lastIndex) possiblyOrNever
          -> Emptiable (KeysSet element tags lastIndex) possiblyOrNever
         )
-elementAlter preferenceOnCollisions ( keys, key ) keyToAlter elementChange =
+elementAlterIfNoCollision ( keys, key ) keyToAlter elementChange =
+    \keysSet ->
+        case keysSet |> element ( keys, key ) keyToAlter of
+            Emptiable.Empty _ ->
+                keysSet
+
+            Emptiable.Filled elementToAlter ->
+                let
+                    elementAltered : element
+                    elementAltered =
+                        elementToAlter |> elementChange
+
+                    collisionsTree : Emptiable (Tree2.Branch element) Possibly
+                    collisionsTree =
+                        keysSet
+                            |> Emptiable.emptyAdapt (\_ -> Possible)
+                            |> Emptiable.mapFlat (KeysSet.Internal.elementCollisions keys elementAltered)
+                in
+                if (collisionsTree |> Tree2.size) >= 2 then
+                    keysSet
+
+                else
+                    case keysSet |> remove ( keys, key ) keyToAlter of
+                        Emptiable.Empty _ ->
+                            one keys elementAltered
+
+                        Emptiable.Filled removed ->
+                            removed |> fillInsertOnNoCollision keys elementAltered
+
+
+{-| Change the element with a given key in a given way
+If the result has existing elements with a matching key (collisions), replace them.
+To not alter the element if there are collisions with the result instead → [`elementAlterIfNoCollision`](#elementAlterIfNoCollision)
+
+    import Character
+
+    KeysSet.fromList Character.keys
+        [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
+        |> KeysSet.elementAlterIfNoCollision ( Character.keys, .id )
+            1
+            (\c -> { c | char = 'C' })
+            -- gets changed
+        |> KeysSet.elementAlterIfNoCollision ( Character.keys, .id )
+            1
+            (\c -> { c | id = 0 })
+            -- doesn't get changed
+        |> KeysSet.toList ( Character.keys, .id )
+        --> [ { id = 0, char = 'A' }, { id = 1, char = 'C' } ]
+
+If you want to sometimes [`remove`](#remove)
+or [insert](#insertIfNoCollision) a new value on empty for example,
+first ask for the [`element`](#element) with the same key, then
+match the [`Emptiable`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/Emptiable)
+and operate as you like
+
+-}
+elementAlterReplacingCollisions :
+    ( Keys element tags keys lastIndex
+    , keys -> Key element key (Up indexToLast_ To lastIndex)
+    )
+    -> key
+    -> (element -> element)
+    ->
+        (Emptiable (KeysSet element tags lastIndex) possiblyOrNever
+         -> Emptiable (KeysSet element tags lastIndex) possiblyOrNever
+        )
+elementAlterReplacingCollisions ( keys, key ) keyToAlter elementChange =
     \keysSet ->
         case keysSet |> element ( keys, key ) keyToAlter of
             Emptiable.Empty _ ->
@@ -764,30 +845,9 @@ elementAlter preferenceOnCollisions ( keys, key ) keyToAlter elementChange =
                     elementAltered =
                         elementToAlter |> elementChange
                 in
-                case preferenceOnCollisions of
-                    ReplaceCollisions ->
-                        keysSet
-                            |> remove ( keys, key ) keyToAlter
-                            |> insert ReplaceCollisions keys elementAltered
-
-                    IfNoCollision ->
-                        let
-                            collisionsTree : Emptiable (Tree2.Branch element) Possibly
-                            collisionsTree =
-                                keysSet
-                                    |> Emptiable.emptyAdapt (\_ -> Possible)
-                                    |> Emptiable.mapFlat (KeysSet.Internal.elementCollisions keys elementAltered)
-                        in
-                        if (collisionsTree |> Tree2.size) >= 2 then
-                            keysSet
-
-                        else
-                            case keysSet |> remove ( keys, key ) keyToAlter of
-                                Emptiable.Empty _ ->
-                                    one keys elementAltered
-
-                                Emptiable.Filled removed ->
-                                    removed |> fillInsertOnNoCollision keys elementAltered
+                keysSet
+                    |> remove ( keys, key ) keyToAlter
+                    |> insertReplacingCollisions keys elementAltered
 
 
 {-| Convert to a `List` sorted by keys
@@ -957,7 +1017,7 @@ map elementChange mappedKeys =
                         |> foldFromOne
                             (\a -> a |> elementChange |> one mappedKeys)
                             (\element_ soFar ->
-                                soFar |> insert IfNoCollision mappedKeys (element_ |> elementChange)
+                                soFar |> insertIfNoCollision mappedKeys (element_ |> elementChange)
                             )
                 )
 
@@ -1003,7 +1063,7 @@ mapTry elementChangeTry mappedKeys =
                         Filled elementMapped ->
                             \soFar ->
                                 soFar
-                                    |> insert IfNoCollision mappedKeys elementMapped
+                                    |> insertIfNoCollision mappedKeys elementMapped
                 )
 
 
@@ -1142,7 +1202,7 @@ unifyWith orderKey toCombineWith =
         toCombineWith
             |> foldFrom keysSet
                 (\upElement soFar ->
-                    soFar |> insert IfNoCollision orderKey upElement
+                    soFar |> insertIfNoCollision orderKey upElement
                 )
 
 
@@ -1176,17 +1236,45 @@ intersect ( keys, key ) toIntersectWith =
 
 
 {-| Keep only those elements whose keys don't appear in the given [`KeysSet`](#KeysSet)
+
+    import Character
+
+    KeysSet.fromList Character.keys
+        [ { id = 0, char = 'A' }
+        , { id = 1, char = 'B' }
+        , { id = 2, char = 'c' }
+        , { id = 3, char = 'd' }
+        ]
+        |> KeysSet.except ( Character.keys, .id )
+            ( ( Character.keys, .id )
+            , KeysSet.fromList Character.keys
+                [ { id = 2, char = 'c' }
+                , { id = 3, char = 'd' }
+                , { id = 4, char = 'e' }
+                , { id = 5, char = 'f' }
+                ]
+            )
+        |> KeysSet.toList ( Character.keys, .id )
+    --> [ { id = 0, char = 'A' }
+    --> , { id = 1, char = 'B' }
+    --> ]
+
 -}
 except :
     ( Keys element tags keys lastIndex
-    , keys -> Key element key_ (Up indexToLast_ To lastIndex)
+    , keys -> Key element key (Up indexToLast_ To lastIndex)
     )
-    -> Emptiable (KeysSet element tags toExcludeLastIndex_) incomingPossiblyOrNever_
+    ->
+        ( ( Keys incomingElement incomingTags keys incomingLastIndex
+          , keys -> Key incomingElement key (Up incomingIndexToLast_ To incomingLastIndex)
+          )
+        , Emptiable (KeysSet incomingElement incomingTags incomingLastIndex) incomingPossiblyOrNever_
+        )
     ->
         (Emptiable (KeysSet element tags lastIndex) possiblyOrNever_
          -> Emptiable (KeysSet element tags lastIndex) Possibly
         )
-except ( keys, key ) toExclude =
+except ( keys, key ) ( ( toExcludeKeys, toExcludeKey ), toExclude ) =
     \keysSet ->
         toExclude
             |> foldFrom
@@ -1194,7 +1282,7 @@ except ( keys, key ) toExclude =
                 (\element_ diffSoFar ->
                     diffSoFar
                         |> remove ( keys, key )
-                            (element_ |> toKeyWith ( keys, key ))
+                            (element_ |> toKeyWith ( toExcludeKeys, toExcludeKey ))
                 )
 
 

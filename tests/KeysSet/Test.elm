@@ -8,7 +8,7 @@ import Emptiable exposing (Emptiable(..), filled)
 import Expect
 import Fuzz
 import Keys exposing (Keys)
-import KeysSet exposing (KeysSet, PreferenceOnCollisions(..))
+import KeysSet exposing (KeysSet)
 import Linear exposing (Direction(..))
 import List.Extra
 import List.Linear
@@ -325,8 +325,8 @@ insertSuite =
                 KeysSet.fromList
                     Character.keys
                     [ element0, element1 ]
-                    |> KeysSet.insert IfNoCollision Character.keys element0
-                    |> KeysSet.insert IfNoCollision Character.keys element1
+                    |> KeysSet.insertIfNoCollision Character.keys element0
+                    |> KeysSet.insertIfNoCollision Character.keys element1
                     |> KeysSet.toList ( Character.keys, .id )
                     |> Expect.equalLists
                         [ element0, element1 ]
@@ -339,17 +339,17 @@ insertSuite =
                         stack
                             |> Stack.foldFrom Emptiable.empty
                                 Up
-                                (KeysSet.insert IfNoCollision Character.keys)
+                                (KeysSet.insertIfNoCollision Character.keys)
                 in
                 initial
-                    |> KeysSet.insert IfNoCollision Character.keys (stack |> Stack.top)
+                    |> KeysSet.insertIfNoCollision Character.keys (stack |> Stack.top)
                     |> Expect.equal
                         initial
             )
         , test "hardcoded insert |> element works"
             (\() ->
                 Emptiable.empty
-                    |> KeysSet.insert IfNoCollision Character.keys element1
+                    |> KeysSet.insertIfNoCollision Character.keys element1
                     |> KeysSet.element ( Character.keys, .id ) element1.id
                     |> Emptiable.map .char
                     |> Expect.equal (filled element1.char)
@@ -357,14 +357,14 @@ insertSuite =
         , test "hardcoded element of absent element is empty by id"
             (\() ->
                 Emptiable.empty
-                    |> KeysSet.insert IfNoCollision Character.keys element1
+                    |> KeysSet.insertIfNoCollision Character.keys element1
                     |> KeysSet.element ( Character.keys, .id ) element0.id
                     |> Expect.equal Emptiable.empty
             )
         , test "hardcoded element of absent element 1 is empty by char"
             (\() ->
                 Emptiable.empty
-                    |> KeysSet.insert IfNoCollision Character.keys element1
+                    |> KeysSet.insertIfNoCollision Character.keys element1
                     |> KeysSet.element ( Character.keys, .char ) element1.char
                     |> Emptiable.map .id
                     |> Expect.equal (filled element1.id)
@@ -372,7 +372,7 @@ insertSuite =
         , test "hardcoded element of absent element 0 is empty by char"
             (\() ->
                 Emptiable.empty
-                    |> KeysSet.insert IfNoCollision Character.keys element1
+                    |> KeysSet.insertIfNoCollision Character.keys element1
                     |> KeysSet.element ( Character.keys, .char ) element0.char
                     |> Expect.equal Emptiable.empty
             )
@@ -380,7 +380,7 @@ insertSuite =
             "Emptiable.empty"
             (\element ->
                 Emptiable.empty
-                    |> KeysSet.insert IfNoCollision Character.keys element
+                    |> KeysSet.insertIfNoCollision Character.keys element
                     |> validate "insert IfNoCollision" Character.keys
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
@@ -388,7 +388,7 @@ insertSuite =
         , test "hardcoded validate to down"
             (\() ->
                 KeysSet.one Character.keys { id = 10, char = 'a' }
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 5, char = 'b' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 5, char = 'b' }
                     |> validate "insert IfNoCollision" Character.keys
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
@@ -396,8 +396,8 @@ insertSuite =
         , test "hardcoded validate to down down"
             (\() ->
                 KeysSet.one Character.keys { id = 10, char = 'a' }
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 5, char = 'b' }
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 2, char = 'c' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 5, char = 'b' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 2, char = 'c' }
                     |> validate "insert IfNoCollision" Character.keys
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
@@ -405,8 +405,8 @@ insertSuite =
         , test "hardcoded validate to down up"
             (\() ->
                 KeysSet.one Character.keys { id = 10, char = 'a' }
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 5, char = 'b' }
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 2, char = 'c' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 5, char = 'b' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 2, char = 'c' }
                     |> validate "insert IfNoCollision" Character.keys
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
@@ -414,7 +414,7 @@ insertSuite =
         , test "hardcoded validate to up"
             (\() ->
                 KeysSet.one Character.keys { id = 10, char = 'a' }
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 15, char = 'b' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 15, char = 'b' }
                     |> validate "insert IfNoCollision" Character.keys
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
@@ -422,8 +422,8 @@ insertSuite =
         , test "hardcoded validate to up down"
             (\() ->
                 KeysSet.one Character.keys { id = 10, char = 'a' }
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 15, char = 'b' }
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 12, char = 'c' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 15, char = 'b' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 12, char = 'c' }
                     |> validate "insert IfNoCollision" Character.keys
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
@@ -431,8 +431,8 @@ insertSuite =
         , test "hardcoded validate to up up"
             (\() ->
                 KeysSet.one Character.keys { id = 10, char = 'a' }
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 15, char = 'b' }
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 20, char = 'c' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 15, char = 'b' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 20, char = 'c' }
                     |> validate "insert IfNoCollision" Character.keys
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
@@ -446,7 +446,7 @@ insertSuite =
                             Result.andThen
                                 (\keysSet ->
                                     keysSet
-                                        |> KeysSet.insert IfNoCollision
+                                        |> KeysSet.insertIfNoCollision
                                             Character.keys
                                             { char = char, id = Char.toCode char }
                                         |> validate (char |> String.fromChar) Character.keys
@@ -468,7 +468,7 @@ insertSuite =
                             Result.andThen
                                 (\keysSet ->
                                     keysSet
-                                        |> KeysSet.insert IfNoCollision
+                                        |> KeysSet.insertIfNoCollision
                                             Character.keys
                                             { id = id
                                             , char = Char.fromCode (40 + ('A' |> Char.toCode) + id)
@@ -492,7 +492,7 @@ insertSuite =
                             Result.andThen
                                 (\keysSet ->
                                     keysSet
-                                        |> KeysSet.insert IfNoCollision
+                                        |> KeysSet.insertIfNoCollision
                                             Character.keys
                                             { id = id
                                             , char = Char.fromCode (40 + ('A' |> Char.toCode) + id)
@@ -515,7 +515,7 @@ insertSuite =
                             Result.andThen
                                 (\keysSet ->
                                     keysSet
-                                        |> KeysSet.insert IfNoCollision Character.keys character
+                                        |> KeysSet.insertIfNoCollision Character.keys character
                                         |> Emptiable.emptyAdapt (\_ -> Possible)
                                         |> validate ("char " ++ (character.char |> String.fromChar)) Character.keys
                                         |> Result.map (\() -> keysSet)
@@ -548,13 +548,11 @@ removeSuite =
           test "hardcoded insert |> remove id leaves it unchanged"
             (\() ->
                 ab
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 2, char = 'C' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 2, char = 'C' }
                     |> KeysSet.remove ( Character.keys, .id ) 2
                     |> KeysSet.toList ( Character.keys, .id )
                     |> Expect.equalLists
-                        (ab
-                            |> KeysSet.toList ( Character.keys, .id )
-                        )
+                        (ab |> KeysSet.toList ( Character.keys, .id ))
             )
         , test "hardcoded nothing to remove"
             (\() ->
@@ -665,8 +663,7 @@ elementAlterSuite =
                 (\() ->
                     KeysSet.fromList Character.keys
                         [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
-                        |> KeysSet.elementAlter IfNoCollision
-                            ( Character.keys, .id )
+                        |> KeysSet.elementAlterIfNoCollision ( Character.keys, .id )
                             1
                             (\c -> { c | char = 'C' })
                         |> KeysSet.toList ( Character.keys, .id )
@@ -677,8 +674,7 @@ elementAlterSuite =
                 (\() ->
                     KeysSet.fromList Character.keys
                         [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
-                        |> KeysSet.elementAlter IfNoCollision
-                            ( Character.keys, .id )
+                        |> KeysSet.elementAlterIfNoCollision ( Character.keys, .id )
                             1
                             (\c -> { c | id = 0 })
                         |> KeysSet.toList ( Character.keys, .id )
@@ -852,14 +848,19 @@ exceptSuite =
             (\() ->
                 Emptiable.empty
                     |> KeysSet.except ( Character.keys, .id )
-                        (KeysSet.one Character.keys { id = 0, char = 'A' })
+                        ( ( Character.keys, .id )
+                        , KeysSet.one Character.keys { id = 0, char = 'A' }
+                        )
                     |> KeysSet.toList ( Character.keys, .id )
                     |> Expect.equalLists []
             )
         , test "up is empty"
             (\() ->
                 KeysSet.one Character.keys { id = 0, char = 'A' }
-                    |> KeysSet.except ( Character.keys, .id ) Emptiable.empty
+                    |> KeysSet.except ( Character.keys, .id )
+                        ( ( Character.keys, .id )
+                        , Emptiable.empty
+                        )
                     |> KeysSet.toList ( Character.keys, .id )
                     |> Expect.equalLists [ { id = 0, char = 'A' } ]
             )
@@ -872,7 +873,8 @@ exceptSuite =
                     , { id = 3, char = 'd' }
                     ]
                     |> KeysSet.except ( Character.keys, .id )
-                        (KeysSet.fromList Character.keys
+                        ( ( Character.keys, .id )
+                        , KeysSet.fromList Character.keys
                             [ { id = 2, char = 'c' }
                             , { id = 3, char = 'd' }
                             , { id = 4, char = 'e' }
@@ -1208,13 +1210,13 @@ toListSuite =
         , test "hardcoded insert"
             (\() ->
                 Emptiable.empty
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 2, char = 'A' }
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 0, char = 'B' }
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 5, char = 'C' }
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 3, char = 'E' }
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 1, char = 'F' }
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 4, char = 'G' }
-                    |> KeysSet.insert IfNoCollision Character.keys { id = 3, char = 'B' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 2, char = 'A' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 0, char = 'B' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 5, char = 'C' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 3, char = 'E' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 1, char = 'F' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 4, char = 'G' }
+                    |> KeysSet.insertIfNoCollision Character.keys { id = 3, char = 'B' }
                     |> KeysSet.toList ( Character.keys, .id )
                     |> Expect.equalLists
                         [ { id = 0, char = 'B' }

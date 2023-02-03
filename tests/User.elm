@@ -3,7 +3,7 @@ module User exposing (ByEmail, User, byEmail)
 import Char.Order
 import Keys exposing (Keys)
 import Map exposing (Mapping)
-import N exposing (N0, N1, N2, To, Up, Up0, Up1)
+import N exposing (N0, To, Up)
 import Order
 import String.Order
 import Typed
@@ -28,11 +28,6 @@ type Email
     = Email
 
 
-email : Mapping User Email String
-email =
-    Typed.tag Email .email
-
-
 byEmail :
     Keys
         User
@@ -45,3 +40,8 @@ byEmail =
             (String.Order.earlier
                 (Char.Order.alphabetically Char.Order.lowerUpper)
             )
+
+
+email : Mapping User Email String
+email =
+    Typed.tag Email .email

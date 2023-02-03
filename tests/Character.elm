@@ -28,18 +28,8 @@ type Id
     = Id
 
 
-id : Mapping Character Id Int
-id =
-    Typed.tag Id .id
-
-
 type CharTag
     = CharTag
-
-
-char : Mapping Character CharTag Char
-char =
-    Typed.tag CharTag .char
 
 
 keys :
@@ -55,6 +45,16 @@ keys =
         |> Keys.by ( .id, id ) Int.Order.increasing
         |> Keys.by ( .char, char )
             (Char.Order.alphabetically Char.Order.lowerUpper)
+
+
+id : Mapping Character Id Int
+id =
+    Typed.tag Id .id
+
+
+char : Mapping Character CharTag Char
+char =
+    Typed.tag CharTag .char
 
 
 fuzz : Fuzzer Character

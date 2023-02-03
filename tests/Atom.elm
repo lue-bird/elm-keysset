@@ -4,7 +4,7 @@ import Char.Order
 import Int.Order
 import Keys exposing (Key, Keys)
 import Map exposing (Mapping)
-import N exposing (N0, N1, N2, To, Up, Up0, Up1, Up2)
+import N exposing (N0, N1, To, Up)
 import Order
 import String.Order
 import Typed
@@ -33,18 +33,8 @@ type Symbol
     = Symbol
 
 
-symbol : Mapping Atom Symbol String
-symbol =
-    Typed.tag Symbol .symbol
-
-
 type AtomicNumber
     = AtomicNumber
-
-
-atomicNumber : Mapping Atom AtomicNumber Int
-atomicNumber =
-    Typed.tag AtomicNumber .atomicNumber
 
 
 byNumberOrSymbol :
@@ -68,3 +58,13 @@ byNumberOrSymbol =
             )
         |> Keys.by ( .atomicNumber, atomicNumber )
             Int.Order.increasing
+
+
+symbol : Mapping Atom Symbol String
+symbol =
+    Typed.tag Symbol .symbol
+
+
+atomicNumber : Mapping Atom AtomicNumber Int
+atomicNumber =
+    Typed.tag AtomicNumber .atomicNumber

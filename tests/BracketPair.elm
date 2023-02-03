@@ -3,7 +3,7 @@ module BracketPair exposing (BracketPair, ByOpenClosed, byOpenClosed)
 import Char.Order
 import Keys
 import Map exposing (Mapping)
-import N exposing (N0, N1, N2, To, Up, Up0, Up1, Up2)
+import N exposing (N0, N1, To, Up)
 import Order
 import Typed
 
@@ -28,18 +28,8 @@ type Open
     = Open
 
 
-open : Mapping BracketPair Open Char
-open =
-    Typed.tag Open .open
-
-
 type Closed
     = Closed
-
-
-closed : Mapping BracketPair Closed Char
-closed =
-    Typed.tag Closed .closed
 
 
 byOpenClosed :
@@ -56,3 +46,13 @@ byOpenClosed =
             (Char.Order.alphabetically Char.Order.lowerUpper)
         |> Keys.by ( .closed, closed )
             (Char.Order.alphabetically Char.Order.lowerUpper)
+
+
+open : Mapping BracketPair Open Char
+open =
+    Typed.tag Open .open
+
+
+closed : Mapping BracketPair Closed Char
+closed =
+    Typed.tag Closed .closed

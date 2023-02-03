@@ -3,7 +3,7 @@ module KeysSet.Internal.Test exposing (suite)
 import Character exposing (Character)
 import Emptiable exposing (Emptiable, fill)
 import Expect
-import KeysSet exposing (KeysSet, PreferenceOnCollisions(..))
+import KeysSet exposing (KeysSet)
 import KeysSet.Internal
 import Linear exposing (Direction(..))
 import List.Linear
@@ -58,7 +58,7 @@ elementCollisionSuite =
             "finds inserted"
             (\element ->
                 Emptiable.empty
-                    |> KeysSet.insert ReplaceCollisions Character.keys element
+                    |> KeysSet.insertReplacingCollisions Character.keys element
                     |> fill
                     |> KeysSet.Internal.elementCollisions Character.keys element
                     |> Expect.equal
@@ -81,7 +81,7 @@ elementCollisionSuite =
                                 Emptiable.empty
                                 Up
                                 (\element ->
-                                    KeysSet.insert ReplaceCollisions Character.keys element
+                                    KeysSet.insertReplacingCollisions Character.keys element
                                 )
                 in
                 elements
