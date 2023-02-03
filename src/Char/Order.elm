@@ -75,7 +75,11 @@ type Case
 
 {-| Tag for [`alphabetically`](#alphabetically)
 -}
-type Alphabetically
+type alias Alphabetically caseOrder =
+    ( AlphabeticallyTag, caseOrder )
+
+
+type AlphabeticallyTag
     = Alphabetically
 
 
@@ -101,7 +105,7 @@ Order.with (Char.Order.alphabetically Char.Order.upperLower) '-' '!'
 ```
 
 -}
-alphabetically : Ordering Case charOrderTag -> Ordering Char ( Alphabetically, charOrderTag )
+alphabetically : Ordering Case charOrderTag -> Ordering Char (Alphabetically charOrderTag)
 alphabetically caseOrdering =
     Typed.mapToWrap Alphabetically
         (\caseOrder ( char0, char1 ) ->

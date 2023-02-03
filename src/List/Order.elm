@@ -1,8 +1,8 @@
-module List.Order exposing (greaterEarlier, GreaterEarlier)
+module List.Order exposing (earlier, Earlier)
 
 {-| `List` [`Ordering`](Order#Ordering)
 
-@docs greaterEarlier, GreaterEarlier
+@docs earlier, Earlier
 
 -}
 
@@ -10,29 +10,29 @@ import Order exposing (Ordering)
 import Typed
 
 
-{-| Tag for [`greaterEarlier`](#greaterEarlier)
+{-| Tag for [`earlier`](#earlier)
 -}
-type GreaterEarlier
-    = GreaterEarlier
+type Earlier
+    = Earlier
 
 
 {-| Order `List`s by elements first to last
 
+    import Order
     import Int.Order
+    import List.Order
 
-    List.Linear.greaterEarlier Int.Order.increasing
+    Order.with (List.Order.earlier Int.Order.increasing)
         [ 11, 22, 33, 188 ]
         [ 11, 22, 34 ]
     --> LT
 
-TODO rename to earlier?
-
 -}
-greaterEarlier :
+earlier :
     Ordering element elementTag
-    -> Ordering (List element) ( GreaterEarlier, elementTag )
-greaterEarlier elementOrdering =
-    Typed.mapToWrap GreaterEarlier
+    -> Ordering (List element) ( Earlier, elementTag )
+earlier elementOrdering =
+    Typed.mapToWrap Earlier
         (\elementOrder lists ->
             case lists of
                 ( [], [] ) ->
@@ -45,7 +45,7 @@ greaterEarlier elementOrdering =
                     GT
 
                 ( head0 :: tail0, head1 :: tail1 ) ->
-                    onEQ (\() -> Order.with (greaterEarlier elementOrdering) tail0 tail1)
+                    onEQ (\() -> Order.with (earlier elementOrdering) tail0 tail1)
                         (elementOrder ( head0, head1 ))
         )
         elementOrdering

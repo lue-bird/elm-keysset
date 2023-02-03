@@ -81,34 +81,39 @@ where
 
     module User exposing (ByName, User(..), byName)
 
+    import Char.Order
+    import Keys exposing (Key, Keys)
     import KeysSet
+    import Map exposing (Mapping)
     import Order
+    import String.Order
 
     type User
         = User { name : String, age : Int, height : Float }
 
-    type Data
-        = Data
+    type Name
+        = Name
 
-    data : Map User Data { name : String, age : Int, height : Float }
-    data =
-        Typed.tag Data (\(User userData) -> userData)
+    name : Mapping User Name String
+    name =
+        Typed.tag Data (\(User userData) -> userData.name)
 
     type alias ByName =
-        Order.By
-            (Map.Over UserData Record.Map.Name)
-            ( String.Order.GreaterEarlier
-            , ( Char.Order.Alphabetically, Char.Order.LowerUpper )
+        ( ()
+        , Order.By
+            Name
+            (String.Order.earlier
+                (Char.Order.Alphabetically Char.Order.LowerUpper)
             )
+        )
 
-    byName : Order.Key User String ByName
+    byName : Keys User ByName { name : Key User String (Up N0 To N0) } N0
     byName =
         Keys.for (\name -> { name = name })
             |> Keys.and .name
-                (Order.by data
-                    (String.Order.greaterEarlier
-                        (Char.Order.alphabetically Char.Order.lowerUpper)
-                    )
+                ( data
+                , String.Order.earlier
+                    (Char.Order.alphabetically Char.Order.lowerUpper)
                 )
 
   - [`element`](#element), [`end`](#end), [`insert`](#insert) versions, [`elementAlter`](#elementAlter) versions, [`remove`](#remove) are runtime `log n`
@@ -179,7 +184,7 @@ fromList keys =
             |> List.Linear.foldFrom Emptiable.empty
                 Up
                 (\toInsert soFar ->
-                    soFar |> insert PreferExisting keys toInsert
+                    soFar |> insert IfNoCollision keys toInsert
                 )
 
 
@@ -211,7 +216,7 @@ fromStack keys =
                             (\a -> a |> one keys)
                             Up
                             (\toInsert soFar ->
-                                soFar |> insert PreferExisting keys toInsert
+                                soFar |> insert IfNoCollision keys toInsert
                             )
                 )
 
@@ -219,7 +224,10 @@ fromStack keys =
 {-| Number of elements in the [`KeysSet`](#KeysSet).
 Runtime `1`
 
-    KeysSet.only "Hello"
+    import Atom
+
+    KeysSet.one Atom.byNumberOrSymbol
+        { name = "Helium", symbol = "He", atomicNumber = 2 }
         |> KeysSet.size
     --> 1
 
@@ -274,9 +282,14 @@ tree key =
 {-| Access the element associated with a given key.
 If no element with the given key is not present, `Emptiable.empty`
 
-    import Emptiable exposing (Emptiable, filled, Emptiable.map)
+    import Emptiable exposing (Emptiable, filled)
+    import Typed
     import Stack
+    import N exposing (Up, To, N0)
+    import Keys exposing (Keys, Key)
     import KeysSet exposing (KeysSet)
+    import Map exposing (Mapping)
+    import Order
     import Char.Order
     import String.Order
 
@@ -289,7 +302,10 @@ If no element with the given key is not present, `Emptiable.empty`
         = Mouse
         | Cat
 
-    animals : Emptiable (KeysSet Animal { byName : () }) never_
+    type alias ByName =
+        ( (), Order.By Name (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper)) )
+
+    animals : Emptiable (KeysSet Animal ByName N0) never_
     animals =
         KeysSet.fromStack animalByName
             (Stack.topBelow
@@ -298,23 +314,29 @@ If no element with the given key is not present, `Emptiable.empty`
                 ]
             )
 
-    -- should be opaque and should use an opaque tag
-    animalByName : Order.Key Animal String { byName : () }
-    animalByName =
-        Order.key .name
-            { tag = { byName = () }
-            , order =
-                String.Order.greaterEarlier
-                    (Char.Order.alphabetically Char.Order.lowerUpper)
-            }
+    type Name
+        = Name -- not exposed
 
-    animals |> KeysSet.element animalByName "Tom" |> Emptiable.map .kind
+    name : Mapping Animal Name String
+    name =
+        Typed.tag Name .name
+
+    animalByName : Keys Animal ByName { name : Key Animal String (Up N0 To N0) } N0
+    animalByName =
+        Keys.for (\name_ -> { name = name_ })
+            |> Keys.and .name
+                ( name
+                , String.Order.earlier
+                    (Char.Order.alphabetically Char.Order.lowerUpper)
+                )
+
+    animals |> KeysSet.element ( animalByName, .name ) "Tom" |> Emptiable.map .kind
     --> filled Cat
 
-    animals |> KeysSet.element animalByName "Jerry" |> Emptiable.map .kind
+    animals |> KeysSet.element ( animalByName, .name ) "Jerry" |> Emptiable.map .kind
     --> filled Mouse
 
-    animals |> KeysSet.element animalByName "Spike" |> Emptiable.map .kind
+    animals |> KeysSet.element ( animalByName, .name ) "Spike" |> Emptiable.map .kind
     --> Emptiable.empty
 
 -}
@@ -352,10 +374,15 @@ element ( keys, key ) keyToAccess =
 
     import Linear exposing (Direction(..))
     import Emptiable exposing (Emptiable)
+    import Typed
+    import N exposing (Up, To, N0)
     import Stack
     import KeysSet exposing (KeysSet)
+    import Map exposing (Mapping)
+    import Order
     import Char.Order
     import String.Order
+    import Keys exposing (Keys, Key)
 
 
     type alias User =
@@ -364,7 +391,10 @@ element ( keys, key ) keyToAccess =
         , height : Float
         }
 
-    users : Emptiable (KeysSet User { userByName : () }) never_
+    type alias ByName =
+        ( (), Order.By Name (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper)) )
+
+    users : Emptiable (KeysSet User ByName N0) never_
     users =
         KeysSet.fromStack userByName
             (Stack.topBelow
@@ -374,20 +404,26 @@ element ( keys, key ) keyToAccess =
                 ]
             )
 
-    -- tag should be opaque
-    userByName : Order.Key User String { userByName : () }
-    userByName =
-        Order.key .name
-            { tag = { userByName = () }
-            , order =
-                String.Order.greaterEarlier
-                    (Char.Order.alphabetically Char.Order.lowerUpper)
-            }
+    type Name
+        = Name -- not exposed
 
-    users |> KeysSet.end Down
+    name : Mapping User Name String
+    name =
+        Typed.tag Name .name
+
+    userByName : Keys User ByName { name : Key User String (Up N0 To N0) } N0
+    userByName =
+        Keys.for (\name_ -> { name = name_ })
+            |> Keys.and .name
+                ( name
+                , String.Order.earlier
+                    (Char.Order.alphabetically Char.Order.lowerUpper)
+                )
+
+    users |> KeysSet.end ( userByName, .name ) Down
     --> { name = "Alice", age = 28, height = 1.65 }
 
-    users |> KeysSet.end Up
+    users |> KeysSet.end ( userByName, .name ) Up
     --> { name = "Chuck", age = 33, height = 1.75 }
 
 Notice how we safely avoided returning a `Maybe`
@@ -396,7 +432,8 @@ through the use of [`Emptiable ... Never`](https://dark.elm.dmy.fr/packages/lue-
 If you don't know whether the [`KeysSet`](#KeysSet) will be empty
 
     users
-        |> Emptiable.map (\us -> us |> filled |> KeysSet.end Up)
+        |> Emptiable.map
+            (\us -> us |> filled |> KeysSet.end ( userByName, .name ) Up)
     --: Emptiable element Possibly
 
 -}
@@ -417,14 +454,14 @@ end ( keys, key ) direction =
             |> Tree2.end direction
 
 
-fillInsertOnNoCollisions :
+fillInsertOnNoCollision :
     Keys element tags keys_ lastIndex
     -> element
     ->
         (KeysSet element tags lastIndex
          -> Emptiable (KeysSet element tags lastIndex) never_
         )
-fillInsertOnNoCollisions keys toInsert =
+fillInsertOnNoCollision keys toInsert =
     let
         keyArray =
             keys
@@ -444,7 +481,7 @@ fillInsertOnNoCollisions keys toInsert =
                                 (\( branch, branchKey ) ->
                                     branch
                                         |> filled
-                                        |> KeysSet.Internal.treeInsert branchKey toInsert
+                                        |> KeysSet.Internal.treeInsertIfNoCollision branchKey toInsert
                                         |> fill
                                 )
                     }
@@ -457,9 +494,9 @@ fillInsertOnNoCollisions keys toInsert =
 you wanted to have in the [`KeysSet`](#KeysSet)
 already has elements with a matching key.
 
-  - `ReplaceExisting`: remove all elements with a matching key.
+  - `ReplaceCollisions`: remove all elements with a matching key.
     The element you wanted to have in the [`KeysSet`](#KeysSet) can now be there!
-  - `PreferExisting`: leave the [`KeysSet`](#KeysSet) as it was before,
+  - `IfNoCollision`: leave the [`KeysSet`](#KeysSet) as it was before,
     don't remove collisions.
     The element you wanted to have in the [`KeysSet`](#KeysSet) won't be there!
 
@@ -467,8 +504,8 @@ Used in [`insert`](#insert) and [`alter`](#alter)
 
 -}
 type PreferenceOnCollisions
-    = ReplaceExisting
-    | PreferExisting
+    = ReplaceCollisions
+    | IfNoCollision
 
 
 {-| Insert a given element,
@@ -477,14 +514,17 @@ specifying what to do when there is a key collision
 
 ### keep collisions instead
 
+    import BracketPair
+    import Emptiable
+
     Emptiable.empty
-        |> KeysSet.insert PreferExisting
+        |> KeysSet.insert IfNoCollision
             BracketPair.byOpenClosed
             { open = 'b', closed = 'C' }
-        |> KeysSet.insert PreferExisting
+        |> KeysSet.insert IfNoCollision
             BracketPair.byOpenClosed
             { open = 'c', closed = 'A' }
-        |> KeysSet.insert PreferExisting
+        |> KeysSet.insert IfNoCollision
             BracketPair.byOpenClosed
             { open = 'c', closed = 'C' }
         |> KeysSet.toList ( BracketPair.byOpenClosed, .open )
@@ -493,14 +533,17 @@ specifying what to do when there is a key collision
 
 ### replace collisions
 
+    import BracketPair
+    import Emptiable
+
     Emptiable.empty
-        |> KeysSet.insert ReplaceExisting
+        |> KeysSet.insert ReplaceCollisions
             BracketPair.byOpenClosed
             { open = 'b', closed = 'C' }
-        |> KeysSet.insert ReplaceExisting
+        |> KeysSet.insert ReplaceCollisions
             BracketPair.byOpenClosed
             { open = 'c', closed = 'A' }
-        |> KeysSet.insert ReplaceExisting
+        |> KeysSet.insert ReplaceCollisions
             BracketPair.byOpenClosed
             { open = 'c', closed = 'C' }
         |> KeysSet.toList ( BracketPair.byOpenClosed, .open )
@@ -529,21 +572,21 @@ insert onCollisions keys toInsertOrReplacement =
                 in
                 case collisions |> Emptiable.map filled of
                     Emptiable.Empty _ ->
-                        keysSetFill |> fillInsertOnNoCollisions keys toInsertOrReplacement
+                        keysSetFill |> fillInsertOnNoCollision keys toInsertOrReplacement
 
-                    Emptiable.Filled collisionsFilled ->
+                    Emptiable.Filled collisionsTreeFilled ->
                         case onCollisions of
-                            PreferExisting ->
+                            IfNoCollision ->
                                 keysSetFill |> filled
 
-                            ReplaceExisting ->
+                            ReplaceCollisions ->
                                 case
                                     keysSetFill
                                         |> filled
-                                        |> exceptTree keys collisionsFilled
+                                        |> exceptTree keys collisionsTreeFilled
                                 of
                                     Emptiable.Empty _ ->
-                                        one keys toInsertOrReplacement
+                                        toInsertOrReplacement |> one keys
 
                                     Emptiable.Filled keySetFill ->
                                         keySetFill
@@ -562,7 +605,7 @@ insert onCollisions keys toInsertOrReplacement =
                                                                 (\( branchToAlter, branchOrder ) ->
                                                                     branchToAlter
                                                                         |> filled
-                                                                        |> KeysSet.Internal.treeInsert branchOrder toInsertOrReplacement
+                                                                        |> KeysSet.Internal.treeInsertIfNoCollision branchOrder toInsertOrReplacement
                                                                         |> fill
                                                                 )
                                                     }
@@ -674,16 +717,18 @@ remove ( keys, key ) keyToRemove =
 {-| Change the element with a given key in a given way
 
 
-### PreferExisting
+### IfNoCollision
+
+    import Character
 
     KeysSet.fromList Character.byIdOrChar
         [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
-        |> KeysSet.elementAlter PreferExisting
+        |> KeysSet.elementAlter IfNoCollision
             ( Character.byIdOrChar, .id )
             1
             (\c -> { c | char = 'C' })
             -- gets changed
-        |> KeysSet.elementAlter PreferExisting
+        |> KeysSet.elementAlter IfNoCollision
             ( Character.byIdOrChar, .id )
             1
             (\c -> { c | id = 0 })
@@ -723,12 +768,12 @@ elementAlter preferenceOnCollisions ( keys, key ) keyToAlter elementChange =
                         elementToAlter |> elementChange
                 in
                 case preferenceOnCollisions of
-                    ReplaceExisting ->
+                    ReplaceCollisions ->
                         keysSet
                             |> remove ( keys, key ) keyToAlter
-                            |> insert ReplaceExisting keys elementAltered
+                            |> insert ReplaceCollisions keys elementAltered
 
-                    PreferExisting ->
+                    IfNoCollision ->
                         let
                             collisionsTree : Emptiable (Tree2.Branch element) Possibly
                             collisionsTree =
@@ -745,36 +790,39 @@ elementAlter preferenceOnCollisions ( keys, key ) keyToAlter elementChange =
                                     one keys elementAltered
 
                                 Emptiable.Filled removed ->
-                                    removed |> fillInsertOnNoCollisions keys elementAltered
+                                    removed |> fillInsertOnNoCollision keys elementAltered
 
 
 {-| Convert to a `List` sorted by keys
 in a given [`Direction`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/Linear#Direction)
 
     import Linear exposing (Direction(..))
+    import N exposing (Up, To, N0)
     import Stack
+    import Keys exposing (Keys, Key)
     import KeysSet
+    import Map
+    import Order
     import Char.Order
     import String.Order
 
-    -- tag should be opaque in a separate module
-    nameAlphabetical : Order.Key String String { alphabetical : () }
+    nameAlphabetical : Keys String ( (), Order.By Map.Identity (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper))) (Key String String (Up N0 To N0)) N0
     nameAlphabetical =
-        Order.key identity
-            { tag = { alphabetical = () }
-            , order =
-                String.Order.greaterEarlier
+        Keys.for identity
+            |> Keys.and identity
+                ( Map.identity
+                , String.Order.earlier
                     (Char.Order.alphabetically Char.Order.lowerUpper)
-            }
+                )
 
     KeysSet.fromStack nameAlphabetical
         (Stack.topBelow "Bob" [ "Alice" ])
-        |> KeysSet.toList
+        |> KeysSet.toList ( nameAlphabetical, identity )
     --> [ "Alice", "Bob" ]
 
     KeysSet.fromStack nameAlphabetical
         (Stack.topBelow "Bob" [ "Alice" ])
-        |> KeysSet.toList
+        |> KeysSet.toList ( nameAlphabetical, identity )
         |> List.reverse
     --> [ "Bob", "Alice" ]
 
@@ -811,29 +859,32 @@ toList ( keys, key ) =
 in a given [`Direction`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/Linear#Direction)
 
     import Linear exposing (Direction(..))
+    import N exposing (Up, To, N0)
     import Stack
-    import KeysSet
+    import Map
+    import Order
     import Char.Order
     import String.Order
+    import Keys exposing (Keys, Key)
+    import KeysSet
 
-    -- tag should be opaque in a separate module
-    nameAlphabetical : Order.Key String String { alphabetical : () }
+    nameAlphabetical : Keys String ( (), Order.By Map.Identity (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper))) (Key String String (Up N0 To N0)) N0
     nameAlphabetical =
-        Order.key identity
-            { tag = { alphabetical = () }
-            , order =
-                String.Order.greaterEarlier
+        Keys.for identity
+            |> Keys.and identity
+                ( Map.identity
+                , String.Order.earlier
                     (Char.Order.alphabetically Char.Order.lowerUpper)
-            }
+                )
 
     KeysSet.fromStack nameAlphabetical
         (Stack.topBelow "Bob" [ "Alice" ])
-        |> KeysSet.toStack
+        |> KeysSet.toStack ( nameAlphabetical, identity )
     --> Stack.topBelow "Alice" [ "Bob" ]
 
     KeysSet.fromStack nameAlphabetical
         (Stack.topBelow "Bob" [ "Alice", "Christoph" ])
-        |> KeysSet.toStack
+        |> KeysSet.toStack ( nameAlphabetical, identity )
         |> Stack.reverse
     --> Stack.topBelow "Christoph" [ "Bob", "Alice" ]
 
@@ -842,33 +893,30 @@ The cool thing is that information about (non-)emptiness is carried over to the 
 Use this to fold over its elements
 
     import Linear exposing (Direction(..))
+    import N exposing (Up, To, N0)
+    import Map
     import Stack
+    import Order
     import Int.Order
+    import Keys exposing (Keys, Key)
     import KeysSet
 
+    intIncreasing : Keys Int ( (), Order.By Map.Identity Int.Order.Increasing ) (Key Int Int (Up N0 To N0)) N0
+    intIncreasing =
+        Keys.for identity
+            |> Keys.and identity ( Map.identity, Int.Order.increasing )
+
     KeysSet.fromStack intIncreasing
-        (Stack.topBelow 234 [ 345, 543 ])
-        |> KeysSet.toStack (key intIncreasing identity)
-    --> Stack.topBelow 543 [ 345, 234 ]
+        (Stack.topBelow 345 [ 234, 543 ])
+        |> KeysSet.toStack ( intIncreasing, identity )
+    --> Stack.topBelow 234 [ 345, 543 ]
     --  the type knows it's never empty
 
     KeysSet.fromStack intIncreasing
-        (Stack.topBelow False [ True, False ])
-        |> KeysSet.toStack (key intIncreasing identity)
-        |> Stack.foldFrom True Up (||)
-    --> True
-
-    KeysSet.fromStack intIncreasing
         (Stack.topBelow 1 [ 2, 8, 16 ])
-        |> KeysSet.toStack (key intIncreasing identity)
+        |> KeysSet.toStack ( intIncreasing, identity )
         |> Stack.fold Down (\n soFar -> soFar - n)
     --> 5
-
-
-    intIncreasing : Keys Int ( (), Order.By Identity Int.Order.Increasing ) (Key Int Int (Up0 x)) (Up1 x)
-    intIncreasing =
-        Keys.for identity
-            |> Keys.and Map.identity Int.Order.increasing
 
 -}
 toStack :
@@ -915,7 +963,7 @@ map elementChange mappedKeys =
                         |> foldFromOne
                             (\a -> a |> elementChange |> one mappedKeys)
                             (\element_ soFar ->
-                                soFar |> insert PreferExisting mappedKeys (element_ |> elementChange)
+                                soFar |> insert IfNoCollision mappedKeys (element_ |> elementChange)
                             )
                 )
 
@@ -961,7 +1009,7 @@ mapTry elementChangeTry mappedKeys =
                         Filled elementMapped ->
                             \soFar ->
                                 soFar
-                                    |> insert PreferExisting mappedKeys elementMapped
+                                    |> insert IfNoCollision mappedKeys elementMapped
                 )
 
 
@@ -976,18 +1024,15 @@ then reducing what's accumulated
     import KeysSet
     import Int.Order
 
+    intIncreasing : Keys Int ( (), Order.By Map.Identity Int.Order.Increasing ) (Key Int Int (Up N0 To N0)) N0
+    intIncreasing =
+        Keys.for identity
+            |> Keys.and identity ( Map.identity, Int.Order.increasing )
+
     KeysSet.fromStack intIncreasing
         (Stack.topBelow 1 [ 2, 8, 16 ])
         |> KeysSet.fold (\n soFar -> soFar - n)
     -- no! you shouldn't rely on order with fold
-
-    -- ↓ tag should be opaque
-    intIncreasing : Order.Key Int Int { increasing : () }
-    intIncreasing =
-        Order.key identity
-            { tag = { increasing = () }
-            , order = Int.Order.increasing
-            }
 
 -}
 fold :
@@ -1005,23 +1050,24 @@ fold reduce =
 then reducing what's accumulated.
 
     import Stack
+    import N exposing (Up, To, N0)
+    import Map
+    import Order
     import Int.Order
+    import Keys exposing (Keys, Key)
     import KeysSet
 
     KeysSet.fromStack intIncreasing
         (Stack.topBelow 234 [ 345, 543 ])
-        |> KeysSet.foldFromOne Stack.only Up Stack.onTopLay
+        |> KeysSet.foldFromOne Stack.one Stack.onTopLay
     --> Stack.topBelow 543 [ 345, 234 ]
     -- no! you shouldn't rely on order with fold
     -- the type knows it's never empty
 
-    -- tag should be opaque
-    intIncreasing : Order.Key Int Int { increasing : () }
+    intIncreasing : Keys Int ( (), Order.By Map.Identity Int.Order.Increasing ) (Key Int Int (Up N0 To N0)) N0
     intIncreasing =
-        Order.key identity
-            { tag = { increasing = () }
-            , order = Int.Order.increasing
-            }
+        Keys.for identity
+            |> Keys.and identity ( Map.identity, Int.Order.increasing )
 
 A simpler version is [`fold`](#fold)
 
@@ -1046,28 +1092,28 @@ foldFromOne firstToInitial reduce =
 
 {-| Fold over its elements from an initial accumulator value
 
+    import N exposing (Up, To, N0)
     import Stack
+    import Map
+    import Order
     import Int.Order
     import KeysSet
+    import Keys exposing (Keys, Key)
 
     KeysSet.fromStack intIncreasing
         (Stack.topBelow 234 [ 345, 543 ])
         |> KeysSet.foldFrom [] (::)
     -- no! you shouldn't rely on order with fold
-    --> [ 234, 345, 543 ]
 
     KeysSet.fromStack intIncreasing
-        (Stack.topBelow False [ True, False ])
-        |> KeysSet.foldFrom False (||)
-    --> True
+        (Stack.topBelow 5 [ 7, -6 ])
+        |> KeysSet.foldFrom 0 (+)
+    --> 6
 
-    -- tag should be opaque
-    intIncreasing : Order.Key Int Int { increasing : () }
+    intIncreasing : Keys Int ( (), Order.By Map.Identity Int.Order.Increasing ) (Key Int Int (Up N0 To N0)) N0
     intIncreasing =
-        Order.key identity
-            { tag = { increasing = () }
-            , order = Int.Order.increasing
-            }
+        Keys.for identity
+            |> Keys.and identity ( Map.identity, Int.Order.increasing )
 
 -}
 foldFrom :
@@ -1104,8 +1150,8 @@ unifyWith orderKey toCombineWith =
     \keysSet ->
         toCombineWith
             |> foldFrom keysSet
-                (\rightElement soFar ->
-                    soFar |> insert PreferExisting orderKey rightElement
+                (\upElement soFar ->
+                    soFar |> insert IfNoCollision orderKey upElement
                 )
 
 

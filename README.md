@@ -77,23 +77,23 @@ type alias ByHostFirst =
 emailByHostFirst : Ordering Email ByHostFirst 
 emailByHostFirst =
     Order.by Email.host
-        (String.Order.greaterEarlier (Char.Order.alphabetically Order.tie))
+        (String.Order.earlier (Char.Order.alphabetically Order.tie))
         |> Order.onTie
             (Order.by Email.label
-                (String.Order.greaterEarlier (Char.Order.alphabetically Order.tie))
+                (String.Order.earlier (Char.Order.alphabetically Order.tie))
             )
 ```
 No typeclasses :)
 
 Feel free to adapt this structure how you like it best,
-for example separating [`Order.Key`](Order#Key)s from data to each their own `module Data.By`
+for example separating [`Ordering`](Order#Ordering)s from data to each their own `module Data.By`
 
 ## goodies
 
   - ⚖ orderKey by [`Ordering key = ... key, key -> Order`](Order#Ordering)
       - 👍 no reliance on `comparable`
       - 👍 no inconvenient `key -> String`
-  - 🔑 `element -> key` function as part of a given [`Order.Key`](Order#Key)
+  - 🔑 `element -> key` function as part of a given [`Key`](Keys#Key)
       - 👍 simpler type
       - 👍 simpler internals :)
       - same idea is also implemented in

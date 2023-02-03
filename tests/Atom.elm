@@ -3,23 +3,22 @@ module Atom exposing (Atom, ByNumberOrSymbol, byNumberOrSymbol)
 import Char.Order
 import Int.Order
 import Keys exposing (Key, Keys)
+import Map exposing (Mapping)
 import N exposing (N0, N1, N2, To, Up, Up0, Up1, Up2)
 import Order
-import Record.Map
 import String.Order
+import Typed
 
 
 type alias ByNumberOrSymbol =
     ( ( ()
       , Order.By
-            Record.Map.Symbol
-            ( String.Order.GreaterEarlier
-            , ( Char.Order.Alphabetically, Char.Order.LowerUpper )
+            Symbol
+            (String.Order.Earlier
+                (Char.Order.Alphabetically Char.Order.LowerUpper)
             )
       )
-    , Order.By
-        Record.Map.AtomicNumber
-        Int.Order.Increasing
+    , Order.By AtomicNumber Int.Order.Increasing
     )
 
 
@@ -28,6 +27,24 @@ type alias Atom =
     , name : String
     , atomicNumber : Int
     }
+
+
+type Symbol
+    = Symbol
+
+
+symbol : Mapping Atom Symbol String
+symbol =
+    Typed.tag Symbol .symbol
+
+
+type AtomicNumber
+    = AtomicNumber
+
+
+atomicNumber : Mapping Atom AtomicNumber Int
+atomicNumber =
+    Typed.tag AtomicNumber .atomicNumber
 
 
 byNumberOrSymbol :
@@ -40,17 +57,17 @@ byNumberOrSymbol :
         N1
 byNumberOrSymbol =
     Keys.for
-        (\symbol atomicNumber ->
-            { symbol = symbol, atomicNumber = atomicNumber }
+        (\symbol_ atomicNumber_ ->
+            { symbol = symbol_, atomicNumber = atomicNumber_ }
         )
         |> Keys.and .symbol
-            ( Record.Map.symbol
-            , String.Order.greaterEarlier
+            ( symbol
+            , String.Order.earlier
                 (Char.Order.alphabetically
                     Char.Order.lowerUpper
                 )
             )
         |> Keys.and .atomicNumber
-            ( Record.Map.atomicNumber
+            ( atomicNumber
             , Int.Order.increasing
             )

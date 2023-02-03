@@ -16,7 +16,7 @@ import N exposing (In, N, N1, To, Up, n1)
 import Possibly exposing (Possibly(..))
 import Stack
 import Test exposing (Test, describe, fuzz, fuzz2, test)
-import Tree2 exposing (Branch)
+import Tree2
 import Typed
 import User
 import Util exposing (recover)
@@ -42,13 +42,59 @@ createSuite =
         ]
 
 
+treeForIndex :
+    N (In min_ (Up maxToLastKeyIndex_ To lastKeyIndex))
+    ->
+        (KeysSet element tags_ lastKeyIndex
+         -> Emptiable (Tree2.Branch element) never_
+        )
+treeForIndex index =
+    \keysSet ->
+        keysSet
+            |> Typed.untag
+            |> .byKeys
+            |> ArraySized.inToOn
+            |> ArraySized.element ( Up, index )
+            |> Emptiable.filled
+
+
+treeToString : Emptiable (Tree2.Branch element_) Possibly -> String
+treeToString =
+    \tree ->
+        case tree |> Emptiable.map filled of
+            Emptiable.Empty _ ->
+                "()"
+
+            Emptiable.Filled treeFilled ->
+                [ treeFilled
+                    |> Tree2.children
+                    |> .up
+                    |> treeToString
+                    |> String.split "\n"
+                    |> List.map (\s -> "\t\t\t" ++ s)
+                    |> String.join "\n"
+                , "\n"
+                , treeFilled |> Tree2.trunk |> Debug.toString
+                , "\n"
+                , treeFilled
+                    |> Tree2.children
+                    |> .down
+                    |> treeToString
+                    |> String.split "\n"
+                    |> List.map (\s -> "\t\t\t" ++ s)
+                    |> String.join "\n"
+                ]
+                    |> String.concat
+
+
 validate :
-    Keys element tags keys_ lastKeyIndex
+    String
+    -> Keys element tags keys_ lastKeyIndex
     ->
         (Emptiable (KeysSet element tags lastKeyIndex) Possibly
          -> Result String ()
         )
-validate keys =
+validate context keys =
     \keysSet ->
         let
             keysArray =
@@ -79,11 +125,10 @@ validate keys =
                                 () |> Ok
 
                             else
-                                [ "tracking size ["
+                                [ "tracking size "
                                 , keysSet |> KeysSet.size |> String.fromInt
-                                , "] does not match with real one ["
+                                , " does not match with real one "
                                 , tree |> Tree2.size |> String.fromInt
-                                , "]"
                                 , " for\n"
                                 , keysSet |> KeysSet.foldFrom [] (::) |> List.map Debug.toString |> String.join " "
                                 , " :\n\n"
@@ -110,23 +155,10 @@ validate keys =
                                 Err another ->
                                     soFarErrors |> (::) another |> Err
                 )
-            |> Result.mapError (String.join "\n\n\n")
-
-
-treeForIndex :
-    N (In min_ (Up maxToLastKeyIndex_ To lastKeyIndex))
-    ->
-        (KeysSet element tags_ lastKeyIndex
-         -> Emptiable (Tree2.Branch element) never_
-        )
-treeForIndex index =
-    \keysSet ->
-        keysSet
-            |> Typed.untag
-            |> .byKeys
-            |> ArraySized.inToOn
-            |> ArraySized.element ( Up, index )
-            |> Emptiable.filled
+            |> Result.mapError
+                (\error ->
+                    context ++ ": " ++ (error |> String.join "\n\n\n")
+                )
 
 
 validateHelp :
@@ -145,9 +177,9 @@ validateHelp order tree =
                 checkFurther =
                     Result.andThen
                         (\children ->
-                            if ((children.left.height - children.right.height) |> abs) <= 1 then
+                            if ((children.down.height - children.up.height) |> abs) <= 1 then
                                 { height =
-                                    1 + max children.left.height children.right.height
+                                    1 + max children.down.height children.up.height
                                 }
                                     |> Ok
 
@@ -155,31 +187,31 @@ validateHelp order tree =
                                 [ "height below "
                                 , treeFilled |> Tree2.trunk |> Debug.toString
                                 , ": "
-                                , children.left.height |> String.fromInt
+                                , children.down.height |> String.fromInt
                                 , " vs "
-                                , children.right.height |> String.fromInt
+                                , children.up.height |> String.fromInt
                                 , " - so \n\n"
-                                , treeFilled |> Tree2.children |> .left |> Tree2.foldFrom [] Down (::) |> Debug.toString
+                                , treeFilled |> Tree2.children |> .down |> Tree2.foldFrom [] Down (::) |> Debug.toString
                                 , "\nvs\n"
-                                , treeFilled |> Tree2.children |> .right |> Tree2.foldFrom [] Down (::) |> Debug.toString
+                                , treeFilled |> Tree2.children |> .up |> Tree2.foldFrom [] Down (::) |> Debug.toString
                                 , "\n"
                                 ]
                                     |> String.concat
                                     |> Err
                         )
-                        (Result.map2 (\left right -> { left = left, right = right })
-                            (treeFilled |> Tree2.children |> .left |> validateHelp order)
-                            (treeFilled |> Tree2.children |> .right |> validateHelp order)
+                        (Result.map2 (\down up -> { down = down, up = up })
+                            (treeFilled |> Tree2.children |> .down |> validateHelp order)
+                            (treeFilled |> Tree2.children |> .up |> validateHelp order)
                         )
             in
             if
-                case treeFilled |> Tree2.children |> .left of
+                case treeFilled |> Tree2.children |> .down of
                     Empty _ ->
                         False
 
-                    Filled left ->
+                    Filled down ->
                         (( treeFilled |> Tree2.trunk
-                         , left |> filled |> Tree2.trunk
+                         , down |> filled |> Tree2.trunk
                          )
                             |> order
                         )
@@ -187,19 +219,19 @@ validateHelp order tree =
             then
                 [ "element "
                 , treeFilled |> Tree2.trunk |> Debug.toString
-                , " is <= left"
+                , " is <= down"
                 ]
                     |> String.concat
                     |> Err
 
             else if
-                case treeFilled |> Tree2.children |> .right of
+                case treeFilled |> Tree2.children |> .up of
                     Empty _ ->
                         False
 
-                    Filled right ->
+                    Filled up ->
                         (( treeFilled |> Tree2.trunk
-                         , right |> filled |> Tree2.trunk
+                         , up |> filled |> Tree2.trunk
                          )
                             |> order
                         )
@@ -207,42 +239,13 @@ validateHelp order tree =
             then
                 [ "element "
                 , treeFilled |> Tree2.trunk |> Debug.toString
-                , " is >= right"
+                , " is >= up"
                 ]
                     |> String.concat
                     |> Err
 
             else
                 checkFurther
-
-
-treeToString : Emptiable (Tree2.Branch element_) Possibly -> String
-treeToString =
-    \tree ->
-        case tree |> Emptiable.map filled of
-            Emptiable.Empty _ ->
-                "()"
-
-            Emptiable.Filled treeFilled ->
-                [ treeFilled
-                    |> Tree2.children
-                    |> .right
-                    |> treeToString
-                    |> String.split "\n"
-                    |> List.map (\s -> "\t\t\t" ++ s)
-                    |> String.join "\n"
-                , "\n"
-                , treeFilled |> Tree2.trunk |> Debug.toString
-                , "\n"
-                , treeFilled
-                    |> Tree2.children
-                    |> .left
-                    |> treeToString
-                    |> String.split "\n"
-                    |> List.map (\s -> "\t\t\t" ++ s)
-                    |> String.join "\n"
-                ]
-                    |> String.concat
 
 
 fromStackSuite : Test
@@ -252,7 +255,7 @@ fromStackSuite =
             "validate"
             (\stack ->
                 KeysSet.fromStack Character.byIdOrChar stack
-                    |> validate Character.byIdOrChar
+                    |> validate "fromStack" Character.byIdOrChar
                     |> Result.map (\_ -> Expect.pass)
                     |> recover Expect.fail
             )
@@ -287,7 +290,7 @@ fromListSuite =
             "validate"
             (\list ->
                 KeysSet.fromList Character.byIdOrChar list
-                    |> validate Character.byIdOrChar
+                    |> validate "fromList" Character.byIdOrChar
                     |> Result.map (\_ -> Expect.pass)
                     |> recover Expect.fail
             )
@@ -322,8 +325,8 @@ insertSuite =
                 KeysSet.fromList
                     Character.byIdOrChar
                     [ element0, element1 ]
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar element0
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar element1
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar element0
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar element1
                     |> KeysSet.toList ( Character.byIdOrChar, .id )
                     |> Expect.equalLists
                         [ element0, element1 ]
@@ -336,17 +339,17 @@ insertSuite =
                         stack
                             |> Stack.foldFrom Emptiable.empty
                                 Up
-                                (KeysSet.insert PreferExisting Character.byIdOrChar)
+                                (KeysSet.insert IfNoCollision Character.byIdOrChar)
                 in
                 initial
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar (stack |> Stack.top)
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar (stack |> Stack.top)
                     |> Expect.equal
                         initial
             )
         , test "hardcoded insert |> element works"
             (\() ->
                 Emptiable.empty
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar element1
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar element1
                     |> KeysSet.element ( Character.byIdOrChar, .id ) element1.id
                     |> Emptiable.map .char
                     |> Expect.equal (filled element1.char)
@@ -354,14 +357,14 @@ insertSuite =
         , test "hardcoded element of absent element is empty by id"
             (\() ->
                 Emptiable.empty
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar element1
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar element1
                     |> KeysSet.element ( Character.byIdOrChar, .id ) element0.id
                     |> Expect.equal Emptiable.empty
             )
         , test "hardcoded element of absent element 1 is empty by char"
             (\() ->
                 Emptiable.empty
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar element1
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar element1
                     |> KeysSet.element ( Character.byIdOrChar, .char ) element1.char
                     |> Emptiable.map .id
                     |> Expect.equal (filled element1.id)
@@ -369,7 +372,7 @@ insertSuite =
         , test "hardcoded element of absent element 0 is empty by char"
             (\() ->
                 Emptiable.empty
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar element1
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar element1
                     |> KeysSet.element ( Character.byIdOrChar, .char ) element0.char
                     |> Expect.equal Emptiable.empty
             )
@@ -377,60 +380,60 @@ insertSuite =
             "Emptiable.empty"
             (\element ->
                 Emptiable.empty
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar element
-                    |> validate Character.byIdOrChar
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar element
+                    |> validate "insert IfNoCollision" Character.byIdOrChar
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
             )
-        , test "hardcoded validate to left"
+        , test "hardcoded validate to down"
             (\() ->
                 KeysSet.one Character.byIdOrChar { id = 10, char = 'a' }
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 5, char = 'b' }
-                    |> validate Character.byIdOrChar
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 5, char = 'b' }
+                    |> validate "insert IfNoCollision" Character.byIdOrChar
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
             )
-        , test "hardcoded validate to left left"
+        , test "hardcoded validate to down down"
             (\() ->
                 KeysSet.one Character.byIdOrChar { id = 10, char = 'a' }
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 5, char = 'b' }
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 2, char = 'c' }
-                    |> validate Character.byIdOrChar
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 5, char = 'b' }
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 2, char = 'c' }
+                    |> validate "insert IfNoCollision" Character.byIdOrChar
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
             )
-        , test "hardcoded validate to left right"
+        , test "hardcoded validate to down up"
             (\() ->
                 KeysSet.one Character.byIdOrChar { id = 10, char = 'a' }
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 5, char = 'b' }
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 2, char = 'c' }
-                    |> validate Character.byIdOrChar
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 5, char = 'b' }
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 2, char = 'c' }
+                    |> validate "insert IfNoCollision" Character.byIdOrChar
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
             )
-        , test "hardcoded validate to right"
+        , test "hardcoded validate to up"
             (\() ->
                 KeysSet.one Character.byIdOrChar { id = 10, char = 'a' }
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 15, char = 'b' }
-                    |> validate Character.byIdOrChar
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 15, char = 'b' }
+                    |> validate "insert IfNoCollision" Character.byIdOrChar
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
             )
-        , test "hardcoded validate to right left"
+        , test "hardcoded validate to up down"
             (\() ->
                 KeysSet.one Character.byIdOrChar { id = 10, char = 'a' }
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 15, char = 'b' }
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 12, char = 'c' }
-                    |> validate Character.byIdOrChar
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 15, char = 'b' }
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 12, char = 'c' }
+                    |> validate "insert IfNoCollision" Character.byIdOrChar
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
             )
-        , test "hardcoded validate to right right"
+        , test "hardcoded validate to up up"
             (\() ->
                 KeysSet.one Character.byIdOrChar { id = 10, char = 'a' }
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 15, char = 'b' }
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 20, char = 'c' }
-                    |> validate Character.byIdOrChar
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 15, char = 'b' }
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 20, char = 'c' }
+                    |> validate "insert IfNoCollision" Character.byIdOrChar
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
             )
@@ -443,10 +446,10 @@ insertSuite =
                             Result.andThen
                                 (\keysSet ->
                                     keysSet
-                                        |> KeysSet.insert PreferExisting
+                                        |> KeysSet.insert IfNoCollision
                                             Character.byIdOrChar
                                             { char = char, id = Char.toCode char }
-                                        |> validate Character.byIdOrChar
+                                        |> validate (char |> String.fromChar) Character.byIdOrChar
                                         |> Result.map (\() -> keysSet)
                                 )
                         )
@@ -465,12 +468,12 @@ insertSuite =
                             Result.andThen
                                 (\keysSet ->
                                     keysSet
-                                        |> KeysSet.insert PreferExisting
+                                        |> KeysSet.insert IfNoCollision
                                             Character.byIdOrChar
                                             { id = id
                                             , char = Char.fromCode (40 + ('A' |> Char.toCode) + id)
                                             }
-                                        |> validate Character.byIdOrChar
+                                        |> validate ("id " ++ (id |> String.fromInt)) Character.byIdOrChar
                                         |> Result.map (\() -> keysSet)
                                 )
                         )
@@ -489,12 +492,12 @@ insertSuite =
                             Result.andThen
                                 (\keysSet ->
                                     keysSet
-                                        |> KeysSet.insert PreferExisting
+                                        |> KeysSet.insert IfNoCollision
                                             Character.byIdOrChar
                                             { id = id
                                             , char = Char.fromCode (40 + ('A' |> Char.toCode) + id)
                                             }
-                                        |> validate Character.byIdOrChar
+                                        |> validate ("id " ++ (id |> String.fromInt)) Character.byIdOrChar
                                         |> Result.map (\() -> keysSet)
                                 )
                         )
@@ -512,9 +515,9 @@ insertSuite =
                             Result.andThen
                                 (\keysSet ->
                                     keysSet
-                                        |> KeysSet.insert PreferExisting Character.byIdOrChar character
+                                        |> KeysSet.insert IfNoCollision Character.byIdOrChar character
                                         |> Emptiable.emptyAdapt (\_ -> Possible)
-                                        |> validate Character.byIdOrChar
+                                        |> validate ("char " ++ (character.char |> String.fromChar)) Character.byIdOrChar
                                         |> Result.map (\() -> keysSet)
                                 )
                         )
@@ -545,7 +548,7 @@ removeSuite =
           test "hardcoded insert |> remove id leaves it unchanged"
             (\() ->
                 ab
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 2, char = 'C' }
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 2, char = 'C' }
                     |> KeysSet.remove ( Character.byIdOrChar, .id ) 2
                     |> KeysSet.toList ( Character.byIdOrChar, .id )
                     |> Expect.equalLists
@@ -572,7 +575,7 @@ removeSuite =
             (\id ->
                 Emptiable.empty
                     |> KeysSet.remove ( Character.byIdOrChar, .id ) id
-                    |> validate Character.byIdOrChar
+                    |> validate "remove" Character.byIdOrChar
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
             )
@@ -583,7 +586,7 @@ removeSuite =
             (\put delete ->
                 KeysSet.one Character.byIdOrChar { id = put, char = '0' }
                     |> KeysSet.remove ( Character.byIdOrChar, .id ) delete
-                    |> validate Character.byIdOrChar
+                    |> validate "remove" Character.byIdOrChar
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
             )
@@ -599,7 +602,7 @@ removeSuite =
                                 (\keysSet ->
                                     keysSet
                                         |> KeysSet.remove ( Character.byIdOrChar, .id ) id
-                                        |> validate Character.byIdOrChar
+                                        |> validate ("remove id " ++ (id |> String.fromInt)) Character.byIdOrChar
                                         |> Result.map (\() -> keysSet)
                                 )
                         )
@@ -617,7 +620,7 @@ removeSuite =
                 characters
                     |> List.Linear.foldFrom
                         (full
-                            |> validate Character.byIdOrChar
+                            |> validate "fromList" Character.byIdOrChar
                             |> Result.map (\() -> full)
                         )
                         Up
@@ -630,7 +633,21 @@ removeSuite =
                                                 |> KeysSet.remove ( Character.byIdOrChar, .id ) id
                                     in
                                     removed
-                                        |> validate Character.byIdOrChar
+                                        |> validate ("remove id " ++ (id |> String.fromInt)) Character.byIdOrChar
+                                        |> Result.mapError
+                                            (\error ->
+                                                [ "before:\n\n"
+                                                , case keysSet of
+                                                    Emptiable.Empty _ ->
+                                                        "empty"
+
+                                                    Emptiable.Filled keysSetFill ->
+                                                        keysSetFill |> treeForIndex n1 |> treeToString
+                                                , "\n\n"
+                                                , error
+                                                ]
+                                                    |> String.concat
+                                            )
                                         |> Result.map (\() -> removed)
                                 )
                         )
@@ -643,12 +660,12 @@ removeSuite =
 elementAlterSuite : Test
 elementAlterSuite =
     describe "elementAlter"
-        [ describe "PreferExisting"
+        [ describe "IfNoCollision"
             [ test "replace to same key"
                 (\() ->
                     KeysSet.fromList Character.byIdOrChar
                         [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
-                        |> KeysSet.elementAlter PreferExisting
+                        |> KeysSet.elementAlter IfNoCollision
                             ( Character.byIdOrChar, .id )
                             1
                             (\c -> { c | char = 'C' })
@@ -660,7 +677,7 @@ elementAlterSuite =
                 (\() ->
                     KeysSet.fromList Character.byIdOrChar
                         [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
-                        |> KeysSet.elementAlter PreferExisting
+                        |> KeysSet.elementAlter IfNoCollision
                             ( Character.byIdOrChar, .id )
                             1
                             (\c -> { c | id = 0 })
@@ -741,7 +758,7 @@ combineSuite =
 unifyWithSuite : Test
 unifyWithSuite =
     describe "unifyWith"
-        [ test "left is empty"
+        [ test "down is empty"
             (\() ->
                 Emptiable.empty
                     |> KeysSet.unifyWith Character.byIdOrChar
@@ -749,7 +766,7 @@ unifyWithSuite =
                     |> KeysSet.toList ( Character.byIdOrChar, .id )
                     |> Expect.equalLists [ { id = 0, char = 'A' } ]
             )
-        , test "right is empty"
+        , test "up is empty"
             (\() ->
                 KeysSet.one Character.byIdOrChar { id = 0, char = 'A' }
                     |> KeysSet.unifyWith Character.byIdOrChar Emptiable.empty
@@ -788,14 +805,14 @@ unifyWithSuite =
 intersectSuite : Test
 intersectSuite =
     describe "intersect"
-        [ test "left is empty"
+        [ test "down is empty"
             (\() ->
                 KeysSet.one Character.byIdOrChar { id = 0, char = 'A' }
                     |> KeysSet.intersect ( Character.byIdOrChar, .id ) Emptiable.empty
                     |> KeysSet.toList ( Character.byIdOrChar, .id )
                     |> Expect.equalLists []
             )
-        , test "right is empty"
+        , test "up is empty"
             (\() ->
                 Emptiable.empty
                     |> KeysSet.intersect ( Character.byIdOrChar, .id )
@@ -830,8 +847,8 @@ intersectSuite =
 
 exceptSuite : Test
 exceptSuite =
-    describe "diff"
-        [ test "left is empty"
+    describe "except"
+        [ test "down is empty"
             (\() ->
                 Emptiable.empty
                     |> KeysSet.except ( Character.byIdOrChar, .id )
@@ -839,7 +856,7 @@ exceptSuite =
                     |> KeysSet.toList ( Character.byIdOrChar, .id )
                     |> Expect.equalLists []
             )
-        , test "right is empty"
+        , test "up is empty"
             (\() ->
                 KeysSet.one Character.byIdOrChar { id = 0, char = 'A' }
                     |> KeysSet.except ( Character.byIdOrChar, .id ) Emptiable.empty
@@ -1191,13 +1208,13 @@ toListSuite =
         , test "hardcoded insert"
             (\() ->
                 Emptiable.empty
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 2, char = 'A' }
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 0, char = 'B' }
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 5, char = 'C' }
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 3, char = 'E' }
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 1, char = 'F' }
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 4, char = 'G' }
-                    |> KeysSet.insert PreferExisting Character.byIdOrChar { id = 3, char = 'B' }
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 2, char = 'A' }
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 0, char = 'B' }
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 5, char = 'C' }
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 3, char = 'E' }
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 1, char = 'F' }
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 4, char = 'G' }
+                    |> KeysSet.insert IfNoCollision Character.byIdOrChar { id = 3, char = 'B' }
                     |> KeysSet.toList ( Character.byIdOrChar, .id )
                     |> Expect.equalLists
                         [ { id = 0, char = 'B' }

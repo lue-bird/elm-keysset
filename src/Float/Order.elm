@@ -18,7 +18,9 @@ type Increasing
 
 {-| `Order` `Float`s where lower means greater
 
-    Float.Order.increasing 40.34 2.1
+    import Order
+
+    Order.with Float.Order.increasing 40.34 2.1
     --> GT
 
 -}
@@ -29,7 +31,9 @@ increasing =
 
 {-| `Order` `Float`s where higher means greater
 
-    Float.Order.decreasing 2.1 40.34
+    import Order
+
+    Order.with Float.Order.decreasing 2.1 40.34
     --> GT
 
 -}

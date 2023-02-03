@@ -1,4 +1,4 @@
-module KeysSet.Internal exposing (elementCollisions, treeElement, treeExcept, treeInsert, treeRemove)
+module KeysSet.Internal exposing (elementCollisions, treeElement, treeExcept, treeInsertIfNoCollision, treeRemove)
 
 import ArraySized exposing (ArraySized)
 import Emptiable exposing (Emptiable(..), filled)
@@ -54,7 +54,7 @@ elementCollisions keys toCollideWith =
                                     identity
 
                                 Emptiable.Filled collision ->
-                                    treeInsert key collision
+                                    treeInsertIfNoCollision key collision
                            )
                 )
 
@@ -78,28 +78,28 @@ treeElement location =
                             treeFilled |> Tree2.trunk |> filled
 
                         LT ->
-                            treeFilled |> Tree2.children |> .left |> treeElement location
+                            treeFilled |> Tree2.children |> .down |> treeElement location
 
                         GT ->
-                            treeFilled |> Tree2.children |> .right |> treeElement location
+                            treeFilled |> Tree2.children |> .up |> treeElement location
                 )
 
 
-treeInsert :
+treeInsertIfNoCollision :
     (( element, element ) -> Order)
     -> element
     ->
         (Emptiable (Tree2.Branch element) Possibly
          -> Emptiable (Tree2.Branch element) never_
         )
-treeInsert order elementToInsert =
+treeInsertIfNoCollision order toInsert =
     \tree_ ->
         case tree_ |> Emptiable.map filled of
             Empty _ ->
-                elementToInsert |> Tree2.one
+                toInsert |> Tree2.one
 
             Filled treeFilled ->
-                case ( elementToInsert, treeFilled |> Tree2.trunk ) |> order of
+                case ( toInsert, treeFilled |> Tree2.trunk ) |> order of
                     EQ ->
                         -- to alter
                         -- treeFilled
@@ -109,17 +109,13 @@ treeInsert order elementToInsert =
 
                     LT ->
                         treeFilled
-                            |> Tree2.childrenLeftAlter
-                                (\left ->
-                                    left |> treeInsert order elementToInsert
-                                )
+                            |> Tree2.childrenDownAlter
+                                (\down -> down |> treeInsertIfNoCollision order toInsert)
 
                     GT ->
                         treeFilled
-                            |> Tree2.childrenRightAlter
-                                (\right ->
-                                    right |> treeInsert order elementToInsert
-                                )
+                            |> Tree2.childrenUpAlter
+                                (\up -> up |> treeInsertIfNoCollision order toInsert)
 
 
 {-| The argument should tell where to search further
@@ -132,19 +128,15 @@ treeRemove :
         )
 treeRemove locationToRemove =
     \treeFilled ->
-        let
-            children =
-                treeFilled |> Tree2.children
-        in
         case treeFilled |> Tree2.trunk |> locationToRemove of
             LT ->
                 treeFilled
-                    |> Tree2.childrenLeftAlter
-                        (\left ->
-                            left
+                    |> Tree2.childrenDownAlter
+                        (\down ->
+                            down
                                 |> Emptiable.mapFlat
-                                    (\leftBranch ->
-                                        leftBranch
+                                    (\downBranch ->
+                                        downBranch
                                             |> filled
                                             |> treeRemove locationToRemove
                                     )
@@ -152,44 +144,48 @@ treeRemove locationToRemove =
 
             GT ->
                 treeFilled
-                    |> Tree2.childrenRightAlter
-                        (\right ->
-                            right
+                    |> Tree2.childrenUpAlter
+                        (\up ->
+                            up
                                 |> Emptiable.mapFlat
-                                    (\rightBranch ->
-                                        rightBranch
+                                    (\upBranch ->
+                                        upBranch
                                             |> filled
                                             |> treeRemove locationToRemove
                                     )
                         )
 
             EQ ->
+                let
+                    children =
+                        treeFilled |> Tree2.children
+                in
                 if
-                    (children.left |> Tree2.height)
-                        < (children.right |> Tree2.height)
+                    (children.down |> Tree2.height)
+                        < (children.up |> Tree2.height)
                 then
-                    case children.right |> Emptiable.map filled of
+                    case children.up |> Emptiable.map filled of
                         Empty _ ->
-                            children.left
+                            children.down
 
-                        Filled rightTreeFilled ->
+                        Filled upTreeFilled ->
                             Tree2.branch
-                                (rightTreeFilled |> Tree2.end Down)
+                                (upTreeFilled |> Tree2.end Down)
                                 { children
-                                    | right = rightTreeFilled |> Tree2.removeEnd Down
+                                    | up = upTreeFilled |> Tree2.removeEnd Down
                                 }
 
                 else
-                    -- left >= right
-                    case children.left |> Emptiable.map filled of
+                    -- down >= up
+                    case children.down |> Emptiable.map filled of
                         Empty _ ->
-                            children.right
+                            children.up
 
-                        Filled leftTreeFilled ->
+                        Filled downTreeFilled ->
                             Tree2.branch
-                                (leftTreeFilled |> Tree2.end Up)
+                                (downTreeFilled |> Tree2.end Up)
                                 { children
-                                    | left = leftTreeFilled |> Tree2.removeEnd Up
+                                    | down = downTreeFilled |> Tree2.removeEnd Up
                                 }
 
 

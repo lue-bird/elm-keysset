@@ -131,12 +131,25 @@ identity =
 {-| Transform elements
 as shown in a given [`Mapping`](#Mapping) with a given function
 
-    import Record
+    import Typed
 
-    -- don't nest like this in practice
+    type Book
+        = Book
+
+    book : Mapping { book : { sales : Int } } Book { sales : Int }
+    book =
+        Typed.tag Book .book
+
+    type Sales
+        = Sales
+
+    sales : Mapping { sales : Int } Sales Int
+    sales =
+        Typed.tag Sales .sales
+
     { book = { sales = 0 } }
-        |> Map.over (Record.book |> Map.to Record.sales) (\n -> n + 1)
-    --> { book = { sales = 1 } }
+        |> Map.with (book |> Map.over sales)
+    --> 0
 
 -}
 over :
@@ -170,6 +183,8 @@ type OverTag
 
 
 {-| Apply the given change
+
+    import Typed
 
     [ 'h', 'i' ]
         |> Map.with (Typed.tag { whatever = () } String.fromList)

@@ -2,10 +2,11 @@ module User exposing (ByEmail, User, byEmail)
 
 import Char.Order
 import Keys exposing (Keys)
+import Map exposing (Mapping)
 import N exposing (N0, N1, N2, To, Up, Up0, Up1)
 import Order
-import Record.Map
 import String.Order
+import Typed
 
 
 type alias User =
@@ -18,11 +19,18 @@ type alias User =
 type alias ByEmail =
     ( ()
     , Order.By
-        Record.Map.Email
-        ( String.Order.GreaterEarlier
-        , ( Char.Order.Alphabetically, Char.Order.LowerUpper )
-        )
+        Email
+        (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper))
     )
+
+
+type Email
+    = Email
+
+
+email : Mapping User Email String
+email =
+    Typed.tag Email .email
 
 
 byEmail :
@@ -32,11 +40,9 @@ byEmail :
         { email : Keys.Key User String (Up N0 To N0) }
         N0
 byEmail =
-    Keys.for (\email -> { email = email })
+    Keys.for (\email_ -> { email = email_ })
         |> Keys.and .email
-            ( Record.Map.email
-            , String.Order.greaterEarlier
-                (Char.Order.alphabetically
-                    Char.Order.lowerUpper
-                )
+            ( email
+            , String.Order.earlier
+                (Char.Order.alphabetically Char.Order.lowerUpper)
             )

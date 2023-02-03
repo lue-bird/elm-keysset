@@ -4,9 +4,10 @@ import Char.Order
 import Fuzz exposing (Fuzzer)
 import Int.Order
 import Keys exposing (Keys)
+import Map exposing (Mapping)
 import N exposing (N0, N1, To, Up)
 import Order
-import Record.Map
+import Typed
 
 
 type alias Character =
@@ -17,12 +18,28 @@ type alias Character =
 
 type alias ByIdOrChar =
     ( ( ()
-      , Order.By Record.Map.Id Int.Order.Increasing
+      , Order.By Id Int.Order.Increasing
       )
-    , Order.By
-        Record.Map.Char
-        ( Char.Order.Alphabetically, Char.Order.LowerUpper )
+    , Order.By CharTag (Char.Order.Alphabetically Char.Order.LowerUpper)
     )
+
+
+type Id
+    = Id
+
+
+id : Mapping Character Id Int
+id =
+    Typed.tag Id .id
+
+
+type CharTag
+    = CharTag
+
+
+char : Mapping Character CharTag Char
+char =
+    Typed.tag CharTag .char
 
 
 byIdOrChar :
@@ -34,16 +51,16 @@ byIdOrChar :
         }
         N1
 byIdOrChar =
-    Keys.for (\id char -> { id = id, char = char })
-        |> Keys.and .id ( Record.Map.id, Int.Order.increasing )
+    Keys.for (\id_ char_ -> { id = id_, char = char_ })
+        |> Keys.and .id ( id, Int.Order.increasing )
         |> Keys.and .char
-            ( Record.Map.char
+            ( char
             , Char.Order.alphabetically Char.Order.lowerUpper
             )
 
 
 fuzz : Fuzzer Character
 fuzz =
-    Fuzz.constant (\id char -> { id = id, char = char })
+    Fuzz.constant (\id_ char_ -> { id = id_, char = char_ })
         |> Fuzz.andMap Fuzz.int
         |> Fuzz.andMap Fuzz.char

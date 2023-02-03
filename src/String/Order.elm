@@ -1,8 +1,8 @@
-module String.Order exposing (greaterEarlier, GreaterEarlier)
+module String.Order exposing (earlier, Earlier)
 
 {-| `Order` `String`s
 
-@docs greaterEarlier, GreaterEarlier
+@docs earlier, Earlier
 
 -}
 
@@ -10,18 +10,23 @@ import Order exposing (Ordering)
 import Typed
 
 
-type GreaterEarlier
-    = GreaterEarlier
+type alias Earlier elementOrder =
+    ( EarlierTag, elementOrder )
+
+
+type EarlierTag
+    = Earlier
 
 
 {-| `Order` `String`s by `Char`s first to last, specifying a [`Char` `Ordering`](Char-Order):
 
+    import Order
     import Char.Order
-    import String.Linear
+    import String.Order
 
     Order.with
-        (String.Linear.greaterEarlier
-            (Char.Order.alphabetically CaseChar.Order.lowerUpper)
+        (String.Order.earlier
+            (Char.Order.alphabetically Char.Order.lowerUpper)
         )
         "hello, human!"
         "hello, Human"
@@ -42,16 +47,16 @@ and order that
 to avoid converting too often
 
 -}
-greaterEarlier :
+earlier :
     Ordering Char charTag
-    -> Ordering String ( GreaterEarlier, charTag )
-greaterEarlier charOrdering =
-    Typed.mapToWrap GreaterEarlier
+    -> Ordering String (Earlier charTag)
+earlier charOrdering =
+    Typed.mapToWrap Earlier
         (\charOrder ( string0, string1 ) ->
             nothingJust
                 (\( char0, other0 ) ( char1, other1 ) ->
                     charOrder ( char0, char1 )
-                        |> onEQ (\() -> Order.with (greaterEarlier charOrdering) other0 other1)
+                        |> onEQ (\() -> Order.with (earlier charOrdering) other0 other1)
                 )
                 ( string0 |> String.uncons
                 , string1 |> String.uncons

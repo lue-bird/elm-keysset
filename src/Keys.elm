@@ -41,7 +41,7 @@ You can just ignore the `Typed` thing but if you're curious → [`typed-value`](
 
 import ArraySized exposing (ArraySized)
 import Map exposing (Mapping)
-import N exposing (Add1, Down, Exactly, In, N, N0, On, To, Up, Up0, n0, n1)
+import N exposing (Add1, Exactly, N, On, To, Up, Up0, n0, n1)
 import Order exposing (Ordering)
 import Typed exposing (Checked, Internal, Public, Tagged, Typed)
 
@@ -182,7 +182,13 @@ for keysConstructor =
         |> Typed.tag Keys
 
 
-{-| TODO
+{-| Add a key
+
+  - what name does the key have? (same as in the initial record from [`Keys.for`](#for))
+  - as a tuple
+      - which aspect should be sorted by? → [`Map`](#Map)
+      - how should we compare these aspects? [`Ordering`](#Ordering)
+
 -}
 and :
     (completeKeys
@@ -290,10 +296,10 @@ orderWithKey =
 
 keyInfo :
     ( Keys element tags_ keys lastIndex
-    , keys -> Key element key (Up indexToLast_ To lastIndex)
+    , keys -> Key element key (Up indexToLast To lastIndex)
     )
     ->
-        { index : N (Exactly (Up indexToLast_ To lastIndex))
+        { index : N (Exactly (Up indexToLast To lastIndex))
         , toKey : element -> key
         , keyOrder : ( key, key ) -> Order
         }
@@ -311,9 +317,9 @@ keyInfo ( keys, field ) =
 -}
 keyIndex :
     ( Keys element tags_ keys lastIndex
-    , keys -> Key element key_ (Up indexToLast_ To lastIndex)
+    , keys -> Key element key_ (Up indexToLast To lastIndex)
     )
-    -> N (Exactly (Up indexToLast_ To lastIndex))
+    -> N (Exactly (Up indexToLast To lastIndex))
 keyIndex ( keys, key ) =
     ( keys, key ) |> keyInfo |> .index
 

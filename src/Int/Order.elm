@@ -21,7 +21,9 @@ type Increasing
 
 {-| `Order` `Int`s where lower means greater
 
-    Int.Order.increasing 40 2
+    import Order
+
+    Order.with Int.Order.increasing 40 2
     --> GT
 
 -}
@@ -32,7 +34,9 @@ increasing =
 
 {-| `Order` `Int`s where higher means greater
 
-    Int.Order.decreasing 2 40
+    import Order
+
+    Order.with Int.Order.decreasing 2 40
     --> GT
 
 -}

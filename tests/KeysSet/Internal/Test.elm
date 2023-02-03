@@ -58,7 +58,7 @@ elementCollisionSuite =
             "finds inserted"
             (\element ->
                 Emptiable.empty
-                    |> KeysSet.insert ReplaceExisting Character.byIdOrChar element
+                    |> KeysSet.insert ReplaceCollisions Character.byIdOrChar element
                     |> fill
                     |> KeysSet.Internal.elementCollisions Character.byIdOrChar element
                     |> Expect.equal
@@ -81,7 +81,7 @@ elementCollisionSuite =
                                 Emptiable.empty
                                 Up
                                 (\element ->
-                                    KeysSet.insert ReplaceExisting Character.byIdOrChar element
+                                    KeysSet.insert ReplaceCollisions Character.byIdOrChar element
                                 )
                 in
                 elements

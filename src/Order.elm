@@ -18,7 +18,7 @@ All without `comparable`, `number`, ...
     import Order exposing (Ordering)
     import Int.Order
     import Char.Order
-    import String.Linear
+    import String.Order
 
     type User
         = User
@@ -31,12 +31,12 @@ All without `comparable`, `number`, ...
     userOrder =
         Order.by (\(User user) -> user)
             (Order.by .lastName
-                (String.Linear.greaterEarlier
+                (String.Order.earlier
                     (Char.Order.alphabetically Char.Order.lowerUpper)
                 )
                 |> Order.onTie
                     (Order.by .firstName
-                        (String.Linear.greaterEarlier
+                        (String.Order.earlier
                             (Char.Order.alphabetically Char.Order.lowerUpper)
                         )
                     )
@@ -188,14 +188,22 @@ type ByTag
 
 #### access a part
 
-    import List.Linear
-    import String.Linear
+    import Typed
+    import String.Order
     import Char.Order
+    import Map exposing (Mapping)
+
+    type Name
+        = Name
+
+    name : Mapping { name : String } Name String
+    name =
+        Typed.tag Name .name
 
     [ { name = "Bo" }, { name = "Amy" }, { name = "Cam" } ]
-        |> List.Linear.sortWith
-            (Order.by Record.Map.name
-                (String.Order.greaterEarlier (Char.Order.alphabetically Order.tie))
+        |> (List.sortWith << Order.with)
+            (Order.by name
+                (String.Order.earlier (Char.Order.alphabetically Order.tie))
             )
     --> [ { name = "Amy" }, { name = "Bo" }, { name = "Cam" } ]
 
@@ -224,7 +232,7 @@ type ByTag
 
     import Char.Order
     import Order exposing (Ordering)
-    import String.Linear
+    import String.Order
 
     type User
         = User { name : String }
@@ -233,7 +241,7 @@ type ByTag
     userNameOrder =
         Order.by (\(User user) -> user)
             (Order.by .name
-                (String.Linear.greaterEarlier
+                (String.Order.earlier
                     (Char.Order.alphabetically Char.Order.lowerUpper)
                 )
             )
@@ -451,8 +459,8 @@ on toPossibility possibilityAttachmentOrdering =
                 Other otherAttachment ->
                     ()
         )
-        |> Order.on toOne stringGreaterEarlier
-        |> Order.on ( OtherTag, .other ) stringGreaterEarlier
+        |> Order.on toOne stringEarlier
+        |> Order.on ( OtherTag, .other ) stringEarlier
         |> Order.choiceFinish
 
     type ToOne
@@ -684,18 +692,18 @@ type ReverseTag
 {-| `a < b  ⇆  a > b`
 
     import Char.Order
-    import String.Linear
+    import String.Order
 
     [ "b", "c", "a" ]
-        |> List.sortWith
-            (String.Linear.greaterEarlier
+        |> (List.sortWith << Order.with)
+            (String.Order.earlier
                 (Char.Order.alphabetically Order.tie)
             )
     --> [ "a", "b", "c" ]
 
     [ "b", "c", "a" ]
-        |> List.sortWith
-            (String.Linear.greaterEarlier
+        |> (List.sortWith << Order.with)
+            (String.Order.earlier
                 (Char.Order.alphabetically Order.tie)
                 |> Order.reverse
             )

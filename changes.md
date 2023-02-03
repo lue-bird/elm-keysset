@@ -24,7 +24,7 @@
     Order.by Record.Map.name Int.Order.increasing
         |> Order.onTie
             (Order.by Record.Map.status
-                (String.Order.greaterEarlier
+                (String.Order.earlier
                     (Char.Order.alphabetically Char.Order.lowerUpper)
                 )
             )
@@ -33,7 +33,7 @@
     --:     (Order.OnTieNext
     --:         (Order.By Record.Map.Name Int.Order.Increasing)
     --:         (Order.By Record.Map.Status
-    --:             (String.Order.GreaterEarlier
+    --:             (String.Order.earlier
     --:                 (Char.Order.Alphabetically Char.Order.LowerUpper)
     --:             )
     --:         )
