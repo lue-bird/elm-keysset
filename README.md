@@ -64,7 +64,7 @@ email =
 emailHostFirst : Keys User ByEmailHostFirst (Up1 x_)
 emailHostFirst =
     Keys.for (\email -> { email = email })
-       |> Keys.and .email ( email, emailOrder )
+       |> Keys.by .email ( email, emailOrder )
 
 type alias ByEmailHostFirst =
     ...
@@ -354,9 +354,9 @@ partnerKeys =
         (\partner partnerOfPartner ->
             { partner = partner, partnerForPartner = partnerForPartner }
         )
-        |> Keys.and .partner
+        |> Keys.by .partner
             ( Record.Map.partner, String.Order... )
-        |> Keys.and .partnerOfPartner
+        |> Keys.by .partnerOfPartner
             ( Record.Map.partnerOfPartner, String.Order... )
 
 partners =

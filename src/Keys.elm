@@ -1,7 +1,7 @@
 module Keys exposing
     ( Keys, KeysTag
     , for, KeysBeingBuilt
-    , and
+    , by
     , Key
     , toKeyWith, keyOrderWith, keyIndex
     , toArray
@@ -24,7 +24,7 @@ You can just ignore the `Typed` thing but if you're curious → [`typed-value`](
 ## create
 
 @docs for, KeysBeingBuilt
-@docs and
+@docs by
 
 
 ## single key
@@ -65,9 +65,9 @@ It preserves knowledge that each index is less than the whole count.
         (Up2 x)
     userKeys =
         Keys.for (\name email -> { name = name, email = email } )
-            |> Keys.and .username
+            |> Keys.by .username
                 ( Record.Map.username, String.Order... )
-            |> Keys.and .email
+            |> Keys.by .email
                 ( Record.Map.email, String.Order... )
 
     Emptiable.empty
@@ -158,7 +158,7 @@ in a record
             (Up1 x)
     userKeys =
         Keys.for (\email -> { email = email })
-            |> Keys.and .email ( Record.Map.email, Email.order )
+            |> Keys.by .email ( Record.Map.email, Email.order )
 
 in [`KeysSet`](KeysSet#KeysSet)
 
@@ -190,7 +190,7 @@ for keysConstructor =
       - how should we compare these aspects? [`Ordering`](#Ordering)
 
 -}
-and :
+by :
     (completeKeys
      -> Key element key (Up keyCountToCompleteFrom1 To lastIndex)
     )
@@ -215,7 +215,7 @@ and :
                 completeKeys
                 (Up keyCountToCompleteFrom1 To (Add1 lastIndex))
         )
-and keysAccessKey ( toKey, keyOrder ) =
+by keysAccessKey ( toKey, keyOrder ) =
     let
         keysInfoPush :
             { keys :

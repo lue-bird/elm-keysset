@@ -41,7 +41,7 @@ byEmail :
         N0
 byEmail =
     Keys.for (\email_ -> { email = email_ })
-        |> Keys.and .email
+        |> Keys.by .email
             ( email
             , String.Order.earlier
                 (Char.Order.alphabetically Char.Order.lowerUpper)

@@ -60,14 +60,14 @@ byNumberOrSymbol =
         (\symbol_ atomicNumber_ ->
             { symbol = symbol_, atomicNumber = atomicNumber_ }
         )
-        |> Keys.and .symbol
+        |> Keys.by .symbol
             ( symbol
             , String.Order.earlier
                 (Char.Order.alphabetically
                     Char.Order.lowerUpper
                 )
             )
-        |> Keys.and .atomicNumber
+        |> Keys.by .atomicNumber
             ( atomicNumber
             , Int.Order.increasing
             )

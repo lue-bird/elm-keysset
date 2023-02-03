@@ -52,8 +52,8 @@ byIdOrChar :
         N1
 byIdOrChar =
     Keys.for (\id_ char_ -> { id = id_, char = char_ })
-        |> Keys.and .id ( id, Int.Order.increasing )
-        |> Keys.and .char
+        |> Keys.by .id ( id, Int.Order.increasing )
+        |> Keys.by .char
             ( char
             , Char.Order.alphabetically Char.Order.lowerUpper
             )
