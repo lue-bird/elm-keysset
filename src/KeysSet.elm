@@ -110,9 +110,8 @@ where
     byName : Keys User ByName { name : Key User String (Up N0 To N0) } N0
     byName =
         Keys.for (\name -> { name = name })
-            |> Keys.by .name
-                ( data
-                , String.Order.earlier
+            |> Keys.by ( identity, Map.identity )
+                (String.Order.earlier
                     (Char.Order.alphabetically Char.Order.lowerUpper)
                 )
 
@@ -324,9 +323,8 @@ If no element with the given key is not present, `Emptiable.empty`
     animalByName : Keys Animal ByName { name : Key Animal String (Up N0 To N0) } N0
     animalByName =
         Keys.for (\name_ -> { name = name_ })
-            |> Keys.by .name
-                ( name
-                , String.Order.earlier
+            |> Keys.by ( .name, name )
+                (String.Order.earlier
                     (Char.Order.alphabetically Char.Order.lowerUpper)
                 )
 
@@ -414,9 +412,8 @@ element ( keys, key ) keyToAccess =
     userByName : Keys User ByName { name : Key User String (Up N0 To N0) } N0
     userByName =
         Keys.for (\name_ -> { name = name_ })
-            |> Keys.by .name
-                ( name
-                , String.Order.earlier
+            |> Keys.by ( .name, name )
+                (String.Order.earlier
                     (Char.Order.alphabetically Char.Order.lowerUpper)
                 )
 
@@ -721,19 +718,19 @@ remove ( keys, key ) keyToRemove =
 
     import Character
 
-    KeysSet.fromList Character.byIdOrChar
+    KeysSet.fromList Character.keys
         [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
         |> KeysSet.elementAlter IfNoCollision
-            ( Character.byIdOrChar, .id )
+            ( Character.keys, .id )
             1
             (\c -> { c | char = 'C' })
             -- gets changed
         |> KeysSet.elementAlter IfNoCollision
-            ( Character.byIdOrChar, .id )
+            ( Character.keys, .id )
             1
             (\c -> { c | id = 0 })
             -- doesn't get changed
-        |> KeysSet.toList ( Character.byIdOrChar, .id )
+        |> KeysSet.toList ( Character.keys, .id )
         --> [ { id = 0, char = 'A' }, { id = 1, char = 'C' } ]
 
 If you want to sometimes [`remove`](#remove)
@@ -809,9 +806,8 @@ in a given [`Direction`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-di
     nameAlphabetical : Keys String ( (), Order.By Map.Identity (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper))) (Key String String (Up N0 To N0)) N0
     nameAlphabetical =
         Keys.for identity
-            |> Keys.by identity
-                ( Map.identity
-                , String.Order.earlier
+            |> Keys.by ( identity, Map.identity )
+                (String.Order.earlier
                     (Char.Order.alphabetically Char.Order.lowerUpper)
                 )
 
@@ -871,9 +867,8 @@ in a given [`Direction`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-di
     nameAlphabetical : Keys String ( (), Order.By Map.Identity (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper))) (Key String String (Up N0 To N0)) N0
     nameAlphabetical =
         Keys.for identity
-            |> Keys.by identity
-                ( Map.identity
-                , String.Order.earlier
+            |> Keys.by ( identity, Map.identity )
+                (String.Order.earlier
                     (Char.Order.alphabetically Char.Order.lowerUpper)
                 )
 
@@ -904,7 +899,7 @@ Use this to fold over its elements
     intIncreasing : Keys Int ( (), Order.By Map.Identity Int.Order.Increasing ) (Key Int Int (Up N0 To N0)) N0
     intIncreasing =
         Keys.for identity
-            |> Keys.by identity ( Map.identity, Int.Order.increasing )
+            |> Keys.by ( identity, Map.identity ) Int.Order.increasing
 
     KeysSet.fromStack intIncreasing
         (Stack.topBelow 345 [ 234, 543 ])
@@ -1027,7 +1022,7 @@ then reducing what's accumulated
     intIncreasing : Keys Int ( (), Order.By Map.Identity Int.Order.Increasing ) (Key Int Int (Up N0 To N0)) N0
     intIncreasing =
         Keys.for identity
-            |> Keys.by identity ( Map.identity, Int.Order.increasing )
+            |> Keys.by ( identity, Map.identity ) Int.Order.increasing
 
     KeysSet.fromStack intIncreasing
         (Stack.topBelow 1 [ 2, 8, 16 ])
@@ -1067,7 +1062,7 @@ then reducing what's accumulated.
     intIncreasing : Keys Int ( (), Order.By Map.Identity Int.Order.Increasing ) (Key Int Int (Up N0 To N0)) N0
     intIncreasing =
         Keys.for identity
-            |> Keys.by identity ( Map.identity, Int.Order.increasing )
+            |> Keys.by ( identity, Map.identity ) Int.Order.increasing
 
 A simpler version is [`fold`](#fold)
 
@@ -1113,7 +1108,7 @@ foldFromOne firstToInitial reduce =
     intIncreasing : Keys Int ( (), Order.By Map.Identity Int.Order.Increasing ) (Key Int Int (Up N0 To N0)) N0
     intIncreasing =
         Keys.for identity
-            |> Keys.by identity ( Map.identity, Int.Order.increasing )
+            |> Keys.by ( identity, Map.identity ) Int.Order.increasing
 
 -}
 foldFrom :

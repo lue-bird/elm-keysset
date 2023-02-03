@@ -34,7 +34,7 @@ elementCollisionSuite =
         with2 : Emptiable (KeysSet Character Character.ByIdOrChar N1) never_
         with2 =
             KeysSet.fromStack
-                Character.byIdOrChar
+                Character.keys
                 (Stack.topBelow element0 [ element1 ])
     in
     Test.describe "elementCollision"
@@ -42,7 +42,7 @@ elementCollisionSuite =
             (\() ->
                 with2
                     |> fill
-                    |> KeysSet.Internal.elementCollisions Character.byIdOrChar element0
+                    |> KeysSet.Internal.elementCollisions Character.keys element0
                     |> Expect.equal
                         (Tree2.one element0)
             )
@@ -50,7 +50,7 @@ elementCollisionSuite =
             (\() ->
                 with2
                     |> fill
-                    |> KeysSet.Internal.elementCollisions Character.byIdOrChar element1
+                    |> KeysSet.Internal.elementCollisions Character.keys element1
                     |> Expect.equal
                         (Tree2.one element1)
             )
@@ -58,9 +58,9 @@ elementCollisionSuite =
             "finds inserted"
             (\element ->
                 Emptiable.empty
-                    |> KeysSet.insert ReplaceCollisions Character.byIdOrChar element
+                    |> KeysSet.insert ReplaceCollisions Character.keys element
                     |> fill
-                    |> KeysSet.Internal.elementCollisions Character.byIdOrChar element
+                    |> KeysSet.Internal.elementCollisions Character.keys element
                     |> Expect.equal
                         (Tree2.one element)
             )
@@ -81,7 +81,7 @@ elementCollisionSuite =
                                 Emptiable.empty
                                 Up
                                 (\element ->
-                                    KeysSet.insert ReplaceCollisions Character.byIdOrChar element
+                                    KeysSet.insert ReplaceCollisions Character.keys element
                                 )
                 in
                 elements
@@ -89,7 +89,7 @@ elementCollisionSuite =
                         (\element () ->
                             keysSet
                                 |> Emptiable.mapFlat
-                                    (KeysSet.Internal.elementCollisions Character.byIdOrChar element)
+                                    (KeysSet.Internal.elementCollisions Character.keys element)
                                 |> Expect.equal
                                     (Tree2.one element)
                         )

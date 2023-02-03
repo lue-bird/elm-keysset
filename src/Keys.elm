@@ -191,13 +191,11 @@ for keysConstructor =
 
 -}
 by :
-    (completeKeys
-     -> Key element key (Up keyCountToCompleteFrom1 To lastIndex)
+    ( completeKeys
+      -> Key element key (Up keyCountToCompleteFrom1 To lastIndex)
+    , Mapping element elementToKeyTag key
     )
-    ->
-        ( Mapping element elementToKeyTag key
-        , Ordering key elementKeyOrderTag
-        )
+    -> Ordering key elementKeyOrderTag
     ->
         (KeysBeingBuilt
             element
@@ -215,7 +213,7 @@ by :
                 completeKeys
                 (Up keyCountToCompleteFrom1 To (Add1 lastIndex))
         )
-by keysAccessKey ( toKey, keyOrder ) =
+by ( keysAccessKey, toKey ) keyOrder =
     let
         keysInfoPush :
             { keys :

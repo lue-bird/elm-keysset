@@ -52,11 +52,7 @@ byOpenClosed :
         N1
 byOpenClosed =
     Keys.for (\open_ closed_ -> { open = open_, closed = closed_ })
-        |> Keys.by .open
-            ( open
-            , Char.Order.alphabetically Char.Order.lowerUpper
-            )
-        |> Keys.by .closed
-            ( closed
-            , Char.Order.alphabetically Char.Order.lowerUpper
-            )
+        |> Keys.by ( .open, open )
+            (Char.Order.alphabetically Char.Order.lowerUpper)
+        |> Keys.by ( .closed, closed )
+            (Char.Order.alphabetically Char.Order.lowerUpper)

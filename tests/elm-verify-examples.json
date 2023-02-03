@@ -3,8 +3,8 @@
   "tests": [
     "KeysSet",
     "Keys",
-    "Order",
     "Map",
+    "Order",
     "Char.Order",
     "Int.Order",
     "Float.Order",

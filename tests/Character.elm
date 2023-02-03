@@ -1,4 +1,4 @@
-module Character exposing (ByIdOrChar, Character, byIdOrChar, fuzz)
+module Character exposing (ByIdOrChar, Character, fuzz, keys)
 
 import Char.Order
 import Fuzz exposing (Fuzzer)
@@ -42,7 +42,7 @@ char =
     Typed.tag CharTag .char
 
 
-byIdOrChar :
+keys :
     Keys
         Character
         ByIdOrChar
@@ -50,13 +50,11 @@ byIdOrChar :
         , char : Keys.Key Character Char (Up N0 To N1)
         }
         N1
-byIdOrChar =
+keys =
     Keys.for (\id_ char_ -> { id = id_, char = char_ })
-        |> Keys.by .id ( id, Int.Order.increasing )
-        |> Keys.by .char
-            ( char
-            , Char.Order.alphabetically Char.Order.lowerUpper
-            )
+        |> Keys.by ( .id, id ) Int.Order.increasing
+        |> Keys.by ( .char, char )
+            (Char.Order.alphabetically Char.Order.lowerUpper)
 
 
 fuzz : Fuzzer Character
