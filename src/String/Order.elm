@@ -1,8 +1,8 @@
-module String.Order exposing (earlier, Earlier)
+module String.Order exposing (earlier, Earlier, EarlierTag)
 
-{-| `Order` `String`s
+{-| `String` [`Ordering`](Order#Ordering)
 
-@docs earlier, Earlier
+@docs earlier, Earlier, EarlierTag
 
 -}
 
@@ -10,10 +10,14 @@ import Order exposing (Ordering)
 import Typed
 
 
+{-| Tag for [`earlier`](#earlier)
+-}
 type alias Earlier elementOrder =
     ( EarlierTag, elementOrder )
 
 
+{-| Wrapper tag for [`Earlier`](#Earlier)
+-}
 type EarlierTag
     = Earlier
 
