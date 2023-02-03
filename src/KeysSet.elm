@@ -896,10 +896,9 @@ Use this to fold over its elements
     import Keys exposing (Keys, Key)
     import KeysSet
 
-    intIncreasing : Keys Int ( (), Order.By Map.Identity Int.Order.Increasing ) (Key Int Int (Up N0 To N0)) N0
+    intIncreasing : Keys.Identity Int Int.Order.Increasing
     intIncreasing =
-        Keys.for identity
-            |> Keys.by ( identity, Map.identity ) Int.Order.increasing
+        Keys.identity Int.Order.increasing
 
     KeysSet.fromStack intIncreasing
         (Stack.topBelow 345 [ 234, 543 ])
@@ -1019,10 +1018,9 @@ then reducing what's accumulated
     import KeysSet
     import Int.Order
 
-    intIncreasing : Keys Int ( (), Order.By Map.Identity Int.Order.Increasing ) (Key Int Int (Up N0 To N0)) N0
+    intIncreasing : Keys.Identity Int Int.Order.Increasing
     intIncreasing =
-        Keys.for identity
-            |> Keys.by ( identity, Map.identity ) Int.Order.increasing
+        Keys.identity Int.Order.increasing
 
     KeysSet.fromStack intIncreasing
         (Stack.topBelow 1 [ 2, 8, 16 ])
@@ -1059,10 +1057,9 @@ then reducing what's accumulated.
     -- no! you shouldn't rely on order with fold
     -- the type knows it's never empty
 
-    intIncreasing : Keys Int ( (), Order.By Map.Identity Int.Order.Increasing ) (Key Int Int (Up N0 To N0)) N0
+    intIncreasing : Keys.Identity Int Int.Order.Increasing
     intIncreasing =
-        Keys.for identity
-            |> Keys.by ( identity, Map.identity ) Int.Order.increasing
+        Keys.identity Int.Order.increasing
 
 A simpler version is [`fold`](#fold)
 
@@ -1105,10 +1102,9 @@ foldFromOne firstToInitial reduce =
         |> KeysSet.foldFrom 0 (+)
     --> 6
 
-    intIncreasing : Keys Int ( (), Order.By Map.Identity Int.Order.Increasing ) (Key Int Int (Up N0 To N0)) N0
+    intIncreasing : Keys.Identity Int Int.Order.Increasing
     intIncreasing =
-        Keys.for identity
-            |> Keys.by ( identity, Map.identity ) Int.Order.increasing
+        Keys.identity Int.Order.increasing
 
 -}
 foldFrom :
