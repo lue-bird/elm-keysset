@@ -43,9 +43,9 @@ You can just ignore the `Typed` thing but if you're curious → [`typed-value`](
 
 import ArraySized exposing (ArraySized)
 import Map exposing (Mapping)
-import N exposing (Add1, Exactly, N, N0, On, To, Up, Up0, n0, n1)
+import N exposing (Add1, Exactly, N, N0, On, To, Up, Up0, n1)
 import Order exposing (Ordering)
-import Typed exposing (Checked, Internal, Public, Tagged, Typed)
+import Typed exposing (Checked, Internal, Public, Typed)
 
 
 {-| How to annotate a fully constructed [`Keys`](#Keys) builder
@@ -85,7 +85,7 @@ type alias Keys element keys lastIndex =
     KeysBeingBuilt element keys keys (On (Add1 lastIndex))
 
 
-{-| Once you supply all the necessary key-[`Ordering`](Order#Ordering) pairs with [`and`](#and),
+{-| Once you supply all the necessary key-[`Ordering`](Order#Ordering) pairs with [`by`](#by),
 a [`KeysBeingBuilt`](#KeysBeingBuilt) automatically becomes a [`Keys`](#Keys)
 
 It's opaque because you shouldn't be able to
@@ -94,7 +94,7 @@ It's opaque because you shouldn't be able to
   - throw it's array representation out of sync
 
 -}
-type alias KeysBeingBuilt element keysConstructor completeKeys keyCount =
+type alias KeysBeingBuilt element keysComplete keysConstructor keyCount =
     Typed
         Checked
         KeysTag
@@ -102,7 +102,7 @@ type alias KeysBeingBuilt element keysConstructor completeKeys keyCount =
         { keys : keysConstructor
         , toArray :
             ArraySized
-                (completeKeys
+                (keysComplete
                  -> (( element, element ) -> Order)
                 )
                 (Exactly keyCount)
@@ -161,7 +161,7 @@ in [`KeysSet`](KeysSet#KeysSet)
 -}
 for :
     keysConstructor
-    -> KeysBeingBuilt element_ keysConstructor completeKeys_ (Up0 x_)
+    -> KeysBeingBuilt element_ completeKeys_ keysConstructor (Up0 x_)
 for keysConstructor =
     { keys = keysConstructor
     , toArray = ArraySized.empty
@@ -227,34 +227,25 @@ type alias Identity element elementOrderTag =
 
 -}
 by :
-    ( completeKeys
-      ->
-        Key
-            element
-            (Order.By elementToKeyTag elementKeyOrderTag)
-            key
-            (Up keyCountToCompleteFrom1 To lastIndex)
-    , Mapping element elementToKeyTag key
+    ( keysComplete
+      -> Key element (Order.By toKeyTag keyOrderTag) key (Up indexToLast To lastIndex)
+    , Mapping element toKeyTag key
     )
-    -> Ordering key elementKeyOrderTag
+    -> Ordering key keyOrderTag
     ->
         (KeysBeingBuilt
             element
-            (Key
-                element
-                (Order.By elementToKeyTag elementKeyOrderTag)
-                key
-                (Up keyCountToCompleteFrom1 To lastIndex)
+            keysComplete
+            (Key element (Order.By toKeyTag keyOrderTag) key (Up indexToLast To lastIndex)
              -> keysConstructedPartially
             )
-            completeKeys
-            (Up (Add1 keyCountToCompleteFrom1) To (Add1 lastIndex))
+            (Up (Add1 indexToLast) To (Add1 lastIndex))
          ->
             KeysBeingBuilt
                 element
+                keysComplete
                 keysConstructedPartially
-                completeKeys
-                (Up keyCountToCompleteFrom1 To (Add1 lastIndex))
+                (Up indexToLast To (Add1 lastIndex))
         )
 by ( keysAccessKey, toKey ) keyOrder =
     let
@@ -262,25 +253,25 @@ by ( keysAccessKey, toKey ) keyOrder =
             { keys :
                 Key
                     element
-                    (Order.By elementToKeyTag elementKeyOrderTag)
+                    (Order.By toKeyTag keyOrderTag)
                     key
-                    (Up keyCountToCompleteFrom1 To lastIndex)
+                    (Up indexToLast To lastIndex)
                 -> keysConstructedPartially
             , toArray :
                 ArraySized
-                    (completeKeys -> (( element, element ) -> Order))
-                    (Exactly (Up (Add1 keyCountToCompleteFrom1) To (Add1 lastIndex)))
+                    (keysComplete -> (( element, element ) -> Order))
+                    (Exactly (Up (Add1 indexToLast) To (Add1 lastIndex)))
             }
             ->
                 { keys : keysConstructedPartially
                 , toArray :
                     ArraySized
-                        (completeKeys -> (( element, element ) -> Order))
-                        (Exactly (Up keyCountToCompleteFrom1 To (Add1 lastIndex)))
+                        (keysComplete -> (( element, element ) -> Order))
+                        (Exactly (Up indexToLast To (Add1 lastIndex)))
                 }
         keysInfoPush keysInfo =
             let
-                index : N (Exactly (Up keyCountToCompleteFrom1 To lastIndex))
+                index : N (Exactly (Up indexToLast To lastIndex))
                 index =
                     keysInfo.toArray
                         |> ArraySized.length
@@ -290,9 +281,9 @@ by ( keysAccessKey, toKey ) keyOrder =
                 keyField :
                     Key
                         element
-                        (Order.By elementToKeyTag elementKeyOrderTag)
+                        (Order.By toKeyTag keyOrderTag)
                         key
-                        (Up keyCountToCompleteFrom1 To lastIndex)
+                        (Up indexToLast To lastIndex)
                 keyField =
                     Typed.mapToWrap Keys
                         (\_ ->
@@ -305,15 +296,15 @@ by ( keysAccessKey, toKey ) keyOrder =
 
                 toArrayPushed :
                     ArraySized
-                        (completeKeys
+                        (keysComplete
                          -> (( element, element ) -> Order)
                         )
-                        (Exactly (Up keyCountToCompleteFrom1 To (Add1 lastIndex)))
+                        (Exactly (Up indexToLast To (Add1 lastIndex)))
                 toArrayPushed =
                     keysInfo.toArray
                         |> ArraySized.push
-                            (\completeKeys ->
-                                completeKeys
+                            (\keysComplete ->
+                                keysComplete
                                     |> keysAccessKey
                                     |> orderWithKey
                             )
@@ -362,7 +353,7 @@ keyInfo ( keys, field ) =
     info |> .keys |> field |> Typed.untag
 
 
-{-| A [`Key`](#Key)'s distance from the first [`and`](#and) in the [`Keys` builder](#KeysBeingBuilt)
+{-| A [`Key`](#Key)'s distance from the first [`by`](#by) in the [`Keys` builder](#KeysBeingBuilt)
 -}
 keyIndex :
     ( Keys element keys lastIndex
