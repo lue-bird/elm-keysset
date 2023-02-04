@@ -120,7 +120,7 @@ where
                     (Char.Order.alphabetically Char.Order.lowerUpper)
                 )
 
-  - [`element`](#element), [`end`](#end), [`insert`](#insert) versions, [`elementAlter`](#elementAlter) versions, [`remove`](#remove) are runtime `log n`
+  - [`element`](#element), [`end`](#end), [insert](#insertIfNoCollision) versions, [elementAlter](#elementAlterIfNoCollision) versions, [`remove`](#remove) are runtime `log n`
   - [`toList`](#toList), [`toStack`](#toStack), [`foldFrom`](#foldFrom), [`fold`](#fold), [`foldFromOne`](#foldFromOne) are runtime `n`
 
 -}
@@ -494,6 +494,41 @@ fillInsertOnNoCollision keys toInsert =
             |> filled
 
 
+elementCollisions :
+    Keys element keys lastKeyIndex
+    -> element
+    ->
+        (KeysSet element keys lastKeyIndex
+         -> Emptiable (Tree2.Branch element) Possibly
+        )
+elementCollisions keys toCollideWith =
+    \keysSet ->
+        keysSet
+            |> Typed.untag
+            |> .byKeys
+            |> ArraySized.and
+                (keys
+                    |> Keys.toArray
+                    |> ArraySized.inToNumber
+                )
+            |> ArraySized.foldFrom Emptiable.empty
+                Down
+                (\( branch, key ) soFar ->
+                    soFar
+                        |> (case
+                                branch
+                                    |> filled
+                                    |> treeElement (\el -> ( toCollideWith, el ) |> key)
+                            of
+                                Emptiable.Empty _ ->
+                                    identity
+
+                                Emptiable.Filled collision ->
+                                    KeysSet.Internal.treeInsertIfNoCollision key collision
+                           )
+                )
+
+
 {-| Insert a given element.
 If the element you wanted to insert already has elements with a matching key (collisions),
 keep the existing collision elements instead.
@@ -539,43 +574,8 @@ insertIfNoCollision keys toInsertOrReplacement =
                     Emptiable.Empty _ ->
                         keysSetFill |> fillInsertOnNoCollision keys toInsertOrReplacement
 
-                    Emptiable.Filled collisionsTreeFilled ->
+                    Emptiable.Filled _ ->
                         keysSetFill |> filled
-
-
-elementCollisions :
-    Keys element keys lastKeyIndex
-    -> element
-    ->
-        (KeysSet element keys lastKeyIndex
-         -> Emptiable (Tree2.Branch element) Possibly
-        )
-elementCollisions keys toCollideWith =
-    \keysSet ->
-        keysSet
-            |> Typed.untag
-            |> .byKeys
-            |> ArraySized.and
-                (keys
-                    |> Keys.toArray
-                    |> ArraySized.inToNumber
-                )
-            |> ArraySized.foldFrom Emptiable.empty
-                Down
-                (\( branch, key ) soFar ->
-                    soFar
-                        |> (case
-                                branch
-                                    |> filled
-                                    |> treeElement (\el -> ( toCollideWith, el ) |> key)
-                            of
-                                Emptiable.Empty _ ->
-                                    identity
-
-                                Emptiable.Filled collision ->
-                                    KeysSet.Internal.treeInsertIfNoCollision key collision
-                           )
-                )
 
 
 {-| Insert a given element.
@@ -1299,7 +1299,8 @@ except :
     )
     ->
         ( ( Keys incomingElement incomingKeys incomingLastIndex
-          , incomingKeys -> Key incomingElement by_ key (Up incomingIndexToLast_ To incomingLastIndex)
+          , incomingKeys
+            -> Key incomingElement incomingBy_ key (Up incomingIndexToLast_ To incomingLastIndex)
           )
         , Emptiable (KeysSet incomingElement incomingKeys incomingLastIndex) incomingPossiblyOrNever_
         )
@@ -1354,7 +1355,7 @@ fold2From :
         ({ first :
             { key :
                 ( Keys firstElement firstKeys firstLastIndex
-                , firstKeys -> Key firstElement by_ key (Up firstIndexToLastIndex_ To firstLastIndex)
+                , firstKeys -> Key firstElement firstBy_ key (Up firstIndexToLastIndex_ To firstLastIndex)
                 )
             , set :
                 Emptiable
@@ -1364,7 +1365,7 @@ fold2From :
          , second :
             { key :
                 ( Keys secondElement secondKeys secondLastIndex
-                , secondKeys -> Key secondElement by_ key (Up secondIndexToLastIndex_ To secondLastIndex)
+                , secondKeys -> Key secondElement secondBy_ key (Up secondIndexToLastIndex_ To secondLastIndex)
                 )
             , set :
                 Emptiable
