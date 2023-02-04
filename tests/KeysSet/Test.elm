@@ -848,8 +848,8 @@ exceptSuite =
             (\() ->
                 Emptiable.empty
                     |> KeysSet.except ( Character.keys, .id )
-                        ( ( Character.keys, .id )
-                        , KeysSet.one Character.keys { id = 0, char = 'A' }
+                        (KeysSet.one Character.keys { id = 0, char = 'A' }
+                            |> KeysSet.toKeys ( Character.keys, .id )
                         )
                     |> KeysSet.toList ( Character.keys, .id )
                     |> Expect.equalLists []
@@ -858,9 +858,7 @@ exceptSuite =
             (\() ->
                 KeysSet.one Character.keys { id = 0, char = 'A' }
                     |> KeysSet.except ( Character.keys, .id )
-                        ( ( Character.keys, .id )
-                        , Emptiable.empty
-                        )
+                        Emptiable.empty
                     |> KeysSet.toList ( Character.keys, .id )
                     |> Expect.equalLists [ { id = 0, char = 'A' } ]
             )
@@ -873,13 +871,13 @@ exceptSuite =
                     , { id = 3, char = 'd' }
                     ]
                     |> KeysSet.except ( Character.keys, .id )
-                        ( ( Character.keys, .id )
-                        , KeysSet.fromList Character.keys
+                        (KeysSet.fromList Character.keys
                             [ { id = 2, char = 'c' }
                             , { id = 3, char = 'd' }
                             , { id = 4, char = 'e' }
                             , { id = 5, char = 'f' }
                             ]
+                            |> KeysSet.toKeys ( Character.keys, .id )
                         )
                     |> KeysSet.toList ( Character.keys, .id )
                     |> Expect.equalLists
