@@ -1,5 +1,5 @@
 module KeysSet exposing
-    ( KeysSet
+    ( KeysSet, KeysSetTag, Tree2BranchInternals
     , one
     , fromStack, fromList
     , size, element, end
@@ -9,13 +9,13 @@ module KeysSet exposing
     , map, mapTry
     , unifyWith, except, intersect
     , fold2From, FirstAndOrSecond(..)
-    , toStack, toList
+    , toKeys, toStack, toList
     , foldFrom, fold, foldFromOne
     )
 
 {-| Lookup with multiple [`Keys`](Keys#Keys)
 
-@docs KeysSet
+@docs KeysSet, KeysSetTag, Tree2BranchInternals
 
 
 ## create
@@ -47,7 +47,7 @@ module KeysSet exposing
 
 ## transform
 
-@docs toStack, toList
+@docs toKeys, toStack, toList
 @docs foldFrom, fold, foldFromOne
 
 -}
@@ -59,7 +59,9 @@ import KeysSet.Internal exposing (treeElement)
 import KeysSet.Tag
 import Linear exposing (Direction(..))
 import List.Linear
-import N exposing (Add1, Exactly, In, N, To, Up, n0)
+import Map
+import N exposing (Add1, Exactly, In, N, N0, To, Up, n0)
+import Order
 import Possibly exposing (Possibly(..))
 import Stack exposing (Stacked)
 import Tree2
@@ -121,24 +123,39 @@ where
                 )
 
   - [`element`](#element), [`end`](#end), [insert](#insertIfNoCollision) versions, [elementAlter](#elementAlterIfNoCollision) versions, [`remove`](#remove) are runtime `log n`
-  - [`toList`](#toList), [`toStack`](#toStack), [`foldFrom`](#foldFrom), [`fold`](#fold), [`foldFromOne`](#foldFromOne) are runtime `n`
+  - [`toList`](#toList), [`toStack`](#toStack), [`toKeys`](#toKeys), [`foldFrom`](#foldFrom), [`fold`](#fold), [`foldFromOne`](#foldFromOne) are runtime `n`
 
 -}
 type alias KeysSet element keys lastIndex =
     Typed
         Checked
-        (KeysSet.Tag.For keys)
+        (KeysSetTag keys)
         Public
         { size : Int
         , byKeys :
             ArraySized
-                (Tree2.Branch element)
+                (Tree2BranchInternals element)
                 (Exactly (Add1 lastIndex))
         }
 
 
+{-| The underlying sorted tree structure for one key of a [`KeysSet`](#KeysSet).
+-}
+type alias Tree2BranchInternals element =
+    Tree2.Branch element
 
--- create
+
+{-| Tag that verifies a [`KeysSet`](#KeysSet) is created by this module.
+You don't need to know more but I you're interested,
+check [`Typed.Checked`](https://dark.elm.dmy.fr/packages/lue-bird/elm-typed-value/latest/Typed#Checked)
+-}
+type KeysSetTag keys
+    = KeysSet (KeysSet.Tag.For keys)
+
+
+tagFor : Keys element_ keys lastIndex_ -> KeysSetTag keys
+tagFor keys =
+    KeysSet (KeysSet.Tag.for keys)
 
 
 {-| [`KeysSet`](#KeysSet) containing a single given element
@@ -150,7 +167,7 @@ one :
          -> Emptiable (KeysSet element keys lastIndex) never_
         )
 one keys singleElement =
-    Typed.tag (KeysSet.Tag.for keys)
+    Typed.tag (tagFor keys)
         { size = 1
         , byKeys =
             keys
@@ -160,6 +177,10 @@ one keys singleElement =
                     (\_ -> singleElement |> Tree2.one |> fill)
         }
         |> filled
+
+
+
+-- create
 
 
 {-| Convert to a [`KeysSet`](#KeysSet),
@@ -240,10 +261,6 @@ size =
                 multiple |> Typed.untag |> .size
 
 
-
--- scan
-
-
 treeForIndex :
     N (In min_ (Up maxToLastIndex_ To lastIndex))
     ->
@@ -258,6 +275,10 @@ treeForIndex index =
             |> ArraySized.inToOn
             |> ArraySized.element ( Up, index )
             |> Emptiable.filled
+
+
+
+-- scan
 
 
 tree :
@@ -490,7 +511,7 @@ fillInsertOnNoCollision keys toInsert =
                                 )
                     }
                 )
-            |> Typed.toChecked (KeysSet.Tag.for keys)
+            |> Typed.toChecked (tagFor keys)
             |> filled
 
 
@@ -653,7 +674,7 @@ insertReplacingCollisions keys toInsertOrReplacement =
                                                         )
                                             }
                                         )
-                                    |> Typed.toChecked (KeysSet.Tag.for keys)
+                                    |> Typed.toChecked (tagFor keys)
                                     |> filled
 
 
@@ -691,7 +712,7 @@ exceptTree keys exceptions =
                                 , byKeys = branches
                                 }
                             )
-                        |> Typed.toChecked (KeysSet.Tag.for keys)
+                        |> Typed.toChecked (tagFor keys)
                 )
 
 
@@ -757,13 +778,9 @@ remove ( keys, key ) keyToRemove =
                                                     , byKeys = byKeysResult
                                                     }
                                                 )
-                                            |> Typed.toChecked (KeysSet.Tag.for keys)
+                                            |> Typed.toChecked (tagFor keys)
                                     )
                         )
-
-
-
--- transform
 
 
 {-| Change the element with a given key in a given way
@@ -832,6 +849,10 @@ elementAlterIfNoCollision ( keys, key ) keyToAlter elementChange =
                             removed |> fillInsertOnNoCollision keys elementAltered
 
 
+
+-- transform
+
+
 {-| Change the element with a given key in a given way
 If the result has existing elements with a matching key (collisions), replace them.
 To not alter the element if there are collisions with the result instead → [`elementAlterIfNoCollision`](#elementAlterIfNoCollision)
@@ -885,8 +906,55 @@ elementAlterReplacingCollisions ( keys, key ) keyToAlter elementChange =
                     |> insertReplacingCollisions keys elementAltered
 
 
-{-| Convert to a `List` sorted by keys
-in a given [`Direction`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/Linear#Direction)
+{-| A [`KeysSet`](#KeysSet) sorted by the identity of one of the keys of the original set.
+Runtime is O(n).
+-}
+toKeys :
+    ( Keys element keys lastIndex
+    , keys -> Key element (Order.By toKeyTag_ keyOrderTag) key (Up indexToLast_ To lastIndex)
+    )
+    ->
+        (Emptiable (KeysSet element keys lastIndex) possiblyOrNever
+         ->
+            Emptiable
+                (KeysSet key (Keys.Key key (Order.By Map.Identity keyOrderTag) key (Up N0 To N0)) N0)
+                possiblyOrNever
+        )
+toKeys ( keys, key ) =
+    \keysSet ->
+        keysSet
+            |> Emptiable.map
+                (\keysSetFill ->
+                    let
+                        info =
+                            keysSetFill |> Typed.untag
+                    in
+                    { size = info.size
+                    , byKeys =
+                        info
+                            |> .byKeys
+                            |> ArraySized.inToOn
+                            |> ArraySized.element ( Up, Keys.keyIndex ( keys, key ) )
+                            |> filled
+                            |> Tree2.map (Keys.toKeyWith ( keys, key ))
+                            |> fill
+                            |> ArraySized.one
+                            |> ArraySized.inToNumber
+                    }
+                        |> Typed.tag (tagForIdentity ( keys, key ))
+                )
+
+
+tagForIdentity :
+    ( Keys element keys lastIndex_
+    , keys -> Key element (Order.By toKeyTag_ orderTag) key index_
+    )
+    -> KeysSetTag (Key key (Order.By Map.Identity orderTag) key (Up N0 To N0))
+tagForIdentity ( keys, key ) =
+    KeysSet (KeysSet.Tag.forIdentity ( keys, key ))
+
+
+{-| Convert to a `List`
 
     import Linear exposing (Direction(..))
     import N exposing (Up, To, N0)
@@ -1279,13 +1347,13 @@ intersect ( keys, key ) toIntersectWith =
         , { id = 3, char = 'd' }
         ]
         |> KeysSet.except ( Character.keys, .id )
-            ( ( Character.keys, .id )
-            , KeysSet.fromList Character.keys
+            (KeysSet.fromList Character.keys
                 [ { id = 2, char = 'c' }
                 , { id = 3, char = 'd' }
                 , { id = 4, char = 'e' }
                 , { id = 5, char = 'f' }
                 ]
+                |> KeysSet.toKeys ( Character.keys, .id )
             )
         |> KeysSet.toList ( Character.keys, .id )
     --> [ { id = 0, char = 'A' }
@@ -1297,26 +1365,18 @@ except :
     ( Keys element keys lastIndex
     , keys -> Key element by_ key (Up indexToLast_ To lastIndex)
     )
-    ->
-        ( ( Keys incomingElement incomingKeys incomingLastIndex
-          , incomingKeys
-            -> Key incomingElement incomingBy_ key (Up incomingIndexToLast_ To incomingLastIndex)
-          )
-        , Emptiable (KeysSet incomingElement incomingKeys incomingLastIndex) incomingPossiblyOrNever_
-        )
+    -> Emptiable (KeysSet key incomingKeys_ incomingLastIndex_) incomingPossiblyOrNever_
     ->
         (Emptiable (KeysSet element keys lastIndex) possiblyOrNever_
          -> Emptiable (KeysSet element keys lastIndex) Possibly
         )
-except ( keys, key ) ( ( toExcludeKeys, toExcludeKey ), toExclude ) =
+except ( keys, key ) toExcludeKeys =
     \keysSet ->
-        toExclude
+        toExcludeKeys
             |> foldFrom
                 (keysSet |> emptyAdapt (\_ -> Possible))
-                (\element_ diffSoFar ->
-                    diffSoFar
-                        |> remove ( keys, key )
-                            (element_ |> toKeyWith ( toExcludeKeys, toExcludeKey ))
+                (\keyToExclude diffSoFar ->
+                    diffSoFar |> remove ( keys, key ) keyToExclude
                 )
 
 
