@@ -55,8 +55,7 @@ module KeysSet exposing
 import ArraySized exposing (ArraySized)
 import Emptiable exposing (Emptiable(..), emptyAdapt, fill, filled)
 import Keys exposing (Key, Keys, keyIndex, keyOrderWith, toKeyWith)
-import KeysSet.Internal exposing (treeElement)
-import KeysSet.Tag
+import KeysSet.Internal
 import Linear exposing (Direction(..))
 import List.Linear
 import Map
@@ -150,12 +149,12 @@ You don't need to know more but I you're interested,
 check [`Typed.Checked`](https://dark.elm.dmy.fr/packages/lue-bird/elm-typed-value/latest/Typed#Checked)
 -}
 type KeysSetTag keys
-    = KeysSet (KeysSet.Tag.For keys)
+    = KeysSet (KeysSet.Internal.TagFor keys)
 
 
 tagFor : Keys element_ keys lastIndex_ -> KeysSetTag keys
 tagFor keys =
-    KeysSet (KeysSet.Tag.for keys)
+    KeysSet (KeysSet.Internal.tagFor keys)
 
 
 {-| [`KeysSet`](#KeysSet) containing a single given element
@@ -378,7 +377,7 @@ element ( keys, key ) keyToAccess =
                 (\info ->
                     info
                         |> tree ( keys, key )
-                        |> treeElement
+                        |> KeysSet.Internal.treeElement
                             (\el ->
                                 ( keyToAccess, el |> toKeyWith ( keys, key ) )
                                     |> keyOrderWith ( keys, key )
@@ -539,7 +538,7 @@ elementCollisions keys toCollideWith =
                         |> (case
                                 branch
                                     |> filled
-                                    |> treeElement (\el -> ( toCollideWith, el ) |> key)
+                                    |> KeysSet.Internal.treeElement (\el -> ( toCollideWith, el ) |> key)
                             of
                                 Emptiable.Empty _ ->
                                     identity
@@ -951,7 +950,7 @@ tagForIdentity :
     )
     -> KeysSetTag (Key key (Order.By Map.Identity orderTag) key (Up N0 To N0))
 tagForIdentity ( keys, key ) =
-    KeysSet (KeysSet.Tag.forIdentity ( keys, key ))
+    KeysSet (KeysSet.Internal.tagForIdentity ( keys, key ))
 
 
 {-| Convert to a `List`
