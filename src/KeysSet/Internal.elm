@@ -1,13 +1,9 @@
 module KeysSet.Internal exposing (treeElement, treeExcept, treeInsertIfNoCollision, treeRemove)
 
-import ArraySized exposing (ArraySized)
 import Emptiable exposing (Emptiable(..), filled)
-import Keys exposing (Keys)
 import Linear exposing (Direction(..))
-import N exposing (Add1, Exactly)
 import Possibly exposing (Possibly(..))
 import Tree2
-import Typed exposing (Checked, Public, Typed)
 
 
 {-| The argument should tell where to search further
