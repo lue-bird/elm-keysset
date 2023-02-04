@@ -1,7 +1,7 @@
 module Char.Order exposing
     ( Case(..)
     , lowerUpper, LowerUpper, upperLower
-    , alphabetically, Alphabetically
+    , alphabetically, Alphabetically, AlphabeticallyTag
     )
 
 {-| `Order` `Char`s
@@ -19,7 +19,7 @@ module Char.Order exposing
 
 ## [`Order`](Order#Ordering)
 
-@docs alphabetically, Alphabetically
+@docs alphabetically, Alphabetically, AlphabeticallyTag
 
 -}
 
@@ -79,6 +79,8 @@ type alias Alphabetically caseOrder =
     ( AlphabeticallyTag, caseOrder )
 
 
+{-| Wrapper tag for [`Alphabetically`](#Alphabetically)
+-}
 type AlphabeticallyTag
     = Alphabetically
 
@@ -114,10 +116,10 @@ alphabetically caseOrdering =
                     compare (char0 |> Char.toLower) (char1 |> Char.toLower)
                         |> onEQ (\() -> caseOrder ( case0, case1 ))
 
-                ( Nothing, Just case1 ) ->
+                ( Nothing, Just _ ) ->
                     LT
 
-                ( Just case0, Nothing ) ->
+                ( Just _, Nothing ) ->
                     GT
 
                 ( Nothing, Nothing ) ->
