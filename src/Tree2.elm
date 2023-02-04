@@ -2,7 +2,7 @@ module Tree2 exposing
     ( Branch, Children
     , one, branch
     , size, height, children, trunk, end
-    , childrenDownAlter, childrenUpAlter, removeEnd
+    , childrenDownAlter, childrenUpAlter, removeEnd, map
     , foldFrom, foldFromOne
     )
 
@@ -25,7 +25,7 @@ module Tree2 exposing
 
 ## alter
 
-@docs childrenDownAlter, childrenUpAlter, removeEnd
+@docs childrenDownAlter, childrenUpAlter, removeEnd, map
 
 
 ## transform
@@ -553,6 +553,35 @@ endRemoveUp =
                     { children_
                         | up = upBranch |> filled |> endRemoveUp
                     }
+
+
+map :
+    (element -> mappedElement)
+    -> Emptiable (Branch element) possiblyOrNever
+    -> Emptiable (Branch mappedElement) possiblyOrNever
+map elementChange =
+    \tree ->
+        tree
+            |> Emptiable.map
+                (\branch_ -> branch_ |> branchMap elementChange)
+
+
+branchMap : (element -> mappedElement) -> (Branch element -> Branch mappedElement)
+branchMap elementChange =
+    \(Branch branch_) ->
+        Branch
+            { trunk = branch_.trunk |> elementChange
+            , childrenHeight = branch_.childrenHeight
+            , children = branch_.children |> childrenMap elementChange
+            }
+
+
+childrenMap : (element -> mappedElement) -> (Children element -> Children mappedElement)
+childrenMap elementChange =
+    \children_ ->
+        { down = children_.down |> map elementChange
+        , up = children_.up |> map elementChange
+        }
 
 
 
