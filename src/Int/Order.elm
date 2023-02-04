@@ -1,11 +1,8 @@
-module Int.Order exposing
-    ( increasing, decreasing
-    , Increasing
-    )
+module Int.Order exposing (increasing, Increasing, decreasing)
 
 {-| `Order` `Int`s
 
-@docs increasing, decreasing
+@docs increasing, Increasing, decreasing
 
 -}
 
