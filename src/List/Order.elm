@@ -1,8 +1,8 @@
-module List.Order exposing (earlier, Earlier)
+module List.Order exposing (earlier, Earlier, EarlierTag)
 
 {-| `List` [`Ordering`](Order#Ordering)
 
-@docs earlier, Earlier
+@docs earlier, Earlier, EarlierTag
 
 -}
 
@@ -12,7 +12,13 @@ import Typed
 
 {-| Tag for [`earlier`](#earlier)
 -}
-type Earlier
+type alias Earlier elementOrder =
+    ( EarlierTag, elementOrder )
+
+
+{-| Wrapper tag for [`Earlier`](#Earlier)
+-}
+type EarlierTag
     = Earlier
 
 
@@ -30,7 +36,7 @@ type Earlier
 -}
 earlier :
     Ordering element elementTag
-    -> Ordering (List element) ( Earlier, elementTag )
+    -> Ordering (List element) (Earlier elementTag)
 earlier elementOrdering =
     Typed.mapToWrap Earlier
         (\elementOrder lists ->
