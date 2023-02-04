@@ -2,7 +2,7 @@ module Tree2 exposing
     ( Branch, Children
     , one, branch
     , size, height, children, trunk, end
-    , trunkAlter, childrenDownAlter, childrenUpAlter, removeEnd
+    , childrenDownAlter, childrenUpAlter, removeEnd
     , foldFrom, foldFromOne
     )
 
@@ -25,7 +25,7 @@ module Tree2 exposing
 
 ## alter
 
-@docs trunkAlter, childrenDownAlter, childrenUpAlter, removeEnd
+@docs childrenDownAlter, childrenUpAlter, removeEnd
 
 
 ## transform
@@ -109,11 +109,6 @@ children =
     \tree -> tree |> branchInfo |> .children
 
 
-childrenHeight : Emptiable (Branch element_) Never -> Int
-childrenHeight =
-    \tree -> tree |> branchInfo |> .childrenHeight
-
-
 height : Emptiable (Branch element_) possiblyOrNever_ -> Int
 height =
     \tree ->
@@ -123,6 +118,11 @@ height =
 
             Filled treeFilled ->
                 1 + (treeFilled |> childrenHeight)
+
+
+childrenHeight : Emptiable (Branch element_) Never -> Int
+childrenHeight =
+    \tree -> tree |> branchInfo |> .childrenHeight
 
 
 {-| Runtime `n`
@@ -149,6 +149,16 @@ sizeRecurse =
 -- create
 
 
+one : element -> Emptiable (Branch element) never_
+one singleElementLeaf =
+    Branch
+        { trunk = singleElementLeaf
+        , children = { down = empty, up = empty }
+        , childrenHeight = 0
+        }
+        |> filled
+
+
 branchUnbalanced :
     element
     -> Children element
@@ -161,16 +171,6 @@ branchUnbalanced trunkElement children_ =
             max
                 (children_.down |> height)
                 (children_.up |> height)
-        }
-        |> filled
-
-
-one : element -> Emptiable (Branch element) never_
-one singleElementLeaf =
-    Branch
-        { trunk = singleElementLeaf
-        , children = { down = empty, up = empty }
-        , childrenHeight = 0
         }
         |> filled
 
@@ -442,26 +442,6 @@ endUp =
 
 
 -- alter
-
-
-trunkAlter :
-    (element -> element)
-    ->
-        (Emptiable (Branch element) possiblyOrNever
-         -> Emptiable (Branch element) possiblyOrNever
-        )
-trunkAlter elementChange =
-    \tree ->
-        tree
-            |> Emptiable.map filled
-            |> Emptiable.map
-                (\treeFilled ->
-                    { trunk = treeFilled |> trunk |> elementChange
-                    , children = treeFilled |> children
-                    , childrenHeight = treeFilled |> childrenHeight
-                    }
-                        |> Branch
-                )
 
 
 childrenUpAlter :
