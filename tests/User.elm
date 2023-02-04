@@ -33,11 +33,7 @@ type Email
     = Email
 
 
-byEmail :
-    Keys
-        User
-        ByEmail
-        N0
+byEmail : Keys User ByEmail N0
 byEmail =
     Keys.for (\email_ -> { email = email_ })
         |> Keys.by ( .email, email )
