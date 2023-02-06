@@ -105,15 +105,20 @@ where
         Typed.tag Data (\(User userData) -> userData.name)
 
     type alias ByName =
-        ( ()
-        , Order.By
-            Name
-            (String.Order.earlier
-                (Char.Order.Alphabetically Char.Order.LowerUpper)
-            )
-        )
+        { name :
+            Key
+                User
+                (Order.By
+                    Name
+                    (String.Order.Earlier
+                        (Char.Order.Alphabetically Char.Order.LowerUpper)
+                    )
+                )
+                String
+                (Up N0 To N0)
+        }
 
-    byName : Keys User ByName { name : Key User String (Up N0 To N0) } N0
+    byName : Keys User ByName N0
     byName =
         Keys.for (\name -> { name = name })
             |> Keys.by ( identity, Map.identity )
