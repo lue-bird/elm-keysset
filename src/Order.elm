@@ -346,13 +346,33 @@ Continue by adding all possibilities with [`Order.onTie`](#onTie)
         RecordWithoutConstructorFunction
             { value : Value, suite : Suite }
 
-    normalOrder : Ordering CardNormal TODO
-    normalOrder =
-        Order.by Record.Map.suite suiteOrder
-            |> Order.onTie
-                (Order.by Record.Map.value valueOrder)
+    type ToNormal
+        = ToNormal
 
-    order : Ordering Card TODO
+    normal : Mapping Card ToNormal (Maybe CardNormal)
+    normal =
+        Typed.tag ToNormal
+            (\card ->
+                case card of
+                    Normal normalCard ->
+                        Just normalCard
+
+                    Joker ->
+                        Nothing
+            )
+
+    type alias NormalOrder =
+        Order.OnTieNext
+            (Order.By Suite SuiteOrder)
+            (Order.By Value ValueOrder)
+
+    normalOrder : Ordering CardNormal NormalOrder
+    normalOrder =
+        Order.by suite suiteOrder
+            |> Order.onTie
+                (Order.by value valueOrder)
+
+    order : Ordering Card (Order.On ToNormal NormalOrder)
     order =
         Order.on toNormal normalOrder
 
@@ -379,16 +399,14 @@ Recursive [`Ordering`](#Ordering)s need a separate tag, e.g.
     import Typed
 
     type alias Earlier elementOrder =
-        Order.Choice
-            ( ()
-            , ( Order.On Empty Order.Tie
-              , Order.On
-                    Cons
-                    (Order.OnTieNext
-                        (Order.By ConsElement elementOrder)
-                        (Order.By ConsList ( EarlierRecursive, elementOrder ))
-                    )
-              )
+        Order.OnTieNext
+            (Order.On Empty Order.Tie)
+            (Order.On
+                Cons
+                (Order.OnTieNext
+                    (Order.By ConsElement elementOrder)
+                    (Order.By ConsList ( EarlierRecursive, elementOrder ))
+                )
             )
 
     type Empty
@@ -447,6 +465,8 @@ Recursive [`Ordering`](#Ordering)s need a separate tag, e.g.
         in
         Order.on toEmpty Order.tie
             |> Order.onTie (Order.on toCons Order.by)
+
+a bit much boilerplate.
 
 -}
 on :
@@ -519,16 +539,18 @@ tricks elm into not creating a `Card` function)
         | King
         | Ace
 
-    cardOrder : Ordering Card
+    cardOrder : Ordering Card (Order.OnTieNext (Order.By Suite SuiteOrder) (Order.By Value ValueOrder))
     cardOrder =
-        Order.onTieNext
-            [ Order.by .suite suiteOrder
-            , Order.by .value valueOrder
-            ]
+        Order.by suite suiteOrder
+            |> Order.onTieNext
+                (Order.by value valueOrder)
 
-    suiteOrder : Ordering Suite
-    suiteOrder =
-        Order.by
+    type SuiteToInt
+        = SuiteToInt
+
+    suiteToInt : Mapping Suite SuiteToInt Int
+    suiteToInt =
+        Typed.tag SuiteOrder
             (\suite ->
                 case suite of
                     Clubs ->
@@ -543,7 +565,15 @@ tricks elm into not creating a `Card` function)
                     Spades ->
                         3
             )
-            Int.Order.increasing
+
+    type SuiteOrder =
+        Order.By SuiteToInt Int.Order.Increasing
+
+    suiteOrder : Ordering Suite SuiteOrder
+    suiteOrder =
+        Order.by suiteToInt Int.Order.increasing
+
+[`onTie`](#onTie) can also be used to order different variants and values → see [`on`](#on)
 
 -}
 onTie :
