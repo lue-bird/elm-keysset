@@ -4,9 +4,7 @@ module Order exposing
     , reverse, Reverse, ReverseTag
     , by, By, ByTag
     , onTie, OnTieNext, OnTieNextTag
-    , choice, ChoiceOrderingBeingBuilt, Choice
     , on, On, OnTag
-    , choiceFinish
     , with
     )
 
@@ -19,6 +17,28 @@ All without `comparable`, `number`, ...
     import Int.Order
     import Char.Order
     import String.Order
+    import Map exposing (Mapping)
+
+    type FirstName
+        = FirstName
+
+    firstName : Mapping User FirstName String
+    firstName =
+        Typed.tag FirstName (\(User user) -> user.firstName)
+
+    type LastName
+        = LastName
+
+    lastName : Mapping User LastName String
+    lastName =
+        Typed.tag LastName (\(User user) -> user.lastName)
+
+    type Age
+        = Age
+
+    age : Mapping User Age String
+    age =
+        Typed.tag Age (\(User user) -> user.age)
 
     type User
         = User
@@ -27,22 +47,32 @@ All without `comparable`, `number`, ...
             , age : Int
             }
 
-    userOrder : Ordering User TODO
-    userOrder =
-        Order.by (\(User user) -> user)
-            (Order.by .lastName
-                (String.Order.earlier
-                    (Char.Order.alphabetically Char.Order.lowerUpper)
-                )
-                |> Order.onTie
-                    (Order.by .firstName
-                        (String.Order.earlier
-                            (Char.Order.alphabetically Char.Order.lowerUpper)
-                        )
-                    )
-                |> Order.onTie
-                    (Order.by .age Int.Order.increasing)
+    type alias NameOrder =
+        String.Order.Earlier
+            (Char.Order.Alphabetically Char.Order.LowerUpper)
+
+    type alias Order =
+        Order.NextOnTie
+            (Order.By LastName NameOrder)
+            (Order.NextOnTie
+                (Order.By FirstName NameOrder)
+                (Order.By Age Order.Int.Increasing)
             )
+
+    order : Ordering User Order
+    order =
+        Order.by lastName
+            (String.Order.earlier
+                (Char.Order.alphabetically Char.Order.lowerUpper)
+            )
+            |> Order.onTie
+                (Order.by .firstName
+                    (String.Order.earlier
+                        (Char.Order.alphabetically Char.Order.lowerUpper)
+                    )
+                )
+            |> Order.onTie
+                (Order.by .age Int.Order.increasing)
 
     [ User { firstName = "Andy", lastName = "Baldwin", age = 90 }
     , User { firstName = "Bert", lastName = "Anderson", age = 23 }
@@ -66,7 +96,7 @@ All without `comparable`, `number`, ...
 @docs tie, Tie
 
 
-### primitive
+### ordering core types
 
   - [`Char.Order`](Char-Order)
   - [`Int.Order`](Int-Order)
@@ -88,9 +118,7 @@ All without `comparable`, `number`, ...
 
 ## choose
 
-@docs choice, ChoiceOrderingBeingBuilt, Choice
 @docs on, On, OnTag
-@docs choiceFinish
 
 
 ## transform
@@ -123,7 +151,7 @@ All without `comparable`, `number`, ...
 -}
 
 import Map exposing (Mapping)
-import Typed exposing (Checked, Public, Typed)
+import Typed
 
 
 {-| How 2 thing compare to each other.
@@ -268,8 +296,42 @@ type ByTag
             )
             Int.Order.increasing
 
+neat!
 
-#### rank a choice
+-}
+by :
+    Mapping complete mapTag mapped
+    -> Ordering mapped mappedOrderTag
+    -> Ordering complete (By mapTag mappedOrderTag)
+by map mappedOrder =
+    map
+        |> Typed.wrapAnd mappedOrder
+        |> Typed.mapToWrap By
+            (\( change, mappedOrderWith ) ->
+                \toOrder ->
+                    toOrder
+                        |> Tuple.mapBoth change change
+                        |> mappedOrderWith
+            )
+
+
+{-| Tags an attached [`on`](#on) possibility
+[`Mapping`](Map#Mapping)-[`Ordering`](#Ordering) pair
+-}
+type alias On toPossibility order =
+    ( OnTag, ( toPossibility, order ) )
+
+
+{-| Tag wrapper for [`On`](#On)
+-}
+type OnTag
+    = On
+
+
+{-| Try ordering by a given parsed value.
+In comparison to [`Order.by`](#by), mapping can produce `Nothing` in which case any `Just` value is greater.
+
+Continue by adding all possibilities with [`Order.onTie`](#onTie)
 
     module Card exposing (Card(..), CardNormal, order)
 
@@ -292,17 +354,7 @@ type ByTag
 
     order : Ordering Card TODO
     order =
-        Order.choice
-            (\card ->
-                case card of
-                    -- match all variants with _values_
-                    Normal _ ->
-                        ()
-
-                    Joker ->
-                        ()
-            )
-            |> Order.on toNormal normalOrder
+        Order.on toNormal normalOrder
 
     type Normal
         = Normal
@@ -317,258 +369,108 @@ type ByTag
                 Joker ->
                     Nothing
 
-neat!
+_-- Advanced territory --_
 
--}
-by :
-    Mapping complete mapTag mapped
-    -> Ordering mapped mappedOrderTag
-    -> Ordering complete (By mapTag mappedOrderTag)
-by map mappedOrder =
-    map
-        |> Typed.wrapAnd mappedOrder
-        |> Typed.mapToWrap By
-            (\( change, mappedOrderWith ) ->
-                \toOrder ->
-                    toOrder
-                        |> Tuple.mapBoth change change
-                        |> mappedOrderWith
+Recursive types need special treatment so we don't run into recursive types:
+Recursive [`Ordering`](#Ordering)s need a separate tag, e.g.
+
+    import Map
+    import Order
+    import Typed
+
+    type alias Earlier elementOrder =
+        Order.Choice
+            ( ()
+            , ( Order.On Empty Order.Tie
+              , Order.On
+                    Cons
+                    (Order.OnTieNext
+                        (Order.By ConsElement elementOrder)
+                        (Order.By ConsList ( EarlierRecursive, elementOrder ))
+                    )
+              )
             )
 
+    type Empty
+        = Empty
 
-{-| Choice [`Ordering`](#Ordering) construction in progress.
+    toEmpty : Mapping (List element) Empty (Maybe ())
+    toEmpty =
+        Typed.tag Empty
+            (\list ->
+                case list of
+                    [] ->
+                        Just ()
 
-1.  start building a choice [`Ordering`](#Ordering) with [`Order.choice`](#choice),
-2.  specify possibilities with [`on`](#on)
-3.  [`choiceFinish`](#choiceFinish)
+                    _ :: _ ->
+                        Nothing
+            )
+
+    type Cons
+        = Cons
+
+    toCons : Mapping (List element) Cons (Maybe { element : element, list : List element })
+    toCons =
+        Typed.tag Cons
+            (\list ->
+                case list of
+                    [] ->
+                        Nothing
+
+                    element :: list ->
+                        Just { element = element, list = list }
+            )
+
+    type ConsElement
+        = ConsElement
+
+    consElement : Mapping { element : element, list : List element } ConsList (List element)
+    consElement =
+        Typed.tag ConsList .list
+
+    type ConsList
+        = ConsList
+
+    consList : Mapping { element : element, list : List element } ConsList (List element)
+    consList =
+        Typed.tag ConsList .list
+
+    type EarlierRecursive
+        = EarlierRecursive
+
+    order : Ordering element elementOrder -> Ordering (List element) (Earlier elementOrder)
+    order elementOrder =
+        let
+            listRecursiveOrder : () -> Ordering (List element) ( EarlierRecursive, elementOrder )
+            listRecursiveOrder () =
+                Typed.mapToWrap EarlierRecursive order
+        in
+        Order.on toEmpty Order.tie
+            |> Order.onTie (Order.on toCons Order.by)
 
 -}
-type alias ChoiceOrderingBeingBuilt choice tags =
-    Typed
-        Checked
-        ( Choice, tags )
-        Public
-        (List
-            { is : choice -> Maybe ()
-            , order : ( choice, choice ) -> Maybe Order
-            }
-        )
-
-
-{-| Tags a choice [`Ordering`](#Ordering) and [`ChoiceOrderingBeingBuilt`](#ChoiceOrderingBeingBuilt).
-
-Start building a choice [`Ordering`](#Ordering) with [`Order.choice`](#choice)
-
--}
-type Choice
-    = Choice
-
-
-{-| Introduce a choice [`Ordering`](#Ordering) [builder](#ChoiceOrderingBeingBuilt).
-
-The argument should look like
-
-    \aOrBOrC ->
-        case aOrBOrC of
-            A ->
-                ()
-
-            B ->
-                ()
-
-            C ->
-                ()
-
-as a reminder for you to [add added possibilities to the builder](#on).
-
-Continue the builder by adding all possibilities with [`Order.on`](#on)
-
-TODO
-
--}
-choice :
-    (choice -> ())
-    -> ChoiceOrderingBeingBuilt choice ()
-choice _ =
-    Typed.tag ( Choice, () ) []
-
-
-{-| Tags an attached [`on`](#on) possibility
-[`Mapping`](Map#Mapping)-[`Ordering`](#Ordering) pair
--}
-type alias On toPossibilityTag possibilityOrderTag =
-    ( OnTag, ( toPossibilityTag, possibilityOrderTag ) )
-
-
-{-| Tag wrapper for [`On`](#On)
--}
-type OnTag
-    = On
-
-
 on :
     Mapping choice toPossibilityTag (Maybe possibilityAttachment)
     -> Ordering possibilityAttachment possibilityOrderTag
-    ->
-        (ChoiceOrderingBeingBuilt choice tags
-         ->
-            ChoiceOrderingBeingBuilt
-                choice
-                ( tags, On toPossibilityTag possibilityOrderTag )
-        )
-on toPossibility possibilityAttachmentOrdering =
-    \choiceOrderingInProgress ->
-        choiceOrderingInProgress
-            |> Typed.mapUnwrap identity
-            |> Typed.wrapAnd
-                (toPossibility
-                    |> Typed.wrapAnd possibilityAttachmentOrdering
-                    |> Typed.mapToWrap On
-                        (\( to, order ) ->
-                            { to = to, order = order }
-                        )
-                )
-            |> Typed.mapToWrap Choice
-                (\( possibilitiesSoFar, possibility ) ->
-                    possibilitiesSoFar
-                        |> (::)
-                            { is =
-                                \choice_ ->
-                                    choice_ |> possibility.to |> Maybe.map (\_ -> ())
-                            , order =
-                                \( choiceA, choiceB ) ->
-                                    Maybe.map2 (\a b -> ( a, b ) |> possibility.order)
-                                        (choiceA |> possibility.to)
-                                        (choiceB |> possibility.to)
-                            }
-                )
+    -> Ordering choice (On toPossibilityTag possibilityOrderTag)
+on toPossibility possibilityOrdering =
+    toPossibility
+        |> Typed.wrapAnd possibilityOrdering
+        |> Typed.mapToWrap On
+            (\( choose, order ) ( choiceA, choiceB ) ->
+                case ( choiceA |> choose, choiceB |> choose ) of
+                    ( Nothing, Nothing ) ->
+                        EQ
 
+                    ( Nothing, Just _ ) ->
+                        LT
 
-{-| TODO
+                    ( Just _, Nothing ) ->
+                        GT
 
-    type OneOrOther
-        = One String
-        | Other String
-
-    Order.choice
-        (\choice ->
-            case choice of
-                One oneAttachment ->
-                    ()
-
-                Other otherAttachment ->
-                    ()
-        )
-        |> Order.on toOne stringEarlier
-        |> Order.on ( OtherTag, .other ) stringEarlier
-        |> Order.choiceFinish
-
-    type ToOne
-        = ToOne
-
-    toOne : Mapping OneOrOther ToOne String
-    toOne =
-        Typed.tag ToOne
-            (\choice ->
-                case choice of
-                    One oneAttachment ->
-                        oneAttachment |> Just
-
-                    _ ->
-                        Nothing
+                    ( Just aChosen, Just bChosen ) ->
+                        order ( aChosen, bChosen )
             )
-
-    type ToOther
-        = ToOther
-
-    toOther : Mapping OneOrOther ToOther String
-    toOther =
-        Typed.tag ToOther
-            (\choice ->
-                case choice of
-                    Other otherAttachment ->
-                        otherAttachment |> Just
-
-                    _ ->
-                        Nothing
-            )
-
--}
-choiceFinish :
-    ChoiceOrderingBeingBuilt choice tags
-    -> Ordering choice ( Choice, tags )
-choiceFinish =
-    \choiceOrderingComplete ->
-        choiceOrderingComplete
-            |> Typed.map
-                (\possibilities choices ->
-                    let
-                        orderedByEqualPossibility =
-                            possibilities
-                                |> List.foldl
-                                    (\possibility soFar ->
-                                        case soFar of
-                                            Just alreadyOrder ->
-                                                alreadyOrder |> Just
-
-                                            Nothing ->
-                                                choices |> possibility.order
-                                    )
-                                    Nothing
-                    in
-                    case orderedByEqualPossibility of
-                        Just order ->
-                            order
-
-                        Nothing ->
-                            let
-                                possibilityIndexes leftOrRight =
-                                    possibilities
-                                        |> listFirstJustIndex
-                                            (\possibility ->
-                                                possibility.is (choices |> leftOrRight)
-                                            )
-                            in
-                            case ( possibilityIndexes Tuple.first, possibilityIndexes Tuple.second ) of
-                                ( Just a, Just b ) ->
-                                    compare a b
-
-                                -- can only be `Nothing` when there aren't
-                                -- as many `on`s as possibilities (which is always not intended)
-                                ( Just _, Nothing ) ->
-                                    GT
-
-                                ( Nothing, Just _ ) ->
-                                    LT
-
-                                ( Nothing, Nothing ) ->
-                                    EQ
-                )
-            |> Typed.wrapToChecked Choice
-
-
-listFirstJustIndex :
-    (element -> Maybe ())
-    -> (List element -> Maybe Int)
-listFirstJustIndex isFound =
-    \list ->
-        list
-            |> List.foldl
-                (\el soFar ->
-                    case soFar of
-                        Ok alreadyFound ->
-                            alreadyFound |> Ok
-
-                        Err indexSoFar ->
-                            case el |> isFound of
-                                Just () ->
-                                    indexSoFar |> Ok
-
-                                Nothing ->
-                                    indexSoFar + 1 |> Err
-                )
-                (0 |> Err)
-            |> Result.toMaybe
 
 
 {-| Tag for [`onTie`](#onTie)
