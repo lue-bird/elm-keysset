@@ -150,7 +150,7 @@ type alias MultipleInternals element keys lastIndex =
         }
 
 
-{-| The underlying sorted tree structure for one key of a [`KeysSet`](#KeysSet).
+{-| The underlying sorted tree structure for one key of a [`KeysSet`](#KeysSet)
 -}
 type alias Tree2BranchInternals element =
     Tree2.Branch element
@@ -164,15 +164,15 @@ type KeysSetTag keys
     = KeysSet
 
 
-{-| [`KeysSet`](#KeysSet) containing a single given element
+{-| [`KeysSet`](#KeysSet) containing a single given element.
+
+You don't need to provide [`Keys`](Keys#Keys)
+
 -}
 one :
-    Keys element keys lastIndex
-    ->
-        (element
-         -> Emptiable (KeysSet element keys lastIndex) never_
-        )
-one keys singleElement =
+    element
+    -> Emptiable (KeysSet element keys_ lastIndex_) never_
+one singleElement =
     One singleElement |> filled
 
 
@@ -222,7 +222,7 @@ fromStack keys =
                     stacked
                         |> filled
                         |> Stack.foldFromOne
-                            (\a -> a |> one keys)
+                            (\a -> a |> one)
                             Up
                             (\toInsert soFar ->
                                 soFar |> insertIfNoCollision keys toInsert
@@ -233,10 +233,7 @@ fromStack keys =
 {-| Number of elements in the [`KeysSet`](#KeysSet).
 Runtime `1`
 
-    import Atom
-
-    KeysSet.one Atom.keys
-        { name = "Helium", symbol = "He", atomicNumber = 2 }
+    KeysSet.one { name = "Helium", symbol = "He", atomicNumber = 2 }
         |> KeysSet.size
     --> 1
 
@@ -630,7 +627,7 @@ insertIfNoCollision keys toInsertOrReplacement =
     \keysSet ->
         case keysSet of
             Emptiable.Empty _ ->
-                toInsertOrReplacement |> one keys
+                toInsertOrReplacement |> one
 
             Emptiable.Filled keysSetFill ->
                 let
@@ -679,7 +676,7 @@ insertReplacingCollisions keys toInsertOrReplacement =
     \keysSet ->
         case keysSet of
             Emptiable.Empty _ ->
-                toInsertOrReplacement |> one keys
+                toInsertOrReplacement |> one
 
             Emptiable.Filled keysSetFill ->
                 let
@@ -698,7 +695,7 @@ insertReplacingCollisions keys toInsertOrReplacement =
                                 |> exceptTree keys collisionsTreeFilled
                         of
                             Emptiable.Empty _ ->
-                                toInsertOrReplacement |> one keys
+                                toInsertOrReplacement |> one
 
                             Emptiable.Filled keySetFill ->
                                 keySetFill
@@ -902,7 +899,7 @@ elementAlterIfNoCollision ( keys, key ) keyToAlter elementChange =
                 else
                     case keysSet |> remove ( keys, key ) keyToAlter of
                         Emptiable.Empty _ ->
-                            one keys elementAltered
+                            elementAltered |> one
 
                         Emptiable.Filled removed ->
                             removed |> fillInsertOnNoCollision keys elementAltered
@@ -1172,7 +1169,7 @@ map elementChange mappedKeys =
                     keysSetFilled
                         |> filled
                         |> foldFromOne
-                            (\a -> a |> elementChange |> one mappedKeys)
+                            (\a -> a |> elementChange |> one)
                             (\element_ soFar ->
                                 soFar |> insertIfNoCollision mappedKeys (element_ |> elementChange)
                             )

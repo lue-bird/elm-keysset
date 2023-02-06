@@ -50,12 +50,17 @@ treeForIndex :
         )
 treeForIndex index =
     \keysSet ->
-        keysSet
-            |> Typed.untag
-            |> .byKeys
-            |> ArraySized.inToOn
-            |> ArraySized.element ( Up, index )
-            |> Emptiable.filled
+        case keysSet of
+            KeysSet.One singleElement ->
+                singleElement |> Tree2.one
+
+            KeysSet.Multiple multiple ->
+                multiple
+                    |> Typed.untag
+                    |> .byKeys
+                    |> ArraySized.inToOn
+                    |> ArraySized.element ( Up, index )
+                    |> Emptiable.filled
 
 
 treeToString : Emptiable (Tree2.Branch element_) Possibly -> String
@@ -387,7 +392,7 @@ insertSuite =
             )
         , test "hardcoded validate to down"
             (\() ->
-                KeysSet.one Character.keys { id = 10, char = 'a' }
+                KeysSet.one { id = 10, char = 'a' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 5, char = 'b' }
                     |> validate "insert IfNoCollision" Character.keys
                     |> Result.map (\() -> Expect.pass)
@@ -395,7 +400,7 @@ insertSuite =
             )
         , test "hardcoded validate to down down"
             (\() ->
-                KeysSet.one Character.keys { id = 10, char = 'a' }
+                KeysSet.one { id = 10, char = 'a' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 5, char = 'b' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 2, char = 'c' }
                     |> validate "insert IfNoCollision" Character.keys
@@ -404,7 +409,7 @@ insertSuite =
             )
         , test "hardcoded validate to down up"
             (\() ->
-                KeysSet.one Character.keys { id = 10, char = 'a' }
+                KeysSet.one { id = 10, char = 'a' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 5, char = 'b' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 2, char = 'c' }
                     |> validate "insert IfNoCollision" Character.keys
@@ -413,7 +418,7 @@ insertSuite =
             )
         , test "hardcoded validate to up"
             (\() ->
-                KeysSet.one Character.keys { id = 10, char = 'a' }
+                KeysSet.one { id = 10, char = 'a' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 15, char = 'b' }
                     |> validate "insert IfNoCollision" Character.keys
                     |> Result.map (\() -> Expect.pass)
@@ -421,7 +426,7 @@ insertSuite =
             )
         , test "hardcoded validate to up down"
             (\() ->
-                KeysSet.one Character.keys { id = 10, char = 'a' }
+                KeysSet.one { id = 10, char = 'a' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 15, char = 'b' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 12, char = 'c' }
                     |> validate "insert IfNoCollision" Character.keys
@@ -430,7 +435,7 @@ insertSuite =
             )
         , test "hardcoded validate to up up"
             (\() ->
-                KeysSet.one Character.keys { id = 10, char = 'a' }
+                KeysSet.one { id = 10, char = 'a' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 15, char = 'b' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 20, char = 'c' }
                     |> validate "insert IfNoCollision" Character.keys
@@ -532,8 +537,7 @@ removeSuite : Test
 removeSuite =
     let
         openClosedBrackets =
-            KeysSet.one BracketPair.keys
-                { open = '(', closed = ')' }
+            KeysSet.one { open = '(', closed = ')' }
     in
     describe "remove"
         [ let
@@ -582,7 +586,7 @@ removeSuite =
             Fuzz.int
             "one"
             (\put delete ->
-                KeysSet.one Character.keys { id = put, char = '0' }
+                KeysSet.one { id = put, char = '0' }
                     |> KeysSet.remove ( Character.keys, .id ) delete
                     |> validate "remove" Character.keys
                     |> Result.map (\() -> Expect.pass)
@@ -758,13 +762,13 @@ unifyWithSuite =
             (\() ->
                 Emptiable.empty
                     |> KeysSet.unifyWith Character.keys
-                        (KeysSet.one Character.keys { id = 0, char = 'A' })
+                        (KeysSet.one { id = 0, char = 'A' })
                     |> KeysSet.toList ( Character.keys, .id )
                     |> Expect.equalLists [ { id = 0, char = 'A' } ]
             )
         , test "up is empty"
             (\() ->
-                KeysSet.one Character.keys { id = 0, char = 'A' }
+                KeysSet.one { id = 0, char = 'A' }
                     |> KeysSet.unifyWith Character.keys Emptiable.empty
                     |> KeysSet.toList ( Character.keys, .id )
                     |> Expect.equalLists [ { id = 0, char = 'A' } ]
@@ -803,7 +807,7 @@ intersectSuite =
     describe "intersect"
         [ test "down is empty"
             (\() ->
-                KeysSet.one Character.keys { id = 0, char = 'A' }
+                KeysSet.one { id = 0, char = 'A' }
                     |> KeysSet.intersect ( Character.keys, .id ) Emptiable.empty
                     |> KeysSet.toList ( Character.keys, .id )
                     |> Expect.equalLists []
@@ -812,7 +816,7 @@ intersectSuite =
             (\() ->
                 Emptiable.empty
                     |> KeysSet.intersect ( Character.keys, .id )
-                        (KeysSet.one Character.keys { id = 0, char = 'A' })
+                        (KeysSet.one { id = 0, char = 'A' })
                     |> KeysSet.toList ( Character.keys, .id )
                     |> Expect.equalLists []
             )
@@ -848,7 +852,7 @@ exceptSuite =
             (\() ->
                 Emptiable.empty
                     |> KeysSet.except ( Character.keys, .id )
-                        (KeysSet.one Character.keys { id = 0, char = 'A' }
+                        (KeysSet.one { id = 0, char = 'A' }
                             |> KeysSet.toKeys ( Character.keys, .id )
                         )
                     |> KeysSet.toList ( Character.keys, .id )
@@ -856,7 +860,7 @@ exceptSuite =
             )
         , test "up is empty"
             (\() ->
-                KeysSet.one Character.keys { id = 0, char = 'A' }
+                KeysSet.one { id = 0, char = 'A' }
                     |> KeysSet.except ( Character.keys, .id )
                         Emptiable.empty
                     |> KeysSet.toList ( Character.keys, .id )
@@ -917,7 +921,7 @@ fold2FromSuite =
             (\() ->
                 { first =
                     { key = ( Character.keys, .id )
-                    , set = KeysSet.one Character.keys { id = 0, char = 'A' }
+                    , set = KeysSet.one { id = 0, char = 'A' }
                     }
                 , second =
                     { key = ( Character.keys, .id )
@@ -937,7 +941,7 @@ fold2FromSuite =
                     }
                 , second =
                     { key = ( Character.keys, .id )
-                    , set = KeysSet.one Character.keys { id = 3, char = 'A' }
+                    , set = KeysSet.one { id = 3, char = 'A' }
                     }
                 }
                     |> testFold2
@@ -1002,7 +1006,7 @@ sizeSuite =
         , fuzz Character.fuzz
             "one"
             (\character ->
-                KeysSet.one Character.keys character
+                KeysSet.one character
                     |> KeysSet.size
                     |> Expect.equal 1
             )
@@ -1036,7 +1040,7 @@ elementSuite =
             Fuzz.int
             "one"
             (\x y ->
-                KeysSet.one Character.keys { id = x, char = 'A' }
+                KeysSet.one { id = x, char = 'A' }
                     |> KeysSet.element ( Character.keys, .id ) y
                     |> Expect.equal
                         (if x == y then
@@ -1094,7 +1098,7 @@ endSuite =
         [ fuzz (Fuzz.pair Linear.directionFuzz Character.fuzz)
             "one"
             (\( direction, character ) ->
-                KeysSet.one Character.keys character
+                KeysSet.one character
                     |> KeysSet.end ( Character.keys, .id ) direction
                     |> Expect.equal character
             )
@@ -1201,7 +1205,7 @@ toListSuite =
             )
         , test "one"
             (\() ->
-                KeysSet.one Character.keys { id = 0, char = 'A' }
+                KeysSet.one { id = 0, char = 'A' }
                     |> KeysSet.toList ( Character.keys, .id )
                     |> Expect.equalLists [ { id = 0, char = 'A' } ]
             )
