@@ -303,7 +303,12 @@ If no element with the given key is not present, `Emptiable.empty`
         { name :
             Key
                 Animal
-                (Order.By Name (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper)))
+                (Order.By
+                    Name
+                    (String.Order.Earlier
+                        (Char.Order.Alphabetically Char.Order.LowerUpper)
+                    )
+                )
                 String
                 (Up N0 To N0)
         }
@@ -396,8 +401,13 @@ element ( keys, key ) keyToAccess =
     type alias ByName =
         { name :
             Key
-                User
-                (Order.By Name (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper)))
+                Animal
+                (Order.By
+                    Name
+                    (String.Order.Earlier
+                        (Char.Order.Alphabetically Char.Order.LowerUpper)
+                    )
+                )
                 String
                 (Up N0 To N0)
         }
@@ -590,14 +600,11 @@ To replace collisions instead → [`insertReplacingCollisions`](#insertReplacing
     import Emptiable
 
     Emptiable.empty
-        |> KeysSet.insertIfNoCollision
-            BracketPair.keys
+        |> KeysSet.insertIfNoCollision BracketPair.keys
             { open = 'b', closed = 'C' }
-        |> KeysSet.insertIfNoCollision
-            BracketPair.keys
+        |> KeysSet.insertIfNoCollision BracketPair.keys
             { open = 'c', closed = 'A' }
-        |> KeysSet.insertIfNoCollision
-            BracketPair.keys
+        |> KeysSet.insertIfNoCollision BracketPair.keys
             { open = 'c', closed = 'C' }
         |> KeysSet.toList ( BracketPair.keys, .open )
     --> [ { open = 'b', closed = 'C' }, { open = 'c', closed = 'A' } ]
@@ -639,14 +646,11 @@ To keep collisions instead → [`insertIfNoCollision`](#insertIfNoCollision)
     import Emptiable
 
     Emptiable.empty
-        |> KeysSet.insertReplacingCollisions
-            BracketPair.keys
+        |> KeysSet.insertReplacingCollisions BracketPair.keys
             { open = 'b', closed = 'C' }
-        |> KeysSet.insertReplacingCollisions
-            BracketPair.keys
+        |> KeysSet.insertReplacingCollisions BracketPair.keys
             { open = 'c', closed = 'A' }
-        |> KeysSet.insertReplacingCollisions
-            BracketPair.keys
+        |> KeysSet.insertReplacingCollisions BracketPair.keys
             { open = 'c', closed = 'C' }
         |> KeysSet.toList ( BracketPair.keys, .open )
     --> [ { open = 'c', closed = 'C' } ]
@@ -763,7 +767,8 @@ If the key is not found, no changes are made
         [ { id = 0, char = 'A' }
         , { id = 1, char = 'B' }
         ]
-        |> KeysSet.insertIfNoCollision Character.keys { id = 2, char = 'C' }
+        |> KeysSet.insertIfNoCollision Character.keys
+            { id = 2, char = 'C' }
         |> KeysSet.remove ( Character.keys, .id ) 2
         |> KeysSet.toList ( Character.keys, .id )
     --> [ { id = 0, char = 'A' }
