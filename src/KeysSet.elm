@@ -1,5 +1,5 @@
 module KeysSet exposing
-    ( KeysSet(..), KeysSetTag, MultipleInternals, Tree2BranchInternals
+    ( KeysSet
     , one
     , fromStack, fromList
     , size, element, end
@@ -15,7 +15,7 @@ module KeysSet exposing
 
 {-| Lookup with multiple [`Keys`](Keys#Keys)
 
-@docs KeysSet, KeysSetTag, MultipleInternals, Tree2BranchInternals
+@docs KeysSet
 
 
 ## create
@@ -132,28 +132,20 @@ where
 -}
 type KeysSet element keys lastIndex
     = One element
-    | Multiple (MultipleInternals element keys lastIndex)
+    | Multiple (Multiple element keys lastIndex)
 
 
 {-| Underlying representation of a [`KeysSet`](#KeysSet) with some elements
 -}
-type alias MultipleInternals element keys lastIndex =
+type alias Multiple element keys lastIndex =
     Typed
         Checked
         (KeysSetTag keys)
         Public
         { size : Int
         , byKeys :
-            ArraySized
-                (Tree2BranchInternals element)
-                (Exactly (Add1 lastIndex))
+            ArraySized (Tree2.Branch element) (Exactly (Add1 lastIndex))
         }
-
-
-{-| The underlying sorted tree structure for one key of a [`KeysSet`](#KeysSet)
--}
-type alias Tree2BranchInternals element =
-    Tree2.Branch element
 
 
 {-| Tag that verifies a [`KeysSet`](#KeysSet) is created by this module.
@@ -169,9 +161,7 @@ type KeysSetTag keys
 You don't need to provide [`Keys`](Keys#Keys)
 
 -}
-one :
-    element
-    -> Emptiable (KeysSet element keys_ lastIndex_) never_
+one : element -> Emptiable (KeysSet element keys_ lastIndex_) never_
 one singleElement =
     One singleElement |> filled
 
@@ -221,8 +211,7 @@ fromStack keys =
                 (\stacked ->
                     stacked
                         |> filled
-                        |> Stack.foldFromOne
-                            (\a -> a |> one)
+                        |> Stack.foldFromOne one
                             Up
                             (\toInsert soFar ->
                                 soFar |> insertIfNoCollision keys toInsert
@@ -238,9 +227,7 @@ Runtime `1`
     --> 1
 
 -}
-size :
-    Emptiable (KeysSet element_ keys_ lastIndex_) possiblyOrNever_
-    -> Int
+size : Emptiable (KeysSet element_ keys_ lastIndex_) possiblyOrNever_ -> Int
 size =
     \keysSet ->
         case keysSet of
@@ -483,7 +470,7 @@ toMultiple :
     Keys element keys lastIndex
     ->
         (KeysSet element keys lastIndex
-         -> MultipleInternals element keys lastIndex
+         -> Multiple element keys lastIndex
         )
 toMultiple keys =
     \keysSet ->
@@ -503,7 +490,7 @@ toMultiple keys =
                 multiple
 
 
-fromMultiple : MultipleInternals element keys lastIndex -> KeysSet element keys lastIndex
+fromMultiple : Multiple element keys lastIndex -> KeysSet element keys lastIndex
 fromMultiple =
     \multipleLike ->
         case multipleLike |> Typed.untag |> .size of
