@@ -55,7 +55,6 @@ module KeysSet exposing
 import ArraySized exposing (ArraySized)
 import Emptiable exposing (Emptiable(..), emptyAdapt, fill, filled)
 import Keys exposing (Key, Keys, keyIndex, keyOrderWith, toKeyWith)
-import KeysSet.Internal
 import Linear exposing (Direction(..))
 import List.Linear
 import Map
@@ -64,6 +63,7 @@ import Order
 import Possibly exposing (Possibly(..))
 import Stack exposing (Stacked)
 import Tree2
+import Tree2.Sorted
 import Typed exposing (Checked, Public, Typed)
 
 
@@ -149,12 +149,21 @@ You don't need to know more but I you're interested,
 check [`Typed.Checked`](https://dark.elm.dmy.fr/packages/lue-bird/elm-typed-value/latest/Typed#Checked)
 -}
 type KeysSetTag keys
-    = KeysSet (KeysSet.Internal.TagFor keys)
+    = KeysSet
 
 
 tagFor : Keys element_ keys lastIndex_ -> KeysSetTag keys
-tagFor keys =
-    KeysSet (KeysSet.Internal.tagFor keys)
+tagFor _ =
+    KeysSet
+
+
+tagForIdentity :
+    ( Keys element keys lastIndex_
+    , keys -> Key element (Order.By toKeyTag_ orderTag) key index_
+    )
+    -> KeysSetTag (Key key (Order.By Map.Identity orderTag) key (Up N0 To N0))
+tagForIdentity _ =
+    KeysSet
 
 
 {-| [`KeysSet`](#KeysSet) containing a single given element
@@ -377,7 +386,7 @@ element ( keys, key ) keyToAccess =
                 (\info ->
                     info
                         |> tree ( keys, key )
-                        |> KeysSet.Internal.treeElement
+                        |> Tree2.Sorted.treeElement
                             (\el ->
                                 ( keyToAccess, el |> toKeyWith ( keys, key ) )
                                     |> keyOrderWith ( keys, key )
@@ -505,7 +514,7 @@ fillInsertOnNoCollision keys toInsert =
                                 (\( branch, branchKey ) ->
                                     branch
                                         |> filled
-                                        |> KeysSet.Internal.treeInsertIfNoCollision branchKey toInsert
+                                        |> Tree2.Sorted.treeInsertIfNoCollision branchKey toInsert
                                         |> fill
                                 )
                     }
@@ -538,13 +547,13 @@ elementCollisions keys toCollideWith =
                         |> (case
                                 branch
                                     |> filled
-                                    |> KeysSet.Internal.treeElement (\el -> ( toCollideWith, el ) |> key)
+                                    |> Tree2.Sorted.treeElement (\el -> ( toCollideWith, el ) |> key)
                             of
                                 Emptiable.Empty _ ->
                                     identity
 
                                 Emptiable.Filled collision ->
-                                    KeysSet.Internal.treeInsertIfNoCollision key collision
+                                    Tree2.Sorted.treeInsertIfNoCollision key collision
                            )
                 )
 
@@ -668,7 +677,7 @@ insertReplacingCollisions keys toInsertOrReplacement =
                                                         (\( branchToAlter, branchOrder ) ->
                                                             branchToAlter
                                                                 |> filled
-                                                                |> KeysSet.Internal.treeInsertIfNoCollision branchOrder toInsertOrReplacement
+                                                                |> Tree2.Sorted.treeInsertIfNoCollision branchOrder toInsertOrReplacement
                                                                 |> fill
                                                         )
                                             }
@@ -698,7 +707,7 @@ exceptTree keys exceptions =
             |> ArraySized.map
                 (\( branchToAlter, branchOrder ) ->
                     (branchToAlter |> filled)
-                        |> KeysSet.Internal.treeExcept branchOrder exceptions
+                        |> Tree2.Sorted.treeExcept branchOrder exceptions
                 )
             |> ArraySized.allFill
             |> Emptiable.map
@@ -764,7 +773,7 @@ remove ( keys, key ) keyToRemove =
                                     (\( branch, branchKey ) ->
                                         branch
                                             |> filled
-                                            |> KeysSet.Internal.treeRemove
+                                            |> Tree2.Sorted.treeRemove
                                                 (\el -> ( toRemove, el ) |> branchKey)
                                     )
                                 |> ArraySized.allFill
@@ -942,15 +951,6 @@ toKeys ( keys, key ) =
                     }
                         |> Typed.tag (tagForIdentity ( keys, key ))
                 )
-
-
-tagForIdentity :
-    ( Keys element keys lastIndex_
-    , keys -> Key element (Order.By toKeyTag_ orderTag) key index_
-    )
-    -> KeysSetTag (Key key (Order.By Map.Identity orderTag) key (Up N0 To N0))
-tagForIdentity ( keys, key ) =
-    KeysSet (KeysSet.Internal.tagForIdentity ( keys, key ))
 
 
 {-| Convert to a `List`

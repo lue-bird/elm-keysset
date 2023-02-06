@@ -1,7 +1,4 @@
-module KeysSet.Internal exposing
-    ( treeElement, treeExcept, treeInsertIfNoCollision, treeRemove
-    , TagFor, tagFor, tagForIdentity
-    )
+module Tree2.Sorted exposing (treeElement, treeExcept, treeInsertIfNoCollision, treeRemove)
 
 {-|
 
@@ -10,42 +7,12 @@ module KeysSet.Internal exposing
 
 @docs treeElement, treeExcept, treeInsertIfNoCollision, treeRemove
 
-
-## tag
-
-[`tagFor`](#tagFor) ensures that the keys type argument in [`TagFor`](#TagFor)
-matches with an actual [`Keys`](Keys#Keys) record
-
-@docs TagFor, tagFor, tagForIdentity
-
 -}
 
 import Emptiable exposing (Emptiable(..), filled)
-import Keys exposing (Key, Keys)
 import Linear exposing (Direction(..))
-import Map
-import N exposing (N0, To, Up)
-import Order
 import Possibly exposing (Possibly(..))
 import Tree2
-
-
-type TagFor keys
-    = KeysSet
-
-
-tagFor : Keys element_ keys lastIndex_ -> TagFor keys
-tagFor _ =
-    KeysSet
-
-
-tagForIdentity :
-    ( Keys element keys lastIndex_
-    , keys -> Key element (Order.By toKeyTag_ orderTag) key index_
-    )
-    -> TagFor (Key key (Order.By Map.Identity orderTag) key (Up N0 To N0))
-tagForIdentity _ =
-    KeysSet
 
 
 {-| The argument should tell where to search further
