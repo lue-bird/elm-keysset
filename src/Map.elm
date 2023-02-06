@@ -80,20 +80,21 @@ type alias Mapping unmapped mapTag mapped =
 
 {-| [`Mapping`](#Mapping) that will preserve the element type.
 
-`Altering` can be used to simplify argument and result types
+[`Altering`](#Altering) can be used to simplify argument and result types
 
-    module List.Map exposing (onHead)
+    module User.Map exposing (onHead)
 
     import Map
-    import N exposing (Exactly, Fixed, N, n0)
 
-    type Drop dropped
-        = Drop dropped
+    type alias User =
+        { name : String, ... }
 
-    drop : N (Exactly dropped) -> Altering (List element) (Drop dropped)
-    drop droppedLength =
-        Typed.tag ( Drop, n0 |> N.min |> N.fixedToNumber )
-            (List.drop droppedLength)
+    type Name
+        = Name
+
+    name : Altering String nameAlterTag -> Altering User ( Name, nameAlterTag )
+    name =
+        Typed.mapToWrap Name (\f user -> { user | name = user.name |> f })
 
 This applies to records, `type`s without any type variables or mapping some of many equal-typed elements
 
