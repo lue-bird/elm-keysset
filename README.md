@@ -307,8 +307,17 @@ reactTo event =
 
 ## Example: automatic answers
 ```elm
+type alias ConversationStep =
+    { youSay : String, answer : String }
+
+youSayKey : Keys.Keys ConversationStep { youSay : Key ConversationStep (Order.By YouSay (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))) String (Up N0 To N0) } N0
+youSayKey =
+    Keys.for (\youSay_ -> { youSay = youSay_ })
+        |> Keys.by ( .youSay, youSay )
+            (String.Order.earlier (Char.Order.alphabetically Order.tie))
+
 answers =
-    KeysSet.promising [ unique .youSay ]
+    KeysSet.promising youSayKey
         |> KeysSet.insertList
             [ { youSay = "Hi"
               , answer = "Hi there!"
@@ -330,12 +339,11 @@ We will only ever lookup answers to what `youSay`
 ## Example: translation, synonyms...
 ```elm
 translationsEnDe =
-    KeysSet.promising []
-        |> KeysSet.insertList
-            [ { english = "elm", german = "Ulme" }
-            , { english = "git", german = "Schwachkopf" }
-            , { german = "Rüste", english = "elm" }
-            ]
+    KeysSet.fromList ???
+        [ { english = "elm", german = "Ulme" }
+        , { english = "git", german = "Schwachkopf" }
+        , { german = "Rüste", english = "elm" }
+        ]
 ```
 A `KeysSet` is only effective when there is **only one matching key**.
 
