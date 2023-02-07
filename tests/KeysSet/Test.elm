@@ -9,15 +9,15 @@ import Expect
 import Fuzz
 import Keys exposing (Keys)
 import KeysSet exposing (KeysSet)
+import KeysSet.Internal
 import Linear exposing (Direction(..))
 import List.Extra
 import List.Linear
-import N exposing (In, N, N1, To, Up, n1)
+import N exposing (N1, n1)
 import Possibly exposing (Possibly(..))
 import Stack
 import Test exposing (Test, describe, fuzz, fuzz2, test)
 import Tree2
-import Typed
 import User
 import Util exposing (recover)
 
@@ -40,27 +40,6 @@ createSuite =
         [ fromListSuite
         , fromStackSuite
         ]
-
-
-treeForIndex :
-    N (In min_ (Up maxToLastKeyIndex_ To lastKeyIndex))
-    ->
-        (KeysSet element tags_ lastKeyIndex
-         -> Emptiable (Tree2.Branch element) never_
-        )
-treeForIndex index =
-    \keysSet ->
-        case keysSet of
-            KeysSet.One singleElement ->
-                singleElement |> Tree2.one
-
-            KeysSet.Multiple multiple ->
-                multiple
-                    |> Typed.untag
-                    |> .byKeys
-                    |> ArraySized.inToOn
-                    |> ArraySized.element ( Up, index )
-                    |> Emptiable.filled
 
 
 treeToString : Emptiable (Tree2.Branch element_) Possibly -> String
@@ -112,7 +91,7 @@ validate context keys =
                 (\( order, index ) ->
                     let
                         tree =
-                            keysSet |> Emptiable.mapFlat (treeForIndex index)
+                            keysSet |> Emptiable.mapFlat (KeysSet.Internal.treeForIndex index)
                     in
                     case tree |> validateHelp order of
                         Err error ->
@@ -644,7 +623,7 @@ removeSuite =
                                                         "empty"
 
                                                     Emptiable.Filled keysSetFill ->
-                                                        keysSetFill |> treeForIndex n1 |> treeToString
+                                                        keysSetFill |> KeysSet.Internal.treeForIndex n1 |> treeToString
                                                 , "\n\n"
                                                 , error
                                                 ]

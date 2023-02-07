@@ -52,19 +52,20 @@ module KeysSet exposing
 
 -}
 
-import ArraySized exposing (ArraySized)
+import ArraySized
 import Emptiable exposing (Emptiable(..), emptyAdapt, fill, filled)
 import Keys exposing (Key, Keys, keyIndex, keyOrderWith, toKeyWith)
+import KeysSet.Internal
 import Linear exposing (Direction(..))
 import List.Linear
 import Map
-import N exposing (Add1, Exactly, In, N, N0, To, Up, n0)
+import N exposing (N0, To, Up, n0)
 import Order
 import Possibly exposing (Possibly(..))
 import Stack exposing (Stacked)
 import Tree2
 import Tree2.Sorted
-import Typed exposing (Checked, Public, Typed)
+import Typed
 
 
 {-| 🗃️ Non-empty AVL-tree-based look-up. Elements and keys can be of any type
@@ -130,30 +131,8 @@ where
   - [`toList`](#toList), [`toStack`](#toStack), [`toKeys`](#toKeys), [`foldFrom`](#foldFrom), [`fold`](#fold), [`foldFromOne`](#foldFromOne) are runtime `n`
 
 -}
-type KeysSet element keys lastIndex
-    = One element
-    | Multiple (Multiple element keys lastIndex)
-
-
-{-| Underlying representation of a [`KeysSet`](#KeysSet) with some elements
--}
-type alias Multiple element keys lastIndex =
-    Typed
-        Checked
-        (KeysSetTag keys)
-        Public
-        { size : Int
-        , byKeys :
-            ArraySized (Tree2.Branch element) (Exactly (Add1 lastIndex))
-        }
-
-
-{-| Tag that verifies a [`KeysSet`](#KeysSet) is created by this module.
-You don't need to know more but I you're interested,
-check [`Typed.Checked`](https://dark.elm.dmy.fr/packages/lue-bird/elm-typed-value/latest/Typed#Checked)
--}
-type KeysSetTag keys
-    = KeysSet
+type alias KeysSet element keys lastIndex =
+    KeysSet.Internal.KeysSet element keys lastIndex
 
 
 {-| [`KeysSet`](#KeysSet) containing a single given element.
@@ -163,7 +142,7 @@ You don't need to provide [`Keys`](Keys#Keys)
 -}
 one : element -> Emptiable (KeysSet element keys_ lastIndex_) never_
 one singleElement =
-    One singleElement |> filled
+    KeysSet.Internal.one singleElement |> filled
 
 
 {-| Convert to a [`KeysSet`](#KeysSet),
@@ -234,32 +213,8 @@ size =
             Emptiable.Empty _ ->
                 0
 
-            Emptiable.Filled (One _) ->
-                1
-
-            Emptiable.Filled (Multiple multiple) ->
-                multiple |> Typed.untag |> .size
-
-
-treeForIndex :
-    N (In min_ (Up maxToLastIndex_ To lastIndex))
-    ->
-        (KeysSet element keys_ lastIndex
-         -> Emptiable (Tree2.Branch element) never_
-        )
-treeForIndex index =
-    \keysSet ->
-        case keysSet of
-            One singleElement ->
-                singleElement |> Tree2.one
-
-            Multiple multiple ->
-                multiple
-                    |> Typed.untag
-                    |> .byKeys
-                    |> ArraySized.inToOn
-                    |> ArraySized.element ( Up, index )
-                    |> Emptiable.filled
+            Emptiable.Filled keysSetFill ->
+                keysSetFill |> KeysSet.Internal.size
 
 
 tree :
@@ -272,8 +227,7 @@ tree :
         )
 tree key =
     \keysSet ->
-        keysSet
-            |> treeForIndex (key |> keyIndex)
+        keysSet |> KeysSet.Internal.treeForIndex (key |> keyIndex)
 
 
 {-| Access the element associated with a given key.
@@ -401,7 +355,7 @@ element ( keys, key ) keyToAccess =
     type alias ByName =
         { name :
             Key
-                Animal
+                User
                 (Order.By
                     Name
                     (String.Order.Earlier
@@ -471,53 +425,6 @@ end ( keys, key ) direction =
             |> Tree2.end direction
 
 
-tagFor : Keys element_ keys lastIndex_ -> KeysSetTag keys
-tagFor _ =
-    KeysSet
-
-
-toMultiple :
-    Keys element keys lastIndex
-    ->
-        (KeysSet element keys lastIndex
-         -> Multiple element keys lastIndex
-        )
-toMultiple keys =
-    \keysSet ->
-        case keysSet of
-            One singleElement ->
-                Typed.tag (tagFor keys)
-                    { size = 1
-                    , byKeys =
-                        keys
-                            |> Keys.toArray
-                            |> ArraySized.inToNumber
-                            |> ArraySized.map
-                                (\_ -> singleElement |> Tree2.one |> fill)
-                    }
-
-            Multiple multiple ->
-                multiple
-
-
-fromMultiple : Multiple element keys lastIndex -> KeysSet element keys lastIndex
-fromMultiple =
-    \multipleLike ->
-        case multipleLike |> Typed.untag |> .size of
-            1 ->
-                multipleLike
-                    |> Typed.untag
-                    |> .byKeys
-                    |> ArraySized.inToOn
-                    |> ArraySized.element ( Up, n0 )
-                    |> filled
-                    |> Tree2.trunk
-                    |> One
-
-            _ ->
-                multipleLike |> Multiple
-
-
 fillInsertOnNoCollision :
     Keys element keys lastIndex
     -> element
@@ -534,7 +441,7 @@ fillInsertOnNoCollision keys toInsert =
     in
     \keysSetFill ->
         keysSetFill
-            |> toMultiple keys
+            |> KeysSet.Internal.toMultiple keys
             |> Typed.map
                 (\info ->
                     { size = info.size + 1
@@ -550,8 +457,8 @@ fillInsertOnNoCollision keys toInsert =
                                 )
                     }
                 )
-            |> Typed.toChecked (tagFor keys)
-            |> fromMultiple
+            |> Typed.toChecked (KeysSet.Internal.tagFor keys)
+            |> KeysSet.Internal.fromMultiple
             |> filled
 
 
@@ -565,7 +472,7 @@ elementCollisions :
 elementCollisions keys toCollideWith =
     \keysSet ->
         keysSet
-            |> toMultiple keys
+            |> KeysSet.Internal.toMultiple keys
             |> Typed.untag
             |> .byKeys
             |> ArraySized.and
@@ -690,7 +597,7 @@ insertReplacingCollisions keys toInsertOrReplacement =
 
                             Emptiable.Filled keySetFill ->
                                 keySetFill
-                                    |> toMultiple keys
+                                    |> KeysSet.Internal.toMultiple keys
                                     |> Typed.map
                                         (\info ->
                                             { size = info.size + 1
@@ -710,8 +617,8 @@ insertReplacingCollisions keys toInsertOrReplacement =
                                                         )
                                             }
                                         )
-                                    |> Typed.toChecked (tagFor keys)
-                                    |> fromMultiple
+                                    |> Typed.toChecked (KeysSet.Internal.tagFor keys)
+                                    |> KeysSet.Internal.fromMultiple
                                     |> filled
 
 
@@ -728,7 +635,7 @@ exceptTree keys exceptions =
             multipleLike =
                 keysSetFilled
                     |> fill
-                    |> toMultiple keys
+                    |> KeysSet.Internal.toMultiple keys
         in
         multipleLike
             |> Typed.untag
@@ -753,8 +660,8 @@ exceptTree keys exceptions =
                                 , byKeys = branches
                                 }
                             )
-                        |> Typed.toChecked (tagFor keys)
-                        |> fromMultiple
+                        |> Typed.toChecked (KeysSet.Internal.tagFor keys)
+                        |> KeysSet.Internal.fromMultiple
                 )
 
 
@@ -798,7 +705,7 @@ remove ( keys, key ) keyToRemove =
                         (\keysSetFill ->
                             let
                                 multipleLike =
-                                    keysSetFill |> toMultiple keys
+                                    keysSetFill |> KeysSet.Internal.toMultiple keys
                             in
                             multipleLike
                                 |> Typed.untag
@@ -825,8 +732,8 @@ remove ( keys, key ) keyToRemove =
                                                     , byKeys = byKeysResult
                                                     }
                                                 )
-                                            |> Typed.toChecked (tagFor keys)
-                                            |> fromMultiple
+                                            |> Typed.toChecked (KeysSet.Internal.tagFor keys)
+                                            |> KeysSet.Internal.fromMultiple
                                     )
                         )
 
@@ -971,32 +878,20 @@ toKeys ( keys, key ) =
                 (\keysSetFill ->
                     let
                         info =
-                            keysSetFill |> toMultiple keys |> Typed.untag
+                            keysSetFill |> KeysSet.Internal.toMultiple keys |> Typed.untag
                     in
                     { size = info.size
                     , byKeys =
-                        info
-                            |> .byKeys
-                            |> ArraySized.inToOn
-                            |> ArraySized.element ( Up, Keys.keyIndex ( keys, key ) )
-                            |> filled
+                        keysSetFill
+                            |> tree ( keys, key )
                             |> Tree2.map (Keys.toKeyWith ( keys, key ))
                             |> fill
                             |> ArraySized.one
                             |> ArraySized.inToNumber
                     }
-                        |> Typed.tag (tagForIdentity ( keys, key ))
-                        |> fromMultiple
+                        |> Typed.tag (KeysSet.Internal.tagForIdentity ( keys, key ))
+                        |> KeysSet.Internal.fromMultiple
                 )
-
-
-tagForIdentity :
-    ( Keys element keys lastIndex_
-    , keys -> Key element (Order.By toKeyTag_ orderTag) key index_
-    )
-    -> KeysSetTag (Key key (Order.By Map.Identity orderTag) key (Up N0 To N0))
-tagForIdentity _ =
-    KeysSet
 
 
 {-| Convert to a `List`
@@ -1284,7 +1179,7 @@ foldFromOne firstToInitial reduce =
     \keysSet ->
         keysSet
             |> fill
-            |> treeForIndex n0
+            |> KeysSet.Internal.treeForIndex n0
             |> Tree2.foldFromOne firstToInitial Up reduce
 
 
@@ -1325,7 +1220,7 @@ foldFrom initial reduce =
         keysSet
             |> Emptiable.mapFlat
                 (\keysSetFill ->
-                    keysSetFill |> treeForIndex n0
+                    keysSetFill |> KeysSet.Internal.treeForIndex n0
                 )
             |> Tree2.foldFrom initial Up reduce
 
