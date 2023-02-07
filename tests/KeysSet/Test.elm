@@ -285,15 +285,16 @@ alterSuite : Test
 alterSuite =
     describe "alter"
         [ elementAlterSuite
-        , insertSuite
+        , insertIfNoCollisionSuite
+        , insertReplacingCollisionsSuite
         , mapSuite
         , mapTrySuite
         , removeSuite
         ]
 
 
-insertSuite : Test
-insertSuite =
+insertIfNoCollisionSuite : Test
+insertIfNoCollisionSuite =
     let
         element0 : Character
         element0 =
@@ -303,11 +304,10 @@ insertSuite =
         element1 =
             { id = 1, char = 'B' }
     in
-    describe "insert"
-        [ test "hardcoded does ignores duplicate"
+    describe "insertIfNoCollision"
+        [ test "hardcoded does ignores duplicates"
             (\() ->
-                KeysSet.fromList
-                    Character.keys
+                KeysSet.fromList Character.keys
                     [ element0, element1 ]
                     |> KeysSet.insertIfNoCollision Character.keys element0
                     |> KeysSet.insertIfNoCollision Character.keys element1
@@ -365,7 +365,7 @@ insertSuite =
             (\element ->
                 Emptiable.empty
                     |> KeysSet.insertIfNoCollision Character.keys element
-                    |> validate "insert IfNoCollision" Character.keys
+                    |> validate "insertIfNoCollision" Character.keys
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
             )
@@ -373,7 +373,7 @@ insertSuite =
             (\() ->
                 KeysSet.one { id = 10, char = 'a' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 5, char = 'b' }
-                    |> validate "insert IfNoCollision" Character.keys
+                    |> validate "insertIfNoCollision" Character.keys
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
             )
@@ -382,7 +382,7 @@ insertSuite =
                 KeysSet.one { id = 10, char = 'a' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 5, char = 'b' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 2, char = 'c' }
-                    |> validate "insert IfNoCollision" Character.keys
+                    |> validate "insertIfNoCollision" Character.keys
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
             )
@@ -391,7 +391,7 @@ insertSuite =
                 KeysSet.one { id = 10, char = 'a' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 5, char = 'b' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 2, char = 'c' }
-                    |> validate "insert IfNoCollision" Character.keys
+                    |> validate "insertIfNoCollision" Character.keys
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
             )
@@ -399,7 +399,7 @@ insertSuite =
             (\() ->
                 KeysSet.one { id = 10, char = 'a' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 15, char = 'b' }
-                    |> validate "insert IfNoCollision" Character.keys
+                    |> validate "insertIfNoCollision" Character.keys
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
             )
@@ -408,7 +408,7 @@ insertSuite =
                 KeysSet.one { id = 10, char = 'a' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 15, char = 'b' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 12, char = 'c' }
-                    |> validate "insert IfNoCollision" Character.keys
+                    |> validate "insertIfNoCollision" Character.keys
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
             )
@@ -417,7 +417,7 @@ insertSuite =
                 KeysSet.one { id = 10, char = 'a' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 15, char = 'b' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 20, char = 'c' }
-                    |> validate "insert IfNoCollision" Character.keys
+                    |> validate "insertIfNoCollision" Character.keys
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
             )
@@ -500,6 +500,220 @@ insertSuite =
                                 (\keysSet ->
                                     keysSet
                                         |> KeysSet.insertIfNoCollision Character.keys character
+                                        |> Emptiable.emptyAdapt (\_ -> Possible)
+                                        |> validate ("char " ++ (character.char |> String.fromChar)) Character.keys
+                                        |> Result.map (\() -> keysSet)
+                                )
+                        )
+                        (Emptiable.empty |> Ok)
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
+            )
+        ]
+
+
+insertReplacingCollisionsSuite : Test
+insertReplacingCollisionsSuite =
+    let
+        element0 : Character
+        element0 =
+            { id = 0, char = 'A' }
+
+        element1 : Character
+        element1 =
+            { id = 1, char = 'B' }
+    in
+    describe "insertReplacingCollisions"
+        [ test "hardcoded overwrites duplicate id"
+            (\() ->
+                KeysSet.fromList Character.keys
+                    [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
+                    |> KeysSet.insertReplacingCollisions Character.keys { id = 0, char = 'B' }
+                    |> KeysSet.insertReplacingCollisions Character.keys { id = 1, char = 'A' }
+                    |> KeysSet.toList ( Character.keys, .id )
+                    |> Expect.equalLists
+                        [ { id = 0, char = 'B' }, { id = 1, char = 'A' } ]
+            )
+        , test "hardcoded overwrites duplicate char"
+            (\() ->
+                KeysSet.fromList Character.keys
+                    [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
+                    |> KeysSet.insertReplacingCollisions Character.keys { id = 10, char = 'A' }
+                    |> KeysSet.insertReplacingCollisions Character.keys { id = 11, char = 'B' }
+                    |> KeysSet.toList ( Character.keys, .id )
+                    |> Expect.equalLists
+                        [ { id = 10, char = 'A' }, { id = 11, char = 'B' } ]
+            )
+        , test "hardcoded insert |> element works"
+            (\() ->
+                Emptiable.empty
+                    |> KeysSet.insertReplacingCollisions Character.keys element1
+                    |> KeysSet.element ( Character.keys, .id ) element1.id
+                    |> Emptiable.map .char
+                    |> Expect.equal (filled element1.char)
+            )
+        , test "hardcoded element of absent element is empty by id"
+            (\() ->
+                Emptiable.empty
+                    |> KeysSet.insertReplacingCollisions Character.keys element1
+                    |> KeysSet.element ( Character.keys, .id ) element0.id
+                    |> Expect.equal Emptiable.empty
+            )
+        , test "hardcoded element of absent element 1 is empty by char"
+            (\() ->
+                Emptiable.empty
+                    |> KeysSet.insertReplacingCollisions Character.keys element1
+                    |> KeysSet.element ( Character.keys, .char ) element1.char
+                    |> Emptiable.map .id
+                    |> Expect.equal (filled element1.id)
+            )
+        , test "hardcoded element of absent element 0 is empty by char"
+            (\() ->
+                Emptiable.empty
+                    |> KeysSet.insertReplacingCollisions Character.keys element1
+                    |> KeysSet.element ( Character.keys, .char ) element0.char
+                    |> Expect.equal Emptiable.empty
+            )
+        , fuzz Character.fuzz
+            "Emptiable.empty"
+            (\element ->
+                Emptiable.empty
+                    |> KeysSet.insertReplacingCollisions Character.keys element
+                    |> validate "insertReplacingCollisions" Character.keys
+                    |> Result.map (\() -> Expect.pass)
+                    |> recover Expect.fail
+            )
+        , test "hardcoded validate to down"
+            (\() ->
+                KeysSet.one { id = 10, char = 'a' }
+                    |> KeysSet.insertReplacingCollisions Character.keys { id = 5, char = 'b' }
+                    |> validate "insertReplacingCollisions" Character.keys
+                    |> Result.map (\() -> Expect.pass)
+                    |> recover Expect.fail
+            )
+        , test "hardcoded validate to down down"
+            (\() ->
+                KeysSet.one { id = 10, char = 'a' }
+                    |> KeysSet.insertReplacingCollisions Character.keys { id = 5, char = 'b' }
+                    |> KeysSet.insertReplacingCollisions Character.keys { id = 2, char = 'c' }
+                    |> validate "insertReplacingCollisions" Character.keys
+                    |> Result.map (\() -> Expect.pass)
+                    |> recover Expect.fail
+            )
+        , test "hardcoded validate to down up"
+            (\() ->
+                KeysSet.one { id = 10, char = 'a' }
+                    |> KeysSet.insertReplacingCollisions Character.keys { id = 5, char = 'b' }
+                    |> KeysSet.insertReplacingCollisions Character.keys { id = 2, char = 'c' }
+                    |> validate "insertReplacingCollisions" Character.keys
+                    |> Result.map (\() -> Expect.pass)
+                    |> recover Expect.fail
+            )
+        , test "hardcoded validate to up"
+            (\() ->
+                KeysSet.one { id = 10, char = 'a' }
+                    |> KeysSet.insertReplacingCollisions Character.keys { id = 15, char = 'b' }
+                    |> validate "insertReplacingCollisions" Character.keys
+                    |> Result.map (\() -> Expect.pass)
+                    |> recover Expect.fail
+            )
+        , test "hardcoded validate to up down"
+            (\() ->
+                KeysSet.one { id = 10, char = 'a' }
+                    |> KeysSet.insertReplacingCollisions Character.keys { id = 15, char = 'b' }
+                    |> KeysSet.insertReplacingCollisions Character.keys { id = 12, char = 'c' }
+                    |> validate "insertReplacingCollisions" Character.keys
+                    |> Result.map (\() -> Expect.pass)
+                    |> recover Expect.fail
+            )
+        , test "hardcoded validate to up up"
+            (\() ->
+                KeysSet.one { id = 10, char = 'a' }
+                    |> KeysSet.insertReplacingCollisions Character.keys { id = 15, char = 'b' }
+                    |> KeysSet.insertReplacingCollisions Character.keys { id = 20, char = 'c' }
+                    |> validate "insertReplacingCollisions" Character.keys
+                    |> Result.map (\() -> Expect.pass)
+                    |> recover Expect.fail
+            )
+        , test "validate M-N-O-L-K-Q-P-H-I-A"
+            (\() ->
+                "MNOLKQPHIA"
+                    |> String.toList
+                    |> List.foldl
+                        (\char ->
+                            Result.andThen
+                                (\keysSet ->
+                                    keysSet
+                                        |> KeysSet.insertReplacingCollisions
+                                            Character.keys
+                                            { char = char, id = Char.toCode char }
+                                        |> validate (char |> String.fromChar) Character.keys
+                                        |> Result.map (\() -> keysSet)
+                                )
+                        )
+                        (Emptiable.empty |> Ok)
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
+            )
+        , fuzz2
+            (Fuzz.intRange -40 -10)
+            (Fuzz.intRange 10 40)
+            "validate descending keys"
+            (\idLow idHigh ->
+                List.range idLow idHigh
+                    |> List.foldr
+                        (\id ->
+                            Result.andThen
+                                (\keysSet ->
+                                    keysSet
+                                        |> KeysSet.insertReplacingCollisions
+                                            Character.keys
+                                            { id = id
+                                            , char = Char.fromCode (40 + ('A' |> Char.toCode) + id)
+                                            }
+                                        |> validate ("id " ++ (id |> String.fromInt)) Character.keys
+                                        |> Result.map (\() -> keysSet)
+                                )
+                        )
+                        (Emptiable.empty |> Ok)
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
+            )
+        , fuzz2
+            (Fuzz.intRange -40 -10)
+            (Fuzz.intRange 10 40)
+            "validate ascending keys"
+            (\idLow idHigh ->
+                List.range idLow idHigh
+                    |> List.foldl
+                        (\id ->
+                            Result.andThen
+                                (\keysSet ->
+                                    keysSet
+                                        |> KeysSet.insertReplacingCollisions
+                                            Character.keys
+                                            { id = id
+                                            , char = Char.fromCode (40 + ('A' |> Char.toCode) + id)
+                                            }
+                                        |> validate ("id " ++ (id |> String.fromInt)) Character.keys
+                                        |> Result.map (\() -> keysSet)
+                                )
+                        )
+                        (Emptiable.empty |> Ok)
+                    |> Result.map (\_ -> Expect.pass)
+                    |> recover Expect.fail
+            )
+        , fuzz
+            (Fuzz.list Character.fuzz)
+            "validate"
+            (\characters ->
+                characters
+                    |> List.foldl
+                        (\character ->
+                            Result.andThen
+                                (\keysSet ->
+                                    keysSet
+                                        |> KeysSet.insertReplacingCollisions Character.keys character
                                         |> Emptiable.emptyAdapt (\_ -> Possible)
                                         |> validate ("char " ++ (character.char |> String.fromChar)) Character.keys
                                         |> Result.map (\() -> keysSet)
