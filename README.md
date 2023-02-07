@@ -108,7 +108,6 @@ for example separating [`Ordering`](Order#Ordering)s from data to each their own
   - `comparableKey`
       - examples
           - [`elm/core` `Dict`](https://dark.elm.dmy.fr/packages/elm/core/latest/Dict)
-          - [`escherlies/elm-ix-dict`: `IxDict`](https://package.elm-lang.org/packages/escherlies/elm-ix-dict/)
       - 👎 requires a new `Dict` wrapper for each custom `type` key.
         Often more a hindrance than helpful
   - custom functions (to `comparable` or `k -> k -> Order`)
@@ -121,19 +120,20 @@ for example separating [`Ordering`](Order#Ordering)s from data to each their own
               - see for example [`Order` API](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/Order)
           - 👍 simple type
           - 👍 not limited to `comparable` keys. Therefore simpler while not relying on magic
-      - `key -> comparable`
+      - `... -> comparable`
           - examples
+              - [`timo-weike/generic-collections`](https://dark.elm.dmy.fr/packages/timo-weike/generic-collections/latest/)
               - [`turboMaCk/any-dict`](https://dark.elm.dmy.fr/packages/turboMaCk/any-dict/latest/)
               - [`Orasund/elm-bag` `Bag`](https://package.elm-lang.org/packages/Orasund/elm-bag/latest/Bag)
+              - [`escherlies/elm-ix-dict`: `IxDict`](https://package.elm-lang.org/packages/escherlies/elm-ix-dict/latest/)
           - `key -> String`
               - examples (in no specific order)
                   - [`matzko/elm-opaque-dict`](https://dark.elm.dmy.fr/packages/matzko/elm-opaque-dict/latest/)
-                  - [`timo-weike/generic-collections`](https://dark.elm.dmy.fr/packages/timo-weike/generic-collections/latest/)
                   - [`edkv/elm-generic-dict`](https://dark.elm.dmy.fr/packages/edkv/elm-generic-dict/latest/)
               - 👍 avoid having an extra type variable
               - 👎 requires more work
               - 👎 more prone to bugs in `toString` implementation not returning a unique `String` for all keys
-              - 👎 slightly less performant when `toString` needs to do heavy work likeorderKey
+              - 👎 slightly less performant when `toString` needs to do heavy work
       - create the complete API from a given function
           - examples
               - [`edkelly303/elm-any-type-collections`](https://dark.elm.dmy.fr/packages/edkelly303/elm-any-type-collections/latest/Any-Dict) with a `toComparable` function
