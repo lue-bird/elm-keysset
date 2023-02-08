@@ -17,7 +17,7 @@ import Stack
 import KeysSet exposing (KeysSet)
 import User exposing (User(..))
 
-users : Emptiable (KeysSet User User.ByEmailHostFirst) neverEmpty_
+users : Emptiable (KeysSet User User.ByEmailHostFirst N1) neverEmpty_
 users =
     KeySet.fromStack User.byEmailHostFirst
         (Stack.topBelow
@@ -57,7 +57,7 @@ email : Map User EmailTag Email
 email =
     Typed.tag Email (\(User userData) -> userData.email)
 
-emailHostFirst : Keys User ByEmailHostFirst (Up1 x_)
+emailHostFirst : Keys User ByEmailHostFirst N1
 emailHostFirst =
     Keys.for (\email -> { email = email })
        |> Keys.by .email ( email, emailOrder )
@@ -183,7 +183,7 @@ For a `KeysSet` with some elements
 
 you can specify aspects that will be unique across all elements
 ```elm
-keys : Keys Country CountryKeys N1
+keys : Keys Country CountryKeys N2
 keys =
     Keys.for (\flag_ code_ -> { flag = flag_, code = code_ })
         |> Keys.by ( .flag, flag )
@@ -256,7 +256,7 @@ type alias Account =
 
 type alias State =
     RecordWithoutConstructorFunction
-        { accounts : KeysSet Account AccountKeys N1
+        { accounts : Emptiable (KeysSet Account AccountKeys N2) Possibly
         , currentAccountName : String
         }
 
@@ -264,7 +264,7 @@ initialState : State
 initialState =
     { accounts = Emptiable.empty }
 
-accountKeys : Keys Account AccountKeys N1
+accountKeys : Keys Account AccountKeys N2
 accountKeys =
     Keys.for (\name_ email_ -> { name = name_, email = email_ })
         |> Keys.by ( .name, name )
@@ -331,13 +331,13 @@ type alias ConversationStep =
 type alias ByYouSay =
     { youSay : Key ConversationStep (Order.By YouSay (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))) String (Up N0 To N0) }
 
-youSayKey : Keys ConversationStep ByYouSay N0
+youSayKey : Keys ConversationStep ByYouSay N1
 youSayKey =
     Keys.for (\youSay_ -> { youSay = youSay_ })
         |> Keys.by ( .youSay, youSay )
             (String.Order.earlier (Char.Order.alphabetically Order.tie))
 
-answers : Emptiable (KeysSet ConversationStep ByYouSay N0) Possibly
+answers : Emptiable (KeysSet ConversationStep ByYouSay N1) Possibly
 answers =
     KeysSet.fromList youSayKey
         [ { youSay = "Hi"

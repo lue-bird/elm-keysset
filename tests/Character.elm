@@ -5,7 +5,7 @@ import Fuzz exposing (Fuzzer)
 import Int.Order
 import Keys exposing (Keys)
 import Map exposing (Mapping)
-import N exposing (N0, N1, To, Up)
+import N exposing (N0, N1, N2, To, Up)
 import Order
 import Typed
 
@@ -30,11 +30,7 @@ type CharTag
     = CharTag
 
 
-keys :
-    Keys.Keys
-        Character
-        Keys
-        N1
+keys : Keys.Keys Character Keys N2
 keys =
     Keys.for (\id_ char_ -> { id = id_, char = char_ })
         |> Keys.by ( .id, id ) Int.Order.increasing

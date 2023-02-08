@@ -3,7 +3,7 @@ module User exposing (ByEmail, User, byEmail)
 import Char.Order
 import Keys exposing (Keys)
 import Map exposing (Mapping)
-import N exposing (N0, To, Up)
+import N exposing (N0, N1, To, Up)
 import Order
 import String.Order
 import Typed
@@ -33,7 +33,7 @@ type Email
     = Email
 
 
-byEmail : Keys User ByEmail N0
+byEmail : Keys User ByEmail N1
 byEmail =
     Keys.for (\email_ -> { email = email_ })
         |> Keys.by ( .email, email )

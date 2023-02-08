@@ -13,7 +13,7 @@ import KeysSet.Internal
 import Linear exposing (Direction(..))
 import List.Extra
 import List.Linear
-import N exposing (N1, n1)
+import N exposing (Add1, N1, N2, n1)
 import Possibly exposing (Possibly(..))
 import Stack
 import Test exposing (Test, describe, fuzz, fuzz2, test)
@@ -73,9 +73,9 @@ treeToString =
 
 validate :
     String
-    -> Keys element keys lastKeyIndex
+    -> Keys element keys (Add1 lastIndex)
     ->
-        (Emptiable (KeysSet element keys lastKeyIndex) Possibly
+        (Emptiable (KeysSet element keys (Add1 lastIndex)) Possibly
          -> Result String ()
         )
 validate context keys =
@@ -735,7 +735,7 @@ removeSuite =
     in
     describe "remove"
         [ let
-            ab : Emptiable (KeysSet Character Character.Keys N1) Possibly
+            ab : Emptiable (KeysSet Character Character.Keys N2) Possibly
             ab =
                 KeysSet.fromList
                     Character.keys
@@ -1531,10 +1531,7 @@ readmeExamplesTest =
         [ test "braces"
             (\() ->
                 let
-                    brackets :
-                        Emptiable
-                            (KeysSet BracketPair BracketPair.Keys N1)
-                            Possibly
+                    brackets : Emptiable (KeysSet BracketPair BracketPair.Keys N2) Possibly
                     brackets =
                         KeysSet.fromList
                             BracketPair.keys

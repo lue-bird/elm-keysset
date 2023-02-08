@@ -43,7 +43,7 @@ You can just ignore the `Typed` thing but if you're curious → [`typed-value`](
 
 import ArraySized exposing (ArraySized)
 import Map exposing (Mapping)
-import N exposing (Add1, Exactly, N, N0, On, To, Up, Up0, n1)
+import N exposing (Add1, Exactly, N, N0, N1, On, To, Up, Up0, n1)
 import Order exposing (Ordering)
 import Typed exposing (Checked, Internal, Public, Typed)
 
@@ -59,12 +59,11 @@ It preserves knowledge that each index is less than the whole count.
     -- ↓ and tag should be in a separate module
     userKeys :
         Keys
-        User
-        (And ... Done)
-        { name : Key User String (Up0 x)
-        , email : Key User String (Up1 x)
-        }
-        (Up2 x)
+            User
+            { name : Key User String (Up N0 To N1)
+            , email : Key User String (Up N1 To N1)
+            }
+            N2
     userKeys =
         Keys.for (\name email -> { name = name, email = email } )
             |> Keys.by .username
@@ -81,8 +80,8 @@ It preserves knowledge that each index is less than the whole count.
         -- There's already an element where .email is "ben10@gmx.de"
 
 -}
-type alias Keys element keys lastIndex =
-    KeysBeingBuilt element keys keys (On (Add1 lastIndex))
+type alias Keys element keys keyCount =
+    KeysBeingBuilt element keys keys (On keyCount)
 
 
 {-| Once you supply all the necessary key-[`Ordering`](Order#Ordering) pairs with [`by`](#by),
@@ -119,11 +118,8 @@ type KeysTag
 determining the `Order` of 2 elements
 -}
 toArray :
-    Keys element keys_ lastKeyIndex
-    ->
-        ArraySized
-            (( element, element ) -> Order)
-            (Exactly (On (Add1 lastKeyIndex)))
+    Keys element keys_ keyCount
+    -> ArraySized (( element, element ) -> Order) (Exactly (On keyCount))
 toArray =
     \keysInfoTagged ->
         let
@@ -141,9 +137,8 @@ in a record
     userKeys :
         Keys
             User
-            (And (Key.By Record.Map.Email Equal.Structurally) Done)
-            { email : Key User (Up0 x) Email }
-            (Up1 x)
+            { email : Key User (Order.By Email Email.Order) Email (Up N0 To N0) }
+            N1
     userKeys =
         Keys.for (\email -> { email = email })
             |> Keys.by .email ( Record.Map.email, Email.order )
@@ -216,7 +211,7 @@ identity order =
 
 -}
 type alias Identity element elementOrderTag =
-    Keys element (Key element (Order.By Map.Identity elementOrderTag) element (Up N0 To N0)) N0
+    Keys element (Key element (Order.By Map.Identity elementOrderTag) element (Up N0 To N0)) N1
 
 
 {-| Add a key
@@ -337,7 +332,7 @@ orderWithKey =
 
 
 keyInfo :
-    ( Keys element keys lastIndex
+    ( Keys element keys (Add1 lastIndex)
     , keys -> Key element by_ key (Up indexToLast To lastIndex)
     )
     ->
@@ -356,7 +351,7 @@ keyInfo ( keys, field ) =
 {-| A [`Key`](#Key)'s distance from the first [`by`](#by) in the [`Keys` builder](#KeysBeingBuilt)
 -}
 keyIndex :
-    ( Keys element keys lastIndex
+    ( Keys element keys (Add1 lastIndex)
     , keys -> Key element key_ by_ (Up indexToLast To lastIndex)
     )
     -> N (Exactly (Up indexToLast To lastIndex))
@@ -367,7 +362,7 @@ keyIndex ( keys, key ) =
 {-| How to turn the element into the specified key
 -}
 toKeyWith :
-    ( Keys element keys lastIndex
+    ( Keys element keys (Add1 lastIndex)
     , keys -> Key element by_ key (Up indexToLast_ To lastIndex)
     )
     -> (element -> key)
@@ -378,7 +373,7 @@ toKeyWith ( keys, key ) =
 {-| How to order by the specified key
 -}
 keyOrderWith :
-    ( Keys element keys lastIndex
+    ( Keys element keys (Add1 lastIndex)
     , keys -> Key element by_ key (Up indexToLast_ To lastIndex)
     )
     -> (( key, key ) -> Order)

@@ -15,21 +15,21 @@ import Tree2
 import Typed exposing (Checked, Public, Typed)
 
 
-type KeysSet element keys lastIndex
+type KeysSet element keys keyCount
     = One element
-    | Multiple (Multiple element keys lastIndex)
+    | Multiple (Multiple element keys keyCount)
 
 
 {-| Underlying representation of a [`KeysSet`](#KeysSet) with some elements
 -}
-type alias Multiple element keys lastIndex =
+type alias Multiple element keys keyCount =
     Typed
         Checked
         (KeysSetTag keys)
         Public
         { size : Int
         , byKeys :
-            ArraySized (Tree2.Branch element) (Exactly (Add1 lastIndex))
+            ArraySized (Tree2.Branch element) (Exactly keyCount)
         }
 
 
@@ -44,7 +44,7 @@ type KeysSetTag keys
 treeForIndex :
     N (In min_ (Up maxToLastIndex_ To lastIndex))
     ->
-        (KeysSet element keys_ lastIndex
+        (KeysSet element keys_ (Add1 lastIndex)
          -> Emptiable (Tree2.Branch element) never_
         )
 treeForIndex index =
@@ -62,13 +62,13 @@ treeForIndex index =
                     |> Emptiable.filled
 
 
-tagFor : Keys element_ keys lastIndex_ -> KeysSetTag keys
+tagFor : Keys element_ keys keyCount_ -> KeysSetTag keys
 tagFor _ =
     KeysSet
 
 
 tagForIdentity :
-    ( Keys element keys lastIndex_
+    ( Keys element keys keyCount_
     , keys -> Key element (Order.By toKeyTag_ orderTag) key index_
     )
     -> KeysSetTag (Key key (Order.By Map.Identity orderTag) key (Up N0 To N0))
@@ -77,10 +77,10 @@ tagForIdentity _ =
 
 
 toMultiple :
-    Keys element keys lastIndex
+    Keys element keys keyCount
     ->
-        (KeysSet element keys lastIndex
-         -> Multiple element keys lastIndex
+        (KeysSet element keys keyCount
+         -> Multiple element keys keyCount
         )
 toMultiple keys =
     \keysSet ->
@@ -100,12 +100,12 @@ toMultiple keys =
                 multiple
 
 
-one : element -> KeysSet element keys_ lastIndex_
+one : element -> KeysSet element keys_ keyCount_
 one singleElement =
     One singleElement
 
 
-fromMultiple : Multiple element keys lastIndex -> KeysSet element keys lastIndex
+fromMultiple : Multiple element keys (Add1 lastIndex) -> KeysSet element keys (Add1 lastIndex)
 fromMultiple =
     \multipleLike ->
         case multipleLike |> Typed.untag |> .size of

@@ -3,7 +3,7 @@ module BracketPair exposing (BracketPair, Keys, keys)
 import Char.Order
 import Keys
 import Map exposing (Mapping)
-import N exposing (N0, N1, To, Up)
+import N exposing (N0, N1, N2, To, Up)
 import Order
 import Typed
 
@@ -42,11 +42,7 @@ type Closed
     = Closed
 
 
-keys :
-    Keys.Keys
-        BracketPair
-        Keys
-        N1
+keys : Keys.Keys BracketPair Keys N2
 keys =
     Keys.for (\open_ closed_ -> { open = open_, closed = closed_ })
         |> Keys.by ( .open, open )

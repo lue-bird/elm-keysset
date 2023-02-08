@@ -4,7 +4,7 @@ import Char.Order
 import Int.Order
 import Keys exposing (Key, Keys)
 import Map exposing (Mapping)
-import N exposing (N0, N1, To, Up)
+import N exposing (N0, N1, N2, To, Up)
 import Order
 import String.Order
 import Typed
@@ -46,7 +46,7 @@ type AtomicNumber
     = AtomicNumber
 
 
-keys : Keys.Keys Atom Keys N1
+keys : Keys.Keys Atom Keys N2
 keys =
     Keys.for
         (\symbol_ atomicNumber_ ->
