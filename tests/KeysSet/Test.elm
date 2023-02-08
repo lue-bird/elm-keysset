@@ -284,7 +284,8 @@ fromListSuite =
 alterSuite : Test
 alterSuite =
     describe "alter"
-        [ elementAlterSuite
+        [ elementAlterIfNoCollisionSuite
+        , elementAlterReplacingCollisionsSuite
         , insertIfNoCollisionSuite
         , insertReplacingCollisionsSuite
         , mapSuite
@@ -852,33 +853,59 @@ removeSuite =
         ]
 
 
-elementAlterSuite : Test
-elementAlterSuite =
-    describe "elementAlter"
-        [ describe "IfNoCollision"
-            [ test "replace to same key"
-                (\() ->
-                    KeysSet.fromList Character.keys
+elementAlterIfNoCollisionSuite : Test
+elementAlterIfNoCollisionSuite =
+    describe "elementAlterIfNoCollision"
+        [ test "replace to same key"
+            (\() ->
+                KeysSet.fromList Character.keys
+                    [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
+                    |> KeysSet.elementAlterIfNoCollision ( Character.keys, .id )
+                        1
+                        (\c -> { c | char = 'C' })
+                    |> KeysSet.toList ( Character.keys, .id )
+                    |> Expect.equalLists
+                        [ { id = 0, char = 'A' }, { id = 1, char = 'C' } ]
+            )
+        , test "don't replace to multiple collisions"
+            (\() ->
+                KeysSet.fromList Character.keys
+                    [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
+                    |> KeysSet.elementAlterIfNoCollision ( Character.keys, .id )
+                        1
+                        (\c -> { c | id = 0 })
+                    |> KeysSet.toList ( Character.keys, .id )
+                    |> Expect.equalLists
                         [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
-                        |> KeysSet.elementAlterIfNoCollision ( Character.keys, .id )
-                            1
-                            (\c -> { c | char = 'C' })
-                        |> KeysSet.toList ( Character.keys, .id )
-                        |> Expect.equalLists
-                            [ { id = 0, char = 'A' }, { id = 1, char = 'C' } ]
-                )
-            , test "replace to multiple collisions"
-                (\() ->
-                    KeysSet.fromList Character.keys
-                        [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
-                        |> KeysSet.elementAlterIfNoCollision ( Character.keys, .id )
-                            1
-                            (\c -> { c | id = 0 })
-                        |> KeysSet.toList ( Character.keys, .id )
-                        |> Expect.equalLists
-                            [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
-                )
-            ]
+            )
+        ]
+
+
+elementAlterReplacingCollisionsSuite : Test
+elementAlterReplacingCollisionsSuite =
+    describe "elementAlterReplacingCollisions"
+        [ test "replace to same key"
+            (\() ->
+                KeysSet.fromList Character.keys
+                    [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
+                    |> KeysSet.elementAlterReplacingCollisions ( Character.keys, .id )
+                        1
+                        (\c -> { c | char = 'C' })
+                    |> KeysSet.toList ( Character.keys, .id )
+                    |> Expect.equalLists
+                        [ { id = 0, char = 'A' }, { id = 1, char = 'C' } ]
+            )
+        , test "replace to multiple collisions"
+            (\() ->
+                KeysSet.fromList Character.keys
+                    [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
+                    |> KeysSet.elementAlterReplacingCollisions ( Character.keys, .id )
+                        1
+                        (\c -> { c | id = 0 })
+                    |> KeysSet.toList ( Character.keys, .id )
+                    |> Expect.equalLists
+                        [ { id = 0, char = 'B' } ]
+            )
         ]
 
 
