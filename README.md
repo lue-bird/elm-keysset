@@ -181,12 +181,20 @@ For a `KeysSet` with some elements
 { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 ```
 
-you can specify aspects that will be unique across all elements TODO
+you can specify aspects that will be unique across all elements
 ```elm
+keys : Keys Country CountryKeys N1
 keys =
-    Keys.for (\flag code -> { flag = flag, code = code })
-        |> Keys.by ( .flag, flag ) String.Order.earlier Char.Order.
-        |> Keys.by ( .code, code ) String.Order.earlier Char.Order.
+    Keys.for (\flag_ code_ -> { flag = flag_, code = code_ })
+        |> Keys.by ( .flag, flag )
+            (String.Order.earlier Char.Order.unicode)
+        |> Keys.by ( .code, code )
+            (String.Order.earlier (Char.Order.alphabetically Order.tie))
+
+type alias CountryKeys =
+    { flag : Key Country (Order.By Flag (String.Order.Earlier Char.Order.Unicode)) (Up N0 To N1)
+    , code : Key Country (Order.By Code (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))) (Up N1 To N1)
+    }
 ```
 
 With a key and an aspect to check for matches, you can find the matching element:
@@ -237,32 +245,42 @@ nameOfOperatorSymbol operatorSymbol =
 ```elm
 -- https://dark.elm.dmy.fr/packages/lue-bird/elm-no-record-type-alias-constructor-function/latest/
 import RecordWithoutConstructorFunction exposing (RecordWithoutConstructorFunction)
-import KeysSet exposing (KeysSet, unique)
+import KeysSet exposing (KeysSet)
 
 type alias Account =
     RecordWithoutConstructorFunction
-        { username : String
-        , email : String
+        { name : String -- in reality, use a custom type
+        , email : String -- in reality, use a custom type
         , settings : Settings
         }
 
 type alias State =
     RecordWithoutConstructorFunction
-        { accounts : KeysSet Account
-        , currentUserName : String
+        { accounts : KeysSet Account AccountKeys N1
+        , currentAccountName : String
         }
 
+initialState : State
+initialState =
+    { accounts = Emptiable.empty }
 
-initialModel =
-    { accounts =
-        KeysSet.promising
-            [ unique .username, unique .email ]
+accountKeys : Keys Account AccountKeys N1
+accountKeys =
+    Keys.for (\name_ email_ -> { name = name_, email = email_ })
+        |> Keys.by ( .name, name )
+            (String.Order.earlier (Char.Order.alphabetically Order.tie))
+        |> Keys.by ( .email, email )
+            (String.Order.earlier (Char.Order.alphabetically Order.tie))
+
+type alias AccountKeys =
+    { name : Key Account (String.Order.Earlier (Char.Order.Alphabetically Order.Tie)) (Up N0 To N0)
+    , email : Key Account (String.Order.Earlier (Char.Order.Alphabetically Order.Tie)) (Up N0 To N1)
     }
 
 reactTo event =
     case event of
-        AccountSwitched username ->
-            \state -> { state | currentUserName = username }
+        AccountSwitched name ->
+            \state -> { state | currentAccountName = name }
         
         SettingsChanged updateSettings ->
             \state ->
@@ -270,71 +288,76 @@ reactTo event =
                     | accounts =
                         state.accounts
                             |> KeysSet.elementAlter
-                                ( .username, state.currentUserName )
+                                ( .name, state.currentAccountName )
                                 updateSettings
                 }
         
-        Registered username email ->
+        Registered name email ->
             \state ->
-                if
+                case
                     state.accounts
-                        |> KeysSet.any (\user -> user.username == username)
-                then
-                    -- username taken already
+                        |> KeysSet.element ( accountKeys, .name ) name
+                of
+                    Just _ ->
+                        -- name taken already
                 
-                else if
-                    state.accounts
-                        |> KeysSet.any (\user -> user.email == email)
-                then
-                    -- email taken already
-
-                else
-                    { state
-                        | accounts =
+                    Nothing ->
+                        case
                             state.accounts
-                                |> KeysSet.insert
-                                    { username = username
-                                    , email = email
-                                    , settings = defaultSettings
-                                    }
-                    }
+                                |> KeysSet.element ( accountKeys, .email ) email
+                        of
+                            Just _ ->
+                                -- email taken already
+
+                            Nothing ->
+                                { state
+                                    | accounts =
+                                        state.accounts
+                                            |> KeysSet.insert accountKeys
+                                                { name = name
+                                                , email = email
+                                                , settings = defaultSettings
+                                                }
+                                }
 ```
 
 &nbsp;
-
-
-## 👎 How not to
 
 ## Example: automatic answers
 ```elm
 type alias ConversationStep =
     { youSay : String, answer : String }
 
-youSayKey : Keys.Keys ConversationStep { youSay : Key ConversationStep (Order.By YouSay (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))) String (Up N0 To N0) } N0
+type alias ByYouSay =
+    { youSay : Key ConversationStep (Order.By YouSay (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))) String (Up N0 To N0) }
+
+youSayKey : Keys ConversationStep ByYouSay N0
 youSayKey =
     Keys.for (\youSay_ -> { youSay = youSay_ })
         |> Keys.by ( .youSay, youSay )
             (String.Order.earlier (Char.Order.alphabetically Order.tie))
 
+answers : Emptiable (KeysSet ConversationStep ByYouSay N0) Possibly
 answers =
-    KeysSet.promising youSayKey
-        |> KeysSet.insertList
-            [ { youSay = "Hi"
-              , answer = "Hi there!"
-              }
-            , { youSay = "Bye"
-              , answer = "Ok, have a nice day and spread some love."
-              }
-            , { youSay = "How are you"
-              , answer = "I don't have feelings :("
-              }
-            , { youSay = "Are you a robot"
-              , answer = "I think the most human answer is 'Haha... yes'"
-              }
-            ]
+    KeysSet.fromList youSayKey
+        [ { youSay = "Hi"
+          , answer = "Hi there!"
+          }
+        , { youSay = "Bye"
+          , answer = "Ok, have a nice day and spread some love."
+          }
+        , { youSay = "How are you"
+          , answer = "I don't have feelings :("
+          }
+        , { youSay = "Are you a robot"
+          , answer = "I think the most human answer is 'Haha... yes'"
+          }
+        ]
 ```
 We will only ever lookup answers to what `youSay`
-→ use a `Dict` where it is more appropriate: **`Dict`s are for one-way access**
+
+
+## 👎 How not to
 
 ## Example: translation, synonyms...
 ```elm
