@@ -1,6 +1,7 @@
 module Char.Order exposing
     ( Case(..)
     , lowerUpper, LowerUpper, upperLower
+    , unicode, Unicode
     , alphabetically, Alphabetically, AlphabeticallyTag
     )
 
@@ -19,6 +20,7 @@ module Char.Order exposing
 
 ## [`Order`](Order#Ordering)
 
+@docs unicode, Unicode
 @docs alphabetically, Alphabetically, AlphabeticallyTag
 
 -}
@@ -89,7 +91,7 @@ type AlphabeticallyTag
 
   - Both are letters → `Order` alphabetically
       - They're the same picture? → a given [`Ordering`](Order#Ordering) on their [cases](#Case)
-  - Both aren't letters → `Order` according to unicode char code
+  - Both aren't letters → `Order` [according to unicode char code](#unicode)
   - Only one is a letter → say the letter is greater
 
 ```
@@ -153,3 +155,17 @@ onEQ orderBreakingTie =
 
             GT ->
                 GT
+
+
+{-| [`Ordering`](Order#Ordering) according to the unicode char code.
+
+This behavior matches elm's `Basics.compare`.
+
+-}
+unicode : Ordering Char Unicode
+unicode =
+    Typed.tag Unicode (\( a, b ) -> compare a b)
+
+
+type Unicode
+    = Unicode
