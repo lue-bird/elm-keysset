@@ -211,33 +211,32 @@ With a key and an aspect to check for matches, you can find the matching element
 ### Example: operators
 
 ```elm
+type alias OperatorKeys =
+    { symbol : Key Operator (Order.By Symbol (String.Order.Earlier Char.Order.Unicode)) String (Up N0 To N1)
+    , name : Key Operator (Order.By Name (String.Order.Earlier Char.Order.Alphabetically (Order.Tie))) (Up N1 To N1)
+    }
+
+operatorKeys : Keys Operator OperatorKeys N2
+operatorKeys =
+    Keys.for (\symbol_ name_ -> { symbol = symbol_, name = name_ })
+        |> Keys.by ( .symbol, symbol ) (String.Order.earlier Char.Order.unicode)
+        |> Keys.by ( .name, name ) (String.Order.earlier (Char.Order.alphabetically Order.tie))
+
+operators : Emptiable (KeysSet Operator OperatorKeys N2)
 operators =
-    KeysSet.promising
-        [ unique .symbol, unique .name ]
-        |> KeysSet.insertList
-            [ { symbol = ">", name = "gt", kind = Binary }
-            , { symbol = "<", name = "lt", kind = Binary }
+    KeysSet.fromStack operatorKeys
+        (Stack.topBelow
+            { symbol = ">", name = "gt", kind = Binary }
+            [ { symbol = "<", name = "lt", kind = Binary }
             , { symbol = "==", name = "eq", kind = Binary }
             , { symbol = "-", name = "negate", kind = Unary }
             ]
+        )
 
-infixOperators =
-    operators
-        |> KeysSet.mapTry
-            (\operator ->
-                case operator.kind of
-                    Binary ->
-                        { symbol = operator.symbol, kind = operator.kind }
-                            |> Just
-                    
-                    Unary ->
-                        Nothing
-            )
-            [ unique .symbol, unique .name ]
-
+nameOfOperatorSymbol : String -> Emptiable String Possibly
 nameOfOperatorSymbol operatorSymbol =
     operators
-        |> KeysSet.element ( .symbol, operatorSymbol )
+        |> KeysSet.element ( operatorKeys, .symbol ) operatorSymbol
 ```
 
 ### example: users
@@ -388,7 +387,7 @@ partnerKeys =
 partners =
     KeysSet.fromList partnerKeys
         [ { partner = "Ann", partnerOfPartner = "Alan" }
-        , { partner = "Alex", partnerOfPartner = "Alastair" }
+        , { partner = "Alex", partnerOfPartner = "Alistair" }
         , { partner = "Alan", partnerOfPartner = "Ann" }
         -- wait, this is no duplicate and is inserted
         ]
