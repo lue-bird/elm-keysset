@@ -90,9 +90,9 @@ type AlphabeticallyTag
 {-| `Order` `Char`s
 
   - Both are letters → `Order` alphabetically
-      - They're the same picture? → a given [`Ordering`](Order#Ordering) on their [cases](#Case)
+      - They're the same letter? → a given [`Ordering`](Order#Ordering) on their [cases](#Case)
   - Both aren't letters → `Order` [according to unicode char code](#unicode)
-  - Only one is a letter → say the letter is greater
+  - Only one is a letter → the letter is considered greater
 
 ```
 Order.with (Char.Order.alphabetically Char.Order.upperLower) 'b' 'D'
@@ -105,7 +105,7 @@ Order.with (Char.Order.alphabetically Char.Order.upperLower) 'i' '!'
 --> GT
 
 Order.with (Char.Order.alphabetically Char.Order.upperLower) '-' '!'
---> compare '-' '!'
+--> Order.with Char.Order.unicode '-' '!'
 ```
 
 -}
@@ -115,7 +115,7 @@ alphabetically caseOrdering =
         (\caseOrder ( char0, char1 ) ->
             case ( char0 |> charCase, char1 |> charCase ) of
                 ( Just case0, Just case1 ) ->
-                    compare (char0 |> Char.toLower) (char1 |> Char.toLower)
+                    Order.with unicode (char0 |> Char.toLower) (char1 |> Char.toLower)
                         |> onEQ (\() -> caseOrder ( case0, case1 ))
 
                 ( Nothing, Just _ ) ->
@@ -125,7 +125,7 @@ alphabetically caseOrdering =
                     GT
 
                 ( Nothing, Nothing ) ->
-                    compare char0 char1
+                    Order.with unicode char0 char1
         )
         caseOrdering
 
@@ -167,5 +167,7 @@ unicode =
     Typed.tag Unicode (\( a, b ) -> compare a b)
 
 
+{-| Tag for [`unicode`](#unicode)
+-}
 type Unicode
     = Unicode
