@@ -11,6 +11,70 @@ See ↓ example
 → Solves problems listed in [prior art](#prior-art)
 alongside other [goodies](#goodies)
 
+For a `KeysSet` with some elements
+```elm
+{ flag = "🇦🇺", code = "AU", name = "Australia" }
+{ flag = "🇦🇶", code = "AQ", name = "Antarctica" }
+{ flag = "🇱🇧", code = "LB", name = "Lebanon" }
+
+type alias Country =
+    { flag : String, code : String, name : String }
+```
+
+you can specify aspects that will be unique across all elements and sorted a given way
+```elm
+keys : Keys Country CountryKeys N2
+keys =
+    Keys.for (\flag_ code_ -> { flag = flag_, code = code_ })
+        |> Keys.by ( .flag, flag )
+            (String.Order.earlier Char.Order.unicode)
+        |> Keys.by ( .code, code )
+            (String.Order.earlier (Char.Order.alphabetically Order.tie))
+```
+
+With a key and an aspect to check for matches, you can find the matching element:
+```elm
+|> KeysSet.element ( keys, .flag ) "🇦🇶"
+--→ Just { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
+
+|> KeysSet.element ( keys, .code ) "LB"
+--→ Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
+```
+
+The rest is boilerplate to ensure the keys match
+```elm
+type Flag = Flag
+
+flag : Mapping Country Flag String
+flag =
+    Map.tag Flag .flag
+
+type Code = Code
+
+code : Mapping Country Code String
+code =
+    Typed.tag Code .code
+
+type alias CountryKeys =
+    -- you can just infer this
+    { flag : Key Country (Order.By Flag (String.Order.Earlier Char.Order.Unicode)) (Up N0 To N1)
+    , code : Key Country (Order.By Code (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))) (Up N1 To N1)
+    }
+```
+
+No typeclasses :)
+
+Feel free to adapt this structure how you like it best,
+for example separating [`Ordering`](Order#Ordering)s from data to each their own `module Data.By`
+
+🧩
+  - the types of key counts like `N2` and indexes like `Up N0 To N1` can be found in [`bounded-nat`](https://dark.elm.dmy.fr/packages/lue-bird/elm-bounded-nat/latest/). No need to understand the details; type inference has your back.
+  - Wanna dig a bit deeper? Giving an [`Ordering`](Order#Ordering) or [`Mapping`](Map#Mapping) a unique tag is enabled by [`typed-value`](https://dark.elm.dmy.fr/packages/lue-bird/elm-typed-value/latest/): convenient control of reading and writing for tagged things.
+
+### another example: user
+
+TODO use account example instead
+
 ```elm
 import Emptiable exposing (Emptiable)
 import Stack
@@ -38,7 +102,7 @@ users |> KeySet.end Down -- minimum
 --→ { name = "Ann", email = ..ann@mail.xyz.. } no Maybe
 ```
 ```elm
-module User exposing (User(..), ByEmailHostFirst, byEmailHostFirst)
+-- module User exposing (User(..), ByEmailHostFirst, byEmailHostFirst)
 
 import KeySet
 import Email
@@ -47,6 +111,7 @@ type User
     = User
         { email : Email
         , name : String
+        , settings : Settings
         }
 
 type EmailTag
@@ -60,7 +125,7 @@ email =
 emailHostFirst : Keys User ByEmailHostFirst N1
 emailHostFirst =
     Keys.for (\email -> { email = email })
-       |> Keys.by .email ( email, emailOrder )
+       |> Keys.by ( .email, email ) emailOrder
 
 type alias ByEmailHostFirst =
     ...
@@ -79,10 +144,166 @@ emailByHostFirst =
                 (String.Order.earlier (Char.Order.alphabetically Order.tie))
             )
 ```
-No typeclasses :)
 
-Feel free to adapt this structure how you like it best,
-for example separating [`Ordering`](Order#Ordering)s from data to each their own `module Data.By`
+```elm
+-- https://dark.elm.dmy.fr/packages/lue-bird/elm-no-record-type-alias-constructor-function/latest/
+import RecordWithoutConstructorFunction exposing (RecordWithoutConstructorFunction)
+import KeysSet exposing (KeysSet)
+
+type alias State =
+    RecordWithoutConstructorFunction
+        { accounts : Emptiable (KeysSet User UserKeys N2) Possibly
+        , currentAccountName : String
+        }
+
+initialState : State
+initialState =
+    { accounts = users }
+
+reactTo event =
+    case event of
+        AccountSwitched name ->
+            \state -> { state | currentAccountName = name }
+        
+        SettingsChanged updateSettings ->
+            \state ->
+                { state
+                    | accounts =
+                        state.accounts
+                            |> KeysSet.elementAlter
+                                ( .name, state.currentAccountName )
+                                updateSettings
+                }
+        
+        Registered name email ->
+            \state ->
+                case
+                    state.accounts
+                        |> KeysSet.element ( accountKeys, .name ) name
+                of
+                    Just _ ->
+                        -- name taken already
+                
+                    Nothing ->
+                        case
+                            state.accounts
+                                |> KeysSet.element ( accountKeys, .email ) email
+                        of
+                            Just _ ->
+                                -- email taken already
+
+                            Nothing ->
+                                { state
+                                    | accounts =
+                                        state.accounts
+                                            |> KeysSet.insert accountKeys
+                                                { name = name
+                                                , email = email
+                                                , settings = defaultSettings
+                                                }
+                                }
+```
+
+### example: operators
+
+```elm
+type alias OperatorKeys =
+    { symbol : Key Operator (Order.By Symbol (String.Order.Earlier Char.Order.Unicode)) String (Up N0 To N1)
+    , name : Key Operator (Order.By Name (String.Order.Earlier Char.Order.Alphabetically (Order.Tie))) (Up N1 To N1)
+    }
+
+operatorKeys : Keys Operator OperatorKeys N2
+operatorKeys =
+    Keys.for (\symbol_ name_ -> { symbol = symbol_, name = name_ })
+        |> Keys.by ( .symbol, symbol )
+            (String.Order.earlier Char.Order.unicode)
+        |> Keys.by ( .name, name )
+            (String.Order.earlier (Char.Order.alphabetically Order.tie))
+
+operators : Emptiable (KeysSet Operator OperatorKeys N2)
+operators =
+    KeysSet.fromStack operatorKeys
+        (Stack.topBelow
+            { symbol = ">", name = "gt", kind = Binary }
+            [ { symbol = "<", name = "lt", kind = Binary }
+            , { symbol = "==", name = "eq", kind = Binary }
+            , { symbol = "-", name = "negate", kind = Unary }
+            ]
+        )
+
+nameOfOperatorSymbol : String -> Emptiable String Possibly
+nameOfOperatorSymbol operatorSymbol =
+    operators
+        |> KeysSet.element ( operatorKeys, .symbol ) operatorSymbol
+```
+
+### example: automatic answers
+```elm
+type alias ConversationStep =
+    { youSay : String, answer : String }
+
+type alias ByYouSay =
+    { youSay : Key ConversationStep (Order.By YouSay (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))) String (Up N0 To N0) }
+
+youSayKey : Keys ConversationStep ByYouSay N1
+youSayKey =
+    Keys.for (\youSay_ -> { youSay = youSay_ })
+        |> Keys.by ( .youSay, youSay )
+            (String.Order.earlier (Char.Order.alphabetically Order.tie))
+
+answers : Emptiable (KeysSet ConversationStep ByYouSay N1) Possibly
+answers =
+    KeysSet.fromList youSayKey
+        [ { youSay = "Hi"
+          , answer = "Hi there!"
+          }
+        , { youSay = "Bye"
+          , answer = "Ok, have a nice day and spread some love."
+          }
+        , { youSay = "How are you"
+          , answer = "I don't have feelings :("
+          }
+        , { youSay = "Are you a robot"
+          , answer = "I think the most human answer is 'Haha... yes'"
+          }
+        ]
+```
+
+### anti-example: translation, synonyms...
+```elm
+translationsEnDe =
+    KeysSet.fromList ???
+        [ { english = "elm", german = "Ulme" }
+        , { english = "git", german = "Schwachkopf" }
+        , { german = "Rüste", english = "elm" }
+        ]
+```
+A `KeysSet` is only effective when there is **only one matching key**.
+
+Please take a look at [elm-bidict](https://github.com/Janiczek/elm-bidict) instead!
+
+### anti-example: partners, opposites...
+
+```elm
+partnerKeys =
+    Keys.for
+        (\partner partnerOfPartner ->
+            { partner = partner, partnerForPartner = partnerForPartner }
+        )
+        |> Keys.by .partner
+            ( Record.Map.partner, String.Order... )
+        |> Keys.by .partnerOfPartner
+            ( Record.Map.partnerOfPartner, String.Order... )
+
+partners =
+    KeysSet.fromList partnerKeys
+        [ { partner = "Ann", partnerOfPartner = "Alan" }
+        , { partner = "Alex", partnerOfPartner = "Alistair" }
+        , { partner = "Alan", partnerOfPartner = "Ann" }
+        -- wait, this is no duplicate and is inserted
+        ]
+```
+A `KeysSet` ony makes sense when the **keys describe something different**
 
 ## goodies
 
@@ -134,14 +355,15 @@ for example separating [`Ordering`](Order#Ordering)s from data to each their own
               - 👎 requires more work
               - 👎 more prone to bugs in `toString` implementation not returning a unique `String` for all keys
               - 👎 slightly less performant when `toString` needs to do heavy work
-      - create the complete API from a given function
+      - build the complete API from a given function
           - examples
               - [`edkelly303/elm-any-type-collections`](https://dark.elm.dmy.fr/packages/edkelly303/elm-any-type-collections/latest/Any-Dict) with a `toComparable` function
+              - [`miniBill/elm-generic-dict`](https://github.com/miniBill/elm-generic-dict) with a `toComparable` function
           - using the constructed API is rather simple
           - 👎 dead code elimination and semantic versioning don't work
           - 👎 obscure API and interface type
           - 👍 functions aren't stored in the data structure
-          - using for example `insert` from the wrong API "instance" with a different function is still possible but unlikely to happen in practice
+          - using for example `insert` from the wrong API "instance" with a different function is still possible but less likely to happen in practice
       - just the function `key -> Maybe value` instead of a data structure
           - examples
               - [`jjant/elm-dict`](https://dark.elm.dmy.fr/packages/jjant/elm-dict/latest/AllDict)
@@ -170,229 +392,6 @@ for example separating [`Ordering`](Order#Ordering)s from data to each their own
       - idea is quite similar to `KeySet` but
       - 👎 relies on `comparable`
       - 👎 everyone can tag without the tag name so only security by a bit more obscurity
-
-## more examples!
-Look up elements by their unique aspects
-
-For a `KeysSet` with some elements
-```elm
-{ flag = "🇦🇺", code = "AU", name = "Australia" }
-{ flag = "🇦🇶", code = "AQ", name = "Antarctica" }
-{ flag = "🇱🇧", code = "LB", name = "Lebanon" }
-```
-
-you can specify aspects that will be unique across all elements
-```elm
-keys : Keys Country CountryKeys N2
-keys =
-    Keys.for (\flag_ code_ -> { flag = flag_, code = code_ })
-        |> Keys.by ( .flag, flag )
-            (String.Order.earlier Char.Order.unicode)
-        |> Keys.by ( .code, code )
-            (String.Order.earlier (Char.Order.alphabetically Order.tie))
-
-type alias CountryKeys =
-    { flag : Key Country (Order.By Flag (String.Order.Earlier Char.Order.Unicode)) (Up N0 To N1)
-    , code : Key Country (Order.By Code (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))) (Up N1 To N1)
-    }
-```
-
-With a key and an aspect to check for matches, you can find the matching element:
-```elm
-|> KeysSet.element ( keys, .flag ) "🇦🇶"
---→ Just { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
-
-|> KeysSet.element ( keys, .code ) "LB"
---→ Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
-```
-
-## 👍 How to
-
-### Example: operators
-
-```elm
-type alias OperatorKeys =
-    { symbol : Key Operator (Order.By Symbol (String.Order.Earlier Char.Order.Unicode)) String (Up N0 To N1)
-    , name : Key Operator (Order.By Name (String.Order.Earlier Char.Order.Alphabetically (Order.Tie))) (Up N1 To N1)
-    }
-
-operatorKeys : Keys Operator OperatorKeys N2
-operatorKeys =
-    Keys.for (\symbol_ name_ -> { symbol = symbol_, name = name_ })
-        |> Keys.by ( .symbol, symbol ) (String.Order.earlier Char.Order.unicode)
-        |> Keys.by ( .name, name ) (String.Order.earlier (Char.Order.alphabetically Order.tie))
-
-operators : Emptiable (KeysSet Operator OperatorKeys N2)
-operators =
-    KeysSet.fromStack operatorKeys
-        (Stack.topBelow
-            { symbol = ">", name = "gt", kind = Binary }
-            [ { symbol = "<", name = "lt", kind = Binary }
-            , { symbol = "==", name = "eq", kind = Binary }
-            , { symbol = "-", name = "negate", kind = Unary }
-            ]
-        )
-
-nameOfOperatorSymbol : String -> Emptiable String Possibly
-nameOfOperatorSymbol operatorSymbol =
-    operators
-        |> KeysSet.element ( operatorKeys, .symbol ) operatorSymbol
-```
-
-### example: users
-
-```elm
--- https://dark.elm.dmy.fr/packages/lue-bird/elm-no-record-type-alias-constructor-function/latest/
-import RecordWithoutConstructorFunction exposing (RecordWithoutConstructorFunction)
-import KeysSet exposing (KeysSet)
-
-type alias Account =
-    RecordWithoutConstructorFunction
-        { name : String -- in reality, use a custom type
-        , email : String -- in reality, use a custom type
-        , settings : Settings
-        }
-
-type alias State =
-    RecordWithoutConstructorFunction
-        { accounts : Emptiable (KeysSet Account AccountKeys N2) Possibly
-        , currentAccountName : String
-        }
-
-initialState : State
-initialState =
-    { accounts = Emptiable.empty }
-
-accountKeys : Keys Account AccountKeys N2
-accountKeys =
-    Keys.for (\name_ email_ -> { name = name_, email = email_ })
-        |> Keys.by ( .name, name )
-            (String.Order.earlier (Char.Order.alphabetically Order.tie))
-        |> Keys.by ( .email, email )
-            (String.Order.earlier (Char.Order.alphabetically Order.tie))
-
-type alias AccountKeys =
-    { name : Key Account (String.Order.Earlier (Char.Order.Alphabetically Order.Tie)) (Up N0 To N0)
-    , email : Key Account (String.Order.Earlier (Char.Order.Alphabetically Order.Tie)) (Up N0 To N1)
-    }
-
-reactTo event =
-    case event of
-        AccountSwitched name ->
-            \state -> { state | currentAccountName = name }
-        
-        SettingsChanged updateSettings ->
-            \state ->
-                { state
-                    | accounts =
-                        state.accounts
-                            |> KeysSet.elementAlter
-                                ( .name, state.currentAccountName )
-                                updateSettings
-                }
-        
-        Registered name email ->
-            \state ->
-                case
-                    state.accounts
-                        |> KeysSet.element ( accountKeys, .name ) name
-                of
-                    Just _ ->
-                        -- name taken already
-                
-                    Nothing ->
-                        case
-                            state.accounts
-                                |> KeysSet.element ( accountKeys, .email ) email
-                        of
-                            Just _ ->
-                                -- email taken already
-
-                            Nothing ->
-                                { state
-                                    | accounts =
-                                        state.accounts
-                                            |> KeysSet.insert accountKeys
-                                                { name = name
-                                                , email = email
-                                                , settings = defaultSettings
-                                                }
-                                }
-```
-
-&nbsp;
-
-## Example: automatic answers
-```elm
-type alias ConversationStep =
-    { youSay : String, answer : String }
-
-type alias ByYouSay =
-    { youSay : Key ConversationStep (Order.By YouSay (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))) String (Up N0 To N0) }
-
-youSayKey : Keys ConversationStep ByYouSay N1
-youSayKey =
-    Keys.for (\youSay_ -> { youSay = youSay_ })
-        |> Keys.by ( .youSay, youSay )
-            (String.Order.earlier (Char.Order.alphabetically Order.tie))
-
-answers : Emptiable (KeysSet ConversationStep ByYouSay N1) Possibly
-answers =
-    KeysSet.fromList youSayKey
-        [ { youSay = "Hi"
-          , answer = "Hi there!"
-          }
-        , { youSay = "Bye"
-          , answer = "Ok, have a nice day and spread some love."
-          }
-        , { youSay = "How are you"
-          , answer = "I don't have feelings :("
-          }
-        , { youSay = "Are you a robot"
-          , answer = "I think the most human answer is 'Haha... yes'"
-          }
-        ]
-```
-We will only ever lookup answers to what `youSay`
-
-
-## 👎 How not to
-
-## Example: translation, synonyms...
-```elm
-translationsEnDe =
-    KeysSet.fromList ???
-        [ { english = "elm", german = "Ulme" }
-        , { english = "git", german = "Schwachkopf" }
-        , { german = "Rüste", english = "elm" }
-        ]
-```
-A `KeysSet` is only effective when there is **only one matching key**.
-
-Please take a look at [elm-bidict](https://github.com/Janiczek/elm-bidict) instead!
-
-## Example: partners, opposites...
-
-```elm
-partnerKeys =
-    Keys.for
-        (\partner partnerOfPartner ->
-            { partner = partner, partnerForPartner = partnerForPartner }
-        )
-        |> Keys.by .partner
-            ( Record.Map.partner, String.Order... )
-        |> Keys.by .partnerOfPartner
-            ( Record.Map.partnerOfPartner, String.Order... )
-
-partners =
-    KeysSet.fromList partnerKeys
-        [ { partner = "Ann", partnerOfPartner = "Alan" }
-        , { partner = "Alex", partnerOfPartner = "Alistair" }
-        , { partner = "Alan", partnerOfPartner = "Ann" }
-        -- wait, this is no duplicate and is inserted
-        ]
-```
-A `KeysSet` ony makes sense when the **keys describe something different**
 
 # future ideas
 
