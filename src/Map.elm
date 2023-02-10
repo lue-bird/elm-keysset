@@ -1,5 +1,6 @@
 module Map exposing
     ( Mapping, Altering
+    , tag
     , identity, Identity
     , over, Over, OverTag
     , with
@@ -12,8 +13,7 @@ module Map exposing
 
 ## create
 
-Just [`Typed.tag`](https://dark.elm.dmy.fr/packages/lue-bird/elm-typed-value/latest/Typed#tag) any function `a -> b`.
-
+@docs tag
 @docs identity, Identity
 
 
@@ -39,18 +39,22 @@ To create, combine
   - a function that changes the `unmapped` to `mapped`
 
 ```
--- module Record.Map exposing (Score, score)
+-- module Game exposing (Score, score)
 
-
-import Typed
+type alias Game =
+    { ..., score : Int }
 
 type Score
     = Score
 
-score : Mapping { record | score : score } Score score
+score : Mapping Game Score Int
 score =
-    Typed.tag Score .score
+    Map.tag Score .score
 ```
+
+To "nest" [`Mapping`](#Mapping)s
+[`typed-value`](https://dark.elm.dmy.fr/packages/lue-bird/elm-typed-value/latest/)
+has some powerful helpers:
 
     -- module String.Map exposing (each, Each, ToList, toList)
     type ToList
@@ -58,7 +62,7 @@ score =
 
     toList : Mapping String ToList (List Char)
     toList =
-        Typed.tag ToList String.toList
+        Map.tag ToList String.toList
 
     type Each
         = Each
@@ -122,7 +126,14 @@ type Identity
 -}
 identity : Altering subject_ Identity
 identity =
-    Typed.tag Identity Basics.identity
+    tag Identity Basics.identity
+
+
+{-| Create a uniquely tagged [`Mapping`](#Mapping) for a given function `a -> b`.
+-}
+tag : tag -> (a -> b) -> Mapping a tag b
+tag customTag change =
+    Typed.tag customTag change
 
 
 
