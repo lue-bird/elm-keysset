@@ -2,15 +2,6 @@
 
 # 🗃️ `KeysSet`
 
-Holds no functions.
-Still, the [`Keys`](Keys#Keys)
-required to access/operate are enforced to be the same
-(by attaching an opaque tag).
-See ↓ example
-
-→ Solves problems listed in [prior art](#prior-art)
-alongside other [goodies](#goodies)
-
 For a `KeysSet` with some elements
 ```elm
 { flag = "🇦🇺", code = "AU", name = "Australia" }
@@ -33,6 +24,7 @@ keys =
 ```
 
 With a key and an aspect to check for matches, you can find the matching element:
+
 ```elm
 |> KeysSet.element ( keys, .flag ) "🇦🇶"
 --→ Just { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
@@ -41,15 +33,23 @@ With a key and an aspect to check for matches, you can find the matching element
 --→ Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 ```
 
-The rest is boilerplate to ensure the keys match
+`KeysSet` holds no functions, so the [`Keys`](Keys#Keys) have to be supplied on every operation.
+
+To ensure these [`Keys`](Keys#Keys) are always the same, we sadly need some boilerplate,
+attaching opaque tags:
+
 ```elm
-type Flag = Flag
+type Flag =
+    -- ! no exposing (..) → only constructable in this module
+    Flag
 
 flag : Mapping Country Flag String
 flag =
     Map.tag Flag .flag
 
-type Code = Code
+type Code
+    -- no exposing (..)
+    = Code
 
 code : Mapping Country Code String
 code =
@@ -63,6 +63,9 @@ type alias CountryKeys =
 ```
 
 No typeclasses :)
+
+→ Solves problems listed in [prior art](#prior-art)
+alongside other [goodies](#goodies)
 
 Feel free to adapt this structure how you like it best,
 for example separating [`Ordering`](Order#Ordering)s from data to each their own `module Data.By`
@@ -115,28 +118,43 @@ type User
         }
 
 type EmailTag
-    -- ! no exposing (..) → only constructable in this module
     = Email
 
 email : Map User EmailTag Email
 email =
-    Typed.tag Email (\(User userData) -> userData.email)
+    Map.tag Email (\(User userData) -> userData.email)
 
-emailHostFirst : Keys User ByEmailHostFirst N1
-emailHostFirst =
-    Keys.for (\email -> { email = email })
-       |> Keys.by ( .email, email ) emailOrder
+type NameTag
+    = Name
 
-type alias ByEmailHostFirst =
-    ...
+name : Map User NameTag String
+name =
+    Map.tag Name (\(User userData) -> userData.name)
+
+keys : Keys User Keys N1
+keys =
+    Keys.for (\email_ name_ -> { email = email_, name = name_ })
+       |> Keys.by ( .email, email ) Email.byHostFirst
+       |> Keys.by ( .name, name )
+            (String.Order.earlier (Char.Order.alphabetically Order.tie))
+
+type alias Keys =
+    { email : Key User (Order.By EmailTag Email.ByHostFirst) Email (Up N1 To N1)
+    , name : Key User (Order.By NameTag (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))) String (Up N0 To N1)
+    }
+```
+```elm
+-- module Email exposing (Email, byHostFirst, ByHostFirst)
+type alias Email =
+    { host : ..., label : ... }
 
 type alias ByHostFirst =
     Order.OnTieNext
         (Order.By Email.HostTag ...)
         (Order.By Email.LabelTag ...)
 
-emailByHostFirst : Ordering Email ByHostFirst 
-emailByHostFirst =
+byHostFirst : Ordering Email ByHostFirst 
+byHostFirst =
     Order.by Email.host
         (String.Order.earlier (Char.Order.alphabetically Order.tie))
         |> Order.onTie
@@ -209,7 +227,7 @@ reactTo event =
 ```elm
 type alias OperatorKeys =
     { symbol : Key Operator (Order.By Symbol (String.Order.Earlier Char.Order.Unicode)) String (Up N0 To N1)
-    , name : Key Operator (Order.By Name (String.Order.Earlier Char.Order.Alphabetically (Order.Tie))) (Up N1 To N1)
+    , name : Key Operator (Order.By Name (String.Order.Earlier Char.Order.Alphabetically (Order.Tie))) String (Up N1 To N1)
     }
 
 operatorKeys : Keys Operator OperatorKeys N2
