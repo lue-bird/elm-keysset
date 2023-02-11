@@ -1,6 +1,6 @@
 > safe lookup for multiple arbitrary keys, log n
 
-# 🗃️ `KeysSet`
+# 🗃️ [`KeysSet`](KeysSet)
 
 Let's use its power to build a country lookup with `.flag` and `.code` keys
 ```elm
@@ -14,17 +14,6 @@ type alias Country =
     { flag : String, code : String, name : String }
 ```
 
-listing aspects that will be unique across all elements and sorted a given way
-```elm
-keys : Keys Country CountryKeys N2
-keys =
-    Keys.for (\flag_ code_ -> { flag = flag_, code = code_ })
-        |> Keys.by ( .flag, flag )
-            (String.Order.earlier Char.Order.unicode)
-        |> Keys.by ( .code, code )
-            (String.Order.earlier (Char.Order.alphabetically Order.tie))
-```
-
 With a key and an aspect to check for matches, you can find the matching element
 in `log n` time:
 
@@ -36,7 +25,18 @@ in `log n` time:
 --→ Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 ```
 
-`KeysSet` holds no functions, so the [`Keys`](Keys#Keys) have to be supplied on every operation.
+listing aspects that will be unique across all elements and sorted a given way
+```elm
+keys : Keys Country CountryKeys N2
+keys =
+    Keys.for (\flag_ code_ -> { flag = flag_, code = code_ })
+        |> Keys.by ( .flag, flag )
+            (String.Order.earlier Char.Order.unicode)
+        |> Keys.by ( .code, code )
+            (String.Order.earlier (Char.Order.alphabetically Order.tie))
+```
+
+[`KeysSet`](KeysSet#KeysSet) holds no functions, so the [`Keys`](Keys#Keys) have to be supplied on every operation.
 
 To ensure these [`Keys`](Keys#Keys) are always the same, we sadly need some boilerplate,
 attaching opaque tags:
