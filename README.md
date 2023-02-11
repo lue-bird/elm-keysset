@@ -2,17 +2,19 @@
 
 # 🗃️ `KeysSet`
 
-For a `KeysSet` with some elements
+Let's use its power to build a country lookup with `.flag` and `.code` keys
 ```elm
-{ flag = "🇦🇺", code = "AU", name = "Australia" }
-{ flag = "🇦🇶", code = "AQ", name = "Antarctica" }
-{ flag = "🇱🇧", code = "LB", name = "Lebanon" }
+KeysSet.fromList keys
+    [ { flag = "🇦🇺", code = "AU", name = "Australia" }
+    , { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
+    , { flag = "🇱🇧", code = "LB", name = "Lebanon" }
+    ]
 
 type alias Country =
     { flag : String, code : String, name : String }
 ```
 
-you can specify aspects that will be unique across all elements and sorted a given way
+listing aspects that will be unique across all elements and sorted a given way
 ```elm
 keys : Keys Country CountryKeys N2
 keys =
@@ -23,7 +25,8 @@ keys =
             (String.Order.earlier (Char.Order.alphabetically Order.tie))
 ```
 
-With a key and an aspect to check for matches, you can find the matching element:
+With a key and an aspect to check for matches, you can find the matching element
+in `log n` time:
 
 ```elm
 |> KeysSet.element ( keys, .flag ) "🇦🇶"
@@ -62,7 +65,7 @@ type alias CountryKeys =
     }
 ```
 
-No typeclasses :)
+Feels somewhat like "explicit typeclasses" :)
 
 → Solves problems listed in [prior art](#prior-art)
 alongside other [goodies](#goodies)
@@ -76,15 +79,13 @@ for example separating [`Ordering`](Order#Ordering)s from data to each their own
 
 ### another example: user
 
-TODO use account example instead
-
 ```elm
 import Emptiable exposing (Emptiable)
 import Stack
 import KeysSet exposing (KeysSet)
 import User exposing (User(..))
 
-users : Emptiable (KeysSet User User.ByEmailHostFirst N1) neverEmpty_
+users : Emptiable (KeysSet User User.Keys N2) neverEmpty_
 users =
     KeySet.fromStack User.byEmailHostFirst
         (Stack.topBelow
@@ -131,7 +132,7 @@ name : Map User NameTag String
 name =
     Map.tag Name (\(User userData) -> userData.name)
 
-keys : Keys User Keys N1
+keys : Keys User Keys N2
 keys =
     Keys.for (\email_ name_ -> { email = email_, name = name_ })
        |> Keys.by ( .email, email ) Email.byHostFirst
