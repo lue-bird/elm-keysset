@@ -1,4 +1,4 @@
-> safe lookup for multiple arbitrary keys, log n
+> lookup for multiple arbitrary keys. safe. log n
 
 # 🗃️ [`KeysSet`](KeysSet)
 
