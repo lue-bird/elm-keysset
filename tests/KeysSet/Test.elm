@@ -13,7 +13,7 @@ import KeysSet.Internal
 import Linear exposing (Direction(..))
 import List.Extra
 import List.Linear
-import N exposing (Add1, N1, N2, n1)
+import N exposing (Add1, N2, n1)
 import Possibly exposing (Possibly(..))
 import Stack
 import Test exposing (Test, describe, fuzz, fuzz2, test)
