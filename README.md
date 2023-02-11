@@ -288,22 +288,9 @@ answers =
         ]
 ```
 
-[↑ more examples]()
+[↑ more examples](https://github.com/lue-bird/elm-keysset/tree/master/example)
 
-### anti-example: translation, synonyms...
-```elm
-translationsEnDe =
-    KeysSet.fromList ???
-        [ { english = "elm", german = "Ulme" }
-        , { english = "git", german = "Schwachkopf" }
-        , { german = "Rüste", english = "elm" }
-        ]
-```
-A `KeysSet` is only effective when there is **only one matching key**.
-
-Please take a look at [elm-bidict](https://github.com/Janiczek/elm-bidict) instead!
-
-### anti-example: partners, opposites...
+### anti-example: partners, synonyms, opposites...
 
 ```elm
 partnerKeys =
@@ -325,6 +312,8 @@ partners =
         ]
 ```
 A `KeysSet` ony makes sense when the **keys describe something different**
+
+Maybe take a look at [elm-bidict](https://github.com/Janiczek/elm-bidict) instead!
 
 ## goodies
 
