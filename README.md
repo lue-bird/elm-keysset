@@ -1,8 +1,8 @@
-> lookup for multiple arbitrary keys. safe. log n
-
 # 🗃️ [`KeysSet`](KeysSet)
 
-Let's use its power to build a country lookup with `.flag` and `.code` keys
+> lookup for multiple arbitrary keys. safe. log n
+
+🌏 Let's build a country lookup with `.flag` and `.code` keys
 ```elm
 KeysSet.fromList keys
     [ { flag = "🇦🇺", code = "AU", name = "Australia" }
@@ -14,7 +14,7 @@ type alias Country =
     { flag : String, code : String, name : String }
 ```
 
-With a key and an aspect to check for matches, you can find the matching element
+With a key to compare against, you can find the matching element
 in `log n` time:
 
 ```elm
@@ -25,7 +25,7 @@ in `log n` time:
 --→ Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 ```
 
-listing aspects that will be unique across all elements and sorted a given way
+`keys` we used for construction and operating now has to list the aspects that our [`KeysSet`](KeysSet#KeysSet) will be sorted by
 ```elm
 keys : Keys Country CountryKeys N2
 keys =
@@ -60,8 +60,8 @@ code =
 
 type alias CountryKeys =
     -- you can just infer this
-    { flag : Key Country (Order.By Flag (String.Order.Earlier Char.Order.Unicode)) (Up N0 To N1)
-    , code : Key Country (Order.By Code (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))) (Up N1 To N1)
+    { flag : Key Country (Order.By Flag (String.Order.Earlier Char.Order.Unicode)) (Up N1 To N1)
+    , code : Key Country (Order.By Code (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))) (Up N0 To N1)
     }
 ```
 
@@ -74,6 +74,26 @@ Feel free to adapt this structure how you like it best,
 for example separating [`Ordering`](Order#Ordering)s from data to each their own `module Data.By`
 
 🧩
+  - when annotating a [`KeysSet`](KeysSet#KeysSet), you'll run into types like
+    ```elm
+    Emptiable (KeysSet ...) Never -> ...
+    ```
+    ```elm
+    -> Emptiable (KeysSet ...) neverEmpty_
+    ```
+    which says the [`KeysSet`](KeysSet#KeysSet) can never be empty
+
+    and
+    ```elm
+    -> Emptiable (KeysSet ...) Possibly
+    ```
+    ```elm
+    Emptiable (KeysSet ...) possiblyOrNever -> ...
+    ```
+    which says the [`KeysSet`](KeysSet#KeysSet) can possibly be empty.
+
+    [`emptiness-typed`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/) lets us conveniently use one API
+    for both non-empty and emptiable types.
   - the types of key counts like `N2` and indexes like `Up N0 To N1` can be found in [`bounded-nat`](https://dark.elm.dmy.fr/packages/lue-bird/elm-bounded-nat/latest/). No need to understand the details; type inference has your back.
   - Wanna dig a bit deeper? Giving an [`Ordering`](Order#Ordering) or [`Mapping`](Map#Mapping) a unique tag is enabled by [`typed-value`](https://dark.elm.dmy.fr/packages/lue-bird/elm-typed-value/latest/): convenient control of reading and writing for tagged things.
 
@@ -106,7 +126,7 @@ users |> KeySet.end Down -- minimum
 --→ { name = "Ann", email = ..ann@mail.xyz.. } no Maybe
 ```
 ```elm
--- module User exposing (User(..), ByEmailHostFirst, byEmailHostFirst)
+-- module User exposing (User(..), Keys, keys)
 
 import KeySet
 import Email
@@ -132,7 +152,7 @@ name : Map User NameTag String
 name =
     Map.tag Name (\(User userData) -> userData.name)
 
-keys : Keys User Keys N2
+keys : Keys.Keys User Keys N2
 keys =
     Keys.for (\email_ name_ -> { email = email_, name = name_ })
        |> Keys.by ( .email, email ) Email.byHostFirst
@@ -165,62 +185,55 @@ byHostFirst =
 ```
 
 ```elm
--- https://dark.elm.dmy.fr/packages/lue-bird/elm-no-record-type-alias-constructor-function/latest/
-import RecordWithoutConstructorFunction exposing (RecordWithoutConstructorFunction)
 import KeysSet exposing (KeysSet)
+import Emptiable exposing (Emptiable)
+import Possibly exposing (Possibly)
 
 type alias State =
-    RecordWithoutConstructorFunction
-        { accounts : Emptiable (KeysSet User UserKeys N2) Possibly
-        , currentAccountName : String
-        }
+    { users : Emptiable (KeysSet User UserKeys N2) Possibly
+    , activeUserName : String
+    }
 
 initialState : State
 initialState =
-    { accounts = users }
+    { users = users }
 
 reactTo event =
     case event of
-        AccountSwitched name ->
-            \state -> { state | currentAccountName = name }
-        
-        SettingsChanged updateSettings ->
+        Registered { name, email } ->
             \state ->
-                { state
-                    | accounts =
-                        state.accounts
-                            |> KeysSet.elementAlter
-                                ( .name, state.currentAccountName )
-                                updateSettings
-                }
-        
-        Registered name email ->
-            \state ->
-                case
-                    state.accounts
-                        |> KeysSet.element ( accountKeys, .name ) name
-                of
-                    Just _ ->
+                case state.users |> KeysSet.element ( User.keys, .name ) name of
+                    Emptiable.Filled _ ->
                         -- name taken already
                 
-                    Nothing ->
-                        case
-                            state.accounts
-                                |> KeysSet.element ( accountKeys, .email ) email
-                        of
-                            Just _ ->
+                    Emptiable.Empty _ ->
+                        case state.users |> KeysSet.element ( User.keys, .email ) email of
+                            Emptiable.Filled _ ->
                                 -- email taken already
 
-                            Nothing ->
+                            Emptiable.Empty _ ->
                                 { state
-                                    | accounts =
-                                        state.accounts
-                                            |> KeysSet.insert accountKeys
+                                    | users =
+                                        state.users
+                                            |> KeysSet.insert User.keys
                                                 { name = name
                                                 , email = email
                                                 , settings = defaultSettings
                                                 }
                                 }
+        
+        SettingsChanged settingsChange ->
+            \state ->
+                { state
+                    | users =
+                        state.users
+                            |> KeysSet.elementAlter
+                                ( .name, state.activeUserName )
+                                (applySettingsChange settingsChange)
+                }
+        
+        UserSwitched name ->
+            \state -> { state | activeUserName = name }
 ```
 
 ### example: operators
