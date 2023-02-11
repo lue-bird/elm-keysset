@@ -1,5 +1,7 @@
 module Card exposing (Card(..), CardNormal, order)
 
+import Int.Order
+import Map exposing (Mapping)
 import Order exposing (Ordering)
 import RecordWithoutConstructorFunction exposing (RecordWithoutConstructorFunction)
 
@@ -13,61 +15,61 @@ type alias CardNormal =
     RecordWithoutConstructorFunction
         { value : Value, suite : Suite }
 
-{- For simple type unions with only 2 variants:
 
-    order : Ordering Card
-    order =
-        \card0 card1 ->
-            case ( card0, card1 ) of
-                -- match all variants with _values_
-                ( Normal normal0, Normal normal1 ) ->
-                    normalOrder normal0 normal1
+type alias CardOrder =
+    Order.On ToNormal CardNormalOrder
 
-                ( Normal _, Joker ) ->
-                    GT
-                
-                ( Joker, Normal _ ) ->
-                    LT
-                
-                ( Joker, Joker ) ->
-                    EQ
 
-Use ↓ once your type union grows to have lots of variants
-where exhaustive matching has n^2 branches
-
--}
-order : Ordering Card
+order : Ordering Card CardOrder
 order =
-    \card0 card1 ->
-        case ( card0, card1 ) of
-            -- match all variants with _values_
-            ( Normal normal0, Normal normal1 ) ->
-                normalOrder normal0 normal1
-
-            ( cardOther0, cardOther1 ) ->
-                -- sort others according to tag "rank"
-                Order.by
-                    (\card ->
-                        case card of
-                            Normal _ ->
-                                0
-
-                            Joker ->
-                                1
-                    )
-                    Int.Order.increasing
-                    cardOther0
-                    cardOther1
+    Order.on toNormal normalOrder
 
 
+type ToNormal
+    = ToNormal
 
 
-normalOrder : Ordering CardNormal
+toNormal : Mapping Card ToNormal CardNormal
+toNormal =
+    Map.tag ToNormal
+        (\card ->
+            case card of
+                Normal normal ->
+                    Just normal
+
+                Joker ->
+                    Nothing
+        )
+
+
+type alias CardNormalOrder =
+    Order.OnTieNext
+        (Order.By SuiteTag SuiteOrder)
+        (Order.By ValueTag ValueOrder)
+
+
+normalOrder : Ordering CardNormal CardNormalOrder
 normalOrder =
-    Order.onTieNext
-        [ Order.by .suite suiteOrder
-        , Order.by .value valueOrder
-        ]
+    Order.by suite suiteOrder
+        |> Order.onTie (Order.by value valueOrder)
+
+
+type SuiteTag
+    = SuiteTag
+
+
+suite : Mapping CardNormal SuiteTag Suite
+suite =
+    Map.tag SuiteTag .suite
+
+
+type ValueTag
+    = ValueTag
+
+
+value : Mapping CardNormal ValueTag Value
+value =
+    Map.tag ValueTag .value
 
 
 type Suite
@@ -93,11 +95,24 @@ type Value
     | Ace
 
 
+type alias SuiteOrder =
+    Order.By SuiteToRank Int.Order.Increasing
+
+
+type SuiteToRank
+    = SuiteToRank
+
+
 suiteOrder : Ordering Suite
 suiteOrder =
-    Order.by
-        (\suite ->
-            case suite of
+    Order.by suiteToRank Int.Order.increasing
+
+
+suiteToRank : Mapping Suite SuiteToRank Int
+suiteToRank =
+    Map.tag SuiteToRank
+        (\suite_ ->
+            case suite_ of
                 Clubs ->
                     0
 
@@ -110,14 +125,27 @@ suiteOrder =
                 Spades ->
                     3
         )
-        Int.Order.increasing
+
+
+type alias ValueOrder =
+    Order.By ValueToRank Int.Order.Increasing
 
 
 valueOrder : Ordering Value
 valueOrder =
     Order.by
-        (\value ->
-            case value of
+        Int.Order.increasing
+
+
+type ValueToRank
+    = ValueToRank
+
+
+valueToRank : Mapping Value ValueToRank Int
+valueToRank =
+    Map.tag ValueToRank
+        (\value_ ->
+            case value_ of
                 Two ->
                     0
 
@@ -157,4 +185,3 @@ valueOrder =
                 Ace ->
                     12
         )
-        Int.Order.increasing
