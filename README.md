@@ -102,13 +102,21 @@ for example separating [`Ordering`](Order#Ordering)s from data to each their own
   - the types of key counts like `N2` and indexes like `Up N0 To N1` can be found in [`bounded-nat`](https://dark.elm.dmy.fr/packages/lue-bird/elm-bounded-nat/latest/). No need to understand the details; type inference has your back.
   - Wanna dig a bit deeper? Giving an [`Ordering`](Order#Ordering) or [`Mapping`](Map#Mapping) a unique tag is enabled by [`typed-value`](https://dark.elm.dmy.fr/packages/lue-bird/elm-typed-value/latest/): convenient control of reading and writing for tagged things.
 
-### another example: operators
+### another example: operator
 
 ```elm
-type alias OperatorKeys =
-    { symbol : Key Operator (Order.By Symbol (String.Order.Earlier Char.Order.Unicode)) String (Up N1 To N1)
-    , name : Key Operator (Order.By Name (String.Order.Earlier Char.Order.Alphabetically (Order.Tie))) String (Up N0 To N1)
-    }
+import Keys exposing (Key, Keys)
+import N exposing (Up, To, N0, N1, N2)
+import KeysSet exposing (KeysSet)
+import Emptiable exposing (Emptiable)
+import Possibly exposing (Possibly)
+import Order
+import String.Order
+import Char.Order
+import Map exposing (Mapping)
+
+type alias Operator =
+    { symbol : String, name : String, kind : OperatorKind }
 
 operatorKeys : Keys Operator OperatorKeys N2
 operatorKeys =
@@ -117,6 +125,11 @@ operatorKeys =
             (String.Order.earlier Char.Order.unicode)
         |> Keys.by ( .name, name )
             (String.Order.earlier (Char.Order.alphabetically Order.tie))
+
+type alias OperatorKeys =
+    { symbol : Key Operator (Order.By Symbol (String.Order.Earlier Char.Order.Unicode)) String (Up N1 To N1)
+    , name : Key Operator (Order.By Name (String.Order.Earlier Char.Order.Alphabetically (Order.Tie))) String (Up N0 To N1)
+    }
 
 operators : Emptiable (KeysSet Operator OperatorKeys N2) never_
 operators =
@@ -133,6 +146,20 @@ nameOfOperatorSymbol : String -> Emptiable String Possibly
 nameOfOperatorSymbol operatorSymbol =
     operators
         |> KeysSet.element ( operatorKeys, .symbol ) operatorSymbol
+
+type Name
+    = Name
+
+name : Mapping Operator Name String
+name =
+    Map.tag Name .name
+
+type Symbol
+    = Symbol
+
+symbol : Mapping Operator Symbol String
+symbol =
+    Map.tag Symbol .symbol
 ```
 
 ### example: automatic answers
