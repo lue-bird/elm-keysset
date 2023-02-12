@@ -23,6 +23,9 @@ in `log n` time:
 
 |> KeysSet.element ( keys, .code ) "LB"
 --→ Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
+
+|> KeySet.minimum ( keys, .code )
+--→ { flag = "🇦🇶", code = "AQ", name = "Antarctica" } no Maybe
 ```
 
 `keys` we used for construction and operating now has to list the aspects that our [`KeysSet`](KeysSet#KeysSet) will be sorted by
@@ -74,6 +77,7 @@ Feel free to adapt this structure how you like it best,
 for example separating [`Ordering`](Order#Ordering)s from data to each their own `module Data.By`
 
 🧩
+
   - when annotating a [`KeysSet`](KeysSet#KeysSet), you'll run into types like
     ```elm
     Emptiable (KeysSet ...) Never -> ...
@@ -107,7 +111,7 @@ import User exposing (User(..))
 
 exampleUsers : Emptiable (KeysSet User User.Keys N2) never_
 exampleUsers =
-    KeySet.fromStack User.byEmailHostFirst
+    KeySet.fromStack User.keys
         (Stack.topBelow
             (User { name = "Fred", email = ..@out.tech.. })
             [ User { name = "Ann", email = ..ann@mail.xyz.. }
@@ -119,11 +123,8 @@ exampleUsers =
 exampleUsers |> KeySet.size
 --→ 3
 
-exampleUsers |> KeySet.element User.byEmailHostFirst ..ann@mail.xyz..
+exampleUsers |> KeySet.element User.keys ..ann@mail.xyz..
 --→ Emptiable.filled { name = "Ann", email = ..ann@mail.xyz.. }
-
-exampleUsers |> KeySet.end Down -- minimum
---→ { name = "Ann", email = ..ann@mail.xyz.. } no Maybe
 ```
 ```elm
 -- module User exposing (User(..), Keys, keys)
@@ -167,12 +168,12 @@ type alias Keys =
 ```elm
 -- module Email exposing (Email, byHostFirst, ByHostFirst)
 type alias Email =
-    { host : ..., label : ... }
+    { host : String, label : String }
 
 type alias ByHostFirst =
     Order.OnTieNext
-        (Order.By Email.HostTag ...)
-        (Order.By Email.LabelTag ...)
+        (Order.By Email.HostTag (String.Order.Earlier (Char.Order.Alphabetically Order.Tie)))
+        (Order.By Email.LabelTag (String.Order.Earlier (Char.Order.Alphabetically Order.Tie)))
 
 byHostFirst : Ordering Email ByHostFirst 
 byHostFirst =
