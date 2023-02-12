@@ -105,8 +105,8 @@ import Stack
 import KeysSet exposing (KeysSet)
 import User exposing (User(..))
 
-users : Emptiable (KeysSet User User.Keys N2) never_
-users =
+exampleUsers : Emptiable (KeysSet User User.Keys N2) never_
+exampleUsers =
     KeySet.fromStack User.byEmailHostFirst
         (Stack.topBelow
             (User { name = "Fred", email = ..@out.tech.. })
@@ -116,13 +116,13 @@ users =
             ]
         )
 
-users |> KeySet.size
+exampleUsers |> KeySet.size
 --→ 3
 
-users |> KeySet.element User.byEmailHostFirst ..ann@mail.xyz..
+exampleUsers |> KeySet.element User.byEmailHostFirst ..ann@mail.xyz..
 --→ Emptiable.filled { name = "Ann", email = ..ann@mail.xyz.. }
 
-users |> KeySet.end Down -- minimum
+exampleUsers |> KeySet.end Down -- minimum
 --→ { name = "Ann", email = ..ann@mail.xyz.. } no Maybe
 ```
 ```elm
@@ -196,7 +196,7 @@ type alias State =
 
 initialState : State
 initialState =
-    { users = users }
+    { users = exampleUsers }
 
 reactTo event =
     case event of
