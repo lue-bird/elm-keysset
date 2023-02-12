@@ -330,7 +330,8 @@ reactTo event =
             \state -> { state | activeUserName = name }
 ```
 
-[↑ more examples](https://github.com/lue-bird/elm-keysset/tree/master/example)
+  - [↑ more examples](https://github.com/lue-bird/elm-keysset/tree/master/example)
+  - [↑ other examples of `Keys`: `Atom`](https://github.com/lue-bird/elm-keysset/tree/master/tests/Atom.elm)
 
 ### anti-example: partners, synonyms, opposites...
 
