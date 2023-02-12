@@ -17,6 +17,10 @@ module KeysSet exposing
 
 @docs KeysSet
 
+  - [`element`](#element), [`minimum`](#minimum), [`maximum`](#maximum), [insert](#insertIfNoCollision) versions, [elementAlter](#elementAlterIfNoCollision) versions, [`remove`](#remove) are runtime `log n`
+  - [`toKeys`](#toKeys), [`size`](#size) are runtime `1`
+  - [`toList`](#toList), [`toStack`](#toStack), [`foldFrom`](#foldFrom), [`fold`](#fold), [`foldFromOne`](#foldFromOne) are runtime `n`
+
 
 ## create
 
@@ -121,14 +125,11 @@ where
 
     byName : Keys User ByName N0
     byName =
-        Keys.for (\name -> { name = name })
+        Keys.for (\name_ -> { name = name_ })
             |> Keys.by ( identity, Map.identity )
                 (String.Order.earlier
                     (Char.Order.alphabetically Char.Order.lowerUpper)
                 )
-
-  - [`element`](#element), [`minimum`](#minimum), [`maximum`](#maximum), [insert](#insertIfNoCollision) versions, [elementAlter](#elementAlterIfNoCollision) versions, [`remove`](#remove) are runtime `log n`
-  - [`toList`](#toList), [`toStack`](#toStack), [`toKeys`](#toKeys), [`foldFrom`](#foldFrom), [`fold`](#fold), [`foldFromOne`](#foldFromOne) are runtime `n`
 
 -}
 type alias KeysSet element keys keyCount =
