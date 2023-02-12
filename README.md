@@ -105,15 +105,15 @@ for example separating [`Ordering`](Order#Ordering)s from data to each their own
 ### another example: operator
 
 ```elm
-import Keys exposing (Key, Keys)
-import N exposing (Up, To, N0, N1, N2)
 import KeysSet exposing (KeysSet)
 import Emptiable exposing (Emptiable)
 import Possibly exposing (Possibly)
+import Keys exposing (Key, Keys)
 import Order
 import String.Order
 import Char.Order
 import Map exposing (Mapping)
+import N exposing (Up, To, N0, N1, N2)
 
 type alias Operator =
     { symbol : String, name : String, kind : OperatorKind }
