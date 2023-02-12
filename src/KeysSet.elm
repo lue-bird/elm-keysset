@@ -2,7 +2,7 @@ module KeysSet exposing
     ( KeysSet
     , one
     , fromStack, fromList
-    , size, element, end
+    , size, element, minimum, maximum
     , insertIfNoCollision, insertReplacingCollisions
     , remove
     , elementAlterIfNoCollision, elementAlterReplacingCollisions
@@ -28,7 +28,7 @@ module KeysSet exposing
 
 ## scan
 
-@docs size, element, end
+@docs size, element, minimum, maximum
 
 
 ## alter
@@ -103,7 +103,7 @@ where
 
     name : Mapping User Name String
     name =
-        Typed.tag Data (\(User userData) -> userData.name)
+        Map.tag Data (\(User userData) -> userData.name)
 
     type alias ByName =
         { name :
@@ -127,7 +127,7 @@ where
                     (Char.Order.alphabetically Char.Order.lowerUpper)
                 )
 
-  - [`element`](#element), [`end`](#end), [insert](#insertIfNoCollision) versions, [elementAlter](#elementAlterIfNoCollision) versions, [`remove`](#remove) are runtime `log n`
+  - [`element`](#element), [`minimum`](#minimum), [`maximum`](#maximum), [insert](#insertIfNoCollision) versions, [elementAlter](#elementAlterIfNoCollision) versions, [`remove`](#remove) are runtime `log n`
   - [`toList`](#toList), [`toStack`](#toStack), [`toKeys`](#toKeys), [`foldFrom`](#foldFrom), [`fold`](#fold), [`foldFromOne`](#foldFromOne) are runtime `n`
 
 -}
@@ -281,7 +281,7 @@ If no element with the given key is not present, `Emptiable.empty`
 
     name : Mapping Animal Name String
     name =
-        Typed.tag Name .name
+        Map.tag Name .name
 
     animalByName : Keys Animal ByName N1
     animalByName =
@@ -326,16 +326,9 @@ element ( keys, key ) keyToAccess =
                 )
 
 
-{-| Get the element associated with a key at the end looking in a given `Direction`
+{-| The element associated with the lowest key
 
-  - minimum → `end Down`
-  - maximum → `end Up`
-
-[`KeysSet`](#KeysSet) is `empty` → Nothing
-
-    import Linear exposing (Direction(..))
     import Emptiable exposing (Emptiable)
-    import Typed
     import N exposing (Up, To, N0, N1)
     import Stack
     import KeysSet exposing (KeysSet)
@@ -345,6 +338,18 @@ element ( keys, key ) keyToAccess =
     import String.Order
     import Keys exposing (Keys, Key)
 
+    users : Emptiable (KeysSet User ByName N1) never_
+    users =
+        KeysSet.fromStack userByName
+            (Stack.topBelow
+                { name = "Bob", age = 19, height = 1.80 }
+                [ { name = "Alia", age = 28, height = 1.69 }
+                , { name = "Chucki", age = 33, height = 1.75 }
+                ]
+            )
+
+    users |> KeysSet.minimum ( userByName, .name )
+    --> { name = "Alia", age = 28, height = 1.69 }
 
     type alias User =
         { name : String
@@ -366,6 +371,59 @@ element ( keys, key ) keyToAccess =
                 (Up N0 To N0)
         }
 
+    type Name
+        = Name -- not exposed
+
+    name : Mapping User Name String
+    name =
+        Map.tag Name .name
+
+    userByName : Keys User ByName N1
+    userByName =
+        Keys.for (\name_ -> { name = name_ })
+            |> Keys.by ( .name, name )
+                (String.Order.earlier
+                    (Char.Order.alphabetically Char.Order.lowerUpper)
+                )
+
+Notice how we safely avoided returning a `Maybe`
+through the use of [`Emptiable ... Never`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/Emptiable)
+
+If you don't know whether the [`KeysSet`](#KeysSet) will be empty
+
+    users
+        |> Emptiable.map (filled >> KeysSet.minimum ( userByName, .name ))
+    --: Emptiable element Possibly
+
+-}
+minimum :
+    ( Keys element keys (Add1 lastIndex)
+    , keys -> Key element key_ by_ (Up indexToLast_ To lastIndex)
+    )
+    ->
+        (Emptiable (KeysSet element keys (Add1 lastIndex)) Never
+         -> element
+        )
+minimum ( keys, key ) =
+    \keysSet ->
+        keysSet
+            |> fill
+            |> tree ( keys, key )
+            |> Tree2.end Down
+
+
+{-| The element associated with the greatest key
+
+    import Emptiable exposing (Emptiable)
+    import N exposing (Up, To, N0, N1)
+    import Stack
+    import KeysSet exposing (KeysSet)
+    import Map exposing (Mapping)
+    import Order
+    import Char.Order
+    import String.Order
+    import Keys exposing (Keys, Key)
+
     users : Emptiable (KeysSet User ByName N1) never_
     users =
         KeysSet.fromStack userByName
@@ -376,12 +434,35 @@ element ( keys, key ) keyToAccess =
                 ]
             )
 
+    users |> KeysSet.maximum ( userByName, .name )
+    --> { name = "Chucki", age = 33, height = 1.75 }
+
+    type alias User =
+        { name : String
+        , age : Int
+        , height : Float
+        }
+
+    type alias ByName =
+        { name :
+            Key
+                User
+                (Order.By
+                    Name
+                    (String.Order.Earlier
+                        (Char.Order.Alphabetically Char.Order.LowerUpper)
+                    )
+                )
+                String
+                (Up N0 To N0)
+        }
+
     type Name
         = Name -- not exposed
 
     name : Mapping User Name String
     name =
-        Typed.tag Name .name
+        Map.tag Name .name
 
     userByName : Keys User ByName N1
     userByName =
@@ -391,38 +472,30 @@ element ( keys, key ) keyToAccess =
                     (Char.Order.alphabetically Char.Order.lowerUpper)
                 )
 
-    users |> KeysSet.end ( userByName, .name ) Down
-    --> { name = "Alia", age = 28, height = 1.69 }
-
-    users |> KeysSet.end ( userByName, .name ) Up
-    --> { name = "Chucki", age = 33, height = 1.75 }
-
 Notice how we safely avoided returning a `Maybe`
 through the use of [`Emptiable ... Never`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/Emptiable)
 
 If you don't know whether the [`KeysSet`](#KeysSet) will be empty
 
     users
-        |> Emptiable.map
-            (\us -> us |> filled |> KeysSet.end ( userByName, .name ) Up)
+        |> Emptiable.map (filled >> KeysSet.maximum ( userByName, .name ))
     --: Emptiable element Possibly
 
 -}
-end :
+maximum :
     ( Keys element keys (Add1 lastIndex)
     , keys -> Key element key_ by_ (Up indexToLast_ To lastIndex)
     )
-    -> Linear.Direction
     ->
         (Emptiable (KeysSet element keys (Add1 lastIndex)) Never
          -> element
         )
-end ( keys, key ) direction =
+maximum ( keys, key ) =
     \keysSet ->
         keysSet
-            |> Emptiable.fill
+            |> fill
             |> tree ( keys, key )
-            |> Tree2.end direction
+            |> Tree2.end Up
 
 
 fillInsertOnNoCollision :
@@ -896,7 +969,6 @@ toKeys ( keys, key ) =
 
 {-| Convert to a `List`
 
-    import Linear exposing (Direction(..))
     import N exposing (Up, To, N0)
     import Stack
     import Keys exposing (Keys, Key)
@@ -953,10 +1025,8 @@ toList ( keys, key ) =
 -- transform
 
 
-{-| Convert to a `List` sorted by keys
-in a given [`Direction`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/Linear#Direction)
+{-| Convert to a `List` sorted by a given key
 
-    import Linear exposing (Direction(..))
     import N exposing (Up, To, N0)
     import Stack
     import Map
@@ -988,7 +1058,6 @@ The cool thing is that information about (non-)emptiness is carried over to the 
 
 Use this to fold over its elements
 
-    import Linear exposing (Direction(..))
     import N exposing (Up, To, N0)
     import Map
     import Stack
@@ -996,6 +1065,7 @@ Use this to fold over its elements
     import Int.Order
     import Keys exposing (Keys, Key)
     import KeysSet
+    import Linear exposing (Direction(..))
 
     intIncreasing : Keys.Identity Int Int.Order.Increasing
     intIncreasing =

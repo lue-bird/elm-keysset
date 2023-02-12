@@ -1210,7 +1210,8 @@ scanTest =
     describe "scan"
         [ sizeSuite
         , elementSuite
-        , endSuite
+        , minimumSuite
+        , maximumSuite
         ]
 
 
@@ -1312,97 +1313,106 @@ elementSuite =
         ]
 
 
-endSuite : Test
-endSuite =
-    describe "end"
-        [ fuzz (Fuzz.pair Linear.directionFuzz Character.fuzz)
+maximumSuite : Test
+maximumSuite =
+    describe "maximum"
+        [ fuzz Character.fuzz
             "one"
-            (\( direction, character ) ->
+            (\character ->
                 KeysSet.one character
-                    |> KeysSet.end ( Character.keys, .id ) direction
+                    |> KeysSet.minimum ( Character.keys, .id )
                     |> Expect.equal character
             )
-        , describe "Up"
-            [ fuzz
-                (Character.fuzz
-                    |> Fuzz.andThen
-                        (\top ->
-                            Fuzz.list Character.fuzz
-                                |> Fuzz.map
-                                    (\list ->
-                                        Stack.topBelow
-                                            top
-                                            (list
-                                                |> List.filter (\c -> c.char /= top.char)
-                                                |> List.Extra.uniqueBy .char
-                                            )
-                                    )
-                        )
-                )
-                "fromStack"
-                (\stack ->
-                    KeysSet.fromStack Character.keys stack
-                        |> KeysSet.end ( Character.keys, .id ) Up
-                        |> Expect.equal
-                            (stack
-                                |> Stack.fold Up
-                                    (\element soFar ->
-                                        if element.id > soFar.id then
-                                            element
+        , fuzz
+            (Character.fuzz
+                |> Fuzz.andThen
+                    (\top ->
+                        Fuzz.list Character.fuzz
+                            |> Fuzz.map
+                                (\list ->
+                                    Stack.topBelow
+                                        top
+                                        (list
+                                            |> List.filter (\c -> c.char /= top.char)
+                                            |> List.Extra.uniqueBy .char
+                                        )
+                                )
+                    )
+            )
+            "fromStack"
+            (\stack ->
+                KeysSet.fromStack Character.keys stack
+                    |> KeysSet.maximum ( Character.keys, .id )
+                    |> Expect.equal
+                        (stack
+                            |> Stack.fold Up
+                                (\element soFar ->
+                                    if element.id > soFar.id then
+                                        element
 
-                                        else
-                                            soFar
-                                    )
-                            )
-                )
-            ]
-        , describe "Down"
-            [ fuzz
-                (Character.fuzz
-                    |> Fuzz.andThen
-                        (\top ->
-                            Fuzz.list Character.fuzz
-                                |> Fuzz.map
-                                    (\list ->
-                                        Stack.topBelow
-                                            top
-                                            (list
-                                                |> List.filter (\c -> c.char /= top.char)
-                                                |> List.Extra.uniqueBy .char
-                                            )
-                                    )
+                                    else
+                                        soFar
+                                )
                         )
-                )
-                "fromStack"
-                (\stack ->
-                    KeysSet.fromStack Character.keys stack
-                        |> KeysSet.end ( Character.keys, .id ) Down
-                        |> Expect.equal
-                            (stack
-                                |> Stack.fold Up
-                                    (\element soFar ->
-                                        if element.id < soFar.id then
-                                            element
+            )
+        ]
 
-                                        else
-                                            soFar
-                                    )
-                            )
-                )
-            , test "hardcoded"
-                (\() ->
-                    KeysSet.fromStack
-                        BracketPair.keys
-                        (Stack.topBelow
-                            { open = 'a', closed = 'B' }
-                            [ { open = 'b', closed = 'A' }
-                            ]
+
+minimumSuite : Test
+minimumSuite =
+    describe "minimum"
+        [ fuzz Character.fuzz
+            "one"
+            (\character ->
+                KeysSet.one character
+                    |> KeysSet.maximum ( Character.keys, .id )
+                    |> Expect.equal character
+            )
+        , fuzz
+            (Character.fuzz
+                |> Fuzz.andThen
+                    (\top ->
+                        Fuzz.list Character.fuzz
+                            |> Fuzz.map
+                                (\list ->
+                                    Stack.topBelow
+                                        top
+                                        (list
+                                            |> List.filter (\c -> c.char /= top.char)
+                                            |> List.Extra.uniqueBy .char
+                                        )
+                                )
+                    )
+            )
+            "fromStack"
+            (\stack ->
+                KeysSet.fromStack Character.keys stack
+                    |> KeysSet.minimum ( Character.keys, .id )
+                    |> Expect.equal
+                        (stack
+                            |> Stack.fold Up
+                                (\element soFar ->
+                                    if element.id < soFar.id then
+                                        element
+
+                                    else
+                                        soFar
+                                )
                         )
-                        |> KeysSet.end ( BracketPair.keys, .open ) Down
-                        |> Expect.equal
-                            { open = 'a', closed = 'B' }
-                )
-            ]
+            )
+        , test "hardcoded"
+            (\() ->
+                KeysSet.fromStack
+                    BracketPair.keys
+                    (Stack.topBelow
+                        { open = 'a', closed = 'B' }
+                        [ { open = 'b', closed = 'A' }
+                        ]
+                    )
+                    |> KeysSet.minimum ( BracketPair.keys, .open )
+                    |> Expect.equal
+                        { open = 'a', closed = 'B' }
+            )
         ]
 
 
