@@ -28,7 +28,7 @@ in `log n` time:
 --→ { flag = "🇦🇶", code = "AQ", name = "Antarctica" } no Maybe
 ```
 
-`keys` we used for construction and operating now has to list the aspects that our [`KeysSet`](KeysSet#KeysSet) will be sorted by
+We supplied `keys` to construct and operate on our [`KeysSet`](KeysSet#KeysSet). Which aspects do we want it to be sorted by?
 ```elm
 keys : Keys Country CountryKeys N2
 keys =
@@ -41,7 +41,8 @@ keys =
 
 [`KeysSet`](KeysSet#KeysSet) holds no functions, so the [`Keys`](Keys#Keys) have to be supplied on every operation.
 
-To ensure these [`Keys`](Keys#Keys) are always the same, we sadly need some boilerplate,
+To ensure these given [`Keys`](Keys#Keys) are always the same for one [`KeysSet`](KeysSet#KeysSet),
+we need some boilerplate,
 attaching opaque tags:
 
 ```elm
@@ -101,7 +102,72 @@ for example separating [`Ordering`](Order#Ordering)s from data to each their own
   - the types of key counts like `N2` and indexes like `Up N0 To N1` can be found in [`bounded-nat`](https://dark.elm.dmy.fr/packages/lue-bird/elm-bounded-nat/latest/). No need to understand the details; type inference has your back.
   - Wanna dig a bit deeper? Giving an [`Ordering`](Order#Ordering) or [`Mapping`](Map#Mapping) a unique tag is enabled by [`typed-value`](https://dark.elm.dmy.fr/packages/lue-bird/elm-typed-value/latest/): convenient control of reading and writing for tagged things.
 
-### another example: user
+### another example: operators
+
+```elm
+type alias OperatorKeys =
+    { symbol : Key Operator (Order.By Symbol (String.Order.Earlier Char.Order.Unicode)) String (Up N1 To N1)
+    , name : Key Operator (Order.By Name (String.Order.Earlier Char.Order.Alphabetically (Order.Tie))) String (Up N0 To N1)
+    }
+
+operatorKeys : Keys Operator OperatorKeys N2
+operatorKeys =
+    Keys.for (\symbol_ name_ -> { symbol = symbol_, name = name_ })
+        |> Keys.by ( .symbol, symbol )
+            (String.Order.earlier Char.Order.unicode)
+        |> Keys.by ( .name, name )
+            (String.Order.earlier (Char.Order.alphabetically Order.tie))
+
+operators : Emptiable (KeysSet Operator OperatorKeys N2) never_
+operators =
+    KeysSet.fromStack operatorKeys
+        (Stack.topBelow
+            { symbol = ">", name = "gt", kind = Binary }
+            [ { symbol = "<", name = "lt", kind = Binary }
+            , { symbol = "==", name = "eq", kind = Binary }
+            , { symbol = "-", name = "negate", kind = Unary }
+            ]
+        )
+
+nameOfOperatorSymbol : String -> Emptiable String Possibly
+nameOfOperatorSymbol operatorSymbol =
+    operators
+        |> KeysSet.element ( operatorKeys, .symbol ) operatorSymbol
+```
+
+### example: automatic answers
+```elm
+type alias ConversationStep =
+    { youSay : String, answer : String }
+
+type alias ByYouSay =
+    { youSay : Key ConversationStep (Order.By YouSay (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))) String (Up N0 To N0) }
+
+youSayKey : Keys ConversationStep ByYouSay N1
+youSayKey =
+    Keys.for (\youSay_ -> { youSay = youSay_ })
+        |> Keys.by ( .youSay, youSay )
+            (String.Order.earlier (Char.Order.alphabetically Order.tie))
+
+answers : Emptiable (KeysSet ConversationStep ByYouSay N1) Possibly
+answers =
+    KeysSet.fromList youSayKey
+        [ { youSay = "Hi"
+          , answer = "Hi there!"
+          }
+        , { youSay = "Bye"
+          , answer = "Ok, have a nice day and spread some love."
+          }
+        , { youSay = "How are you"
+          , answer = "I don't have feelings :("
+          }
+        , { youSay = "Are you a robot"
+          , answer = "I think the most human answer is 'Haha... yes'"
+          }
+        ]
+```
+
+### example: user
 
 ```elm
 import Emptiable exposing (Emptiable)
@@ -235,71 +301,6 @@ reactTo event =
         
         UserSwitched name ->
             \state -> { state | activeUserName = name }
-```
-
-### example: operators
-
-```elm
-type alias OperatorKeys =
-    { symbol : Key Operator (Order.By Symbol (String.Order.Earlier Char.Order.Unicode)) String (Up N0 To N1)
-    , name : Key Operator (Order.By Name (String.Order.Earlier Char.Order.Alphabetically (Order.Tie))) String (Up N1 To N1)
-    }
-
-operatorKeys : Keys Operator OperatorKeys N2
-operatorKeys =
-    Keys.for (\symbol_ name_ -> { symbol = symbol_, name = name_ })
-        |> Keys.by ( .symbol, symbol )
-            (String.Order.earlier Char.Order.unicode)
-        |> Keys.by ( .name, name )
-            (String.Order.earlier (Char.Order.alphabetically Order.tie))
-
-operators : Emptiable (KeysSet Operator OperatorKeys N2)
-operators =
-    KeysSet.fromStack operatorKeys
-        (Stack.topBelow
-            { symbol = ">", name = "gt", kind = Binary }
-            [ { symbol = "<", name = "lt", kind = Binary }
-            , { symbol = "==", name = "eq", kind = Binary }
-            , { symbol = "-", name = "negate", kind = Unary }
-            ]
-        )
-
-nameOfOperatorSymbol : String -> Emptiable String Possibly
-nameOfOperatorSymbol operatorSymbol =
-    operators
-        |> KeysSet.element ( operatorKeys, .symbol ) operatorSymbol
-```
-
-### example: automatic answers
-```elm
-type alias ConversationStep =
-    { youSay : String, answer : String }
-
-type alias ByYouSay =
-    { youSay : Key ConversationStep (Order.By YouSay (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))) String (Up N0 To N0) }
-
-youSayKey : Keys ConversationStep ByYouSay N1
-youSayKey =
-    Keys.for (\youSay_ -> { youSay = youSay_ })
-        |> Keys.by ( .youSay, youSay )
-            (String.Order.earlier (Char.Order.alphabetically Order.tie))
-
-answers : Emptiable (KeysSet ConversationStep ByYouSay N1) Possibly
-answers =
-    KeysSet.fromList youSayKey
-        [ { youSay = "Hi"
-          , answer = "Hi there!"
-          }
-        , { youSay = "Bye"
-          , answer = "Ok, have a nice day and spread some love."
-          }
-        , { youSay = "How are you"
-          , answer = "I don't have feelings :("
-          }
-        , { youSay = "Are you a robot"
-          , answer = "I think the most human answer is 'Haha... yes'"
-          }
-        ]
 ```
 
 [↑ more examples](https://github.com/lue-bird/elm-keysset/tree/master/example)
