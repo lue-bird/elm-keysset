@@ -1,65 +1,25 @@
-### 3.1.0 plans
-
-  - add an `elm-review` tool to auto-generate `Record.Map`
-
 # change log
 
 ## 3.0.0
 
 - `KeySet`, `KeysSet` merge
     - 👍 `KeysSet` functionality while still running in `log n`
-    - 👎 minimally more complex API
+    - 👎 more complex API
     - `elementRemove` name → `remove`
     - `only` name → `one`
     - `mapTry` type result keep `possiblyOrNever`
 - `.Order` modules move from `linear-direction`
     - `module Maybe.Order` remove
     - `module Case` move into `Char.Linear`
-    - integrate tag into `Order`, so that practically no manual opaque rules are needed,
+    - `on` add
+    - integrate tag into `Order`, so that simple sets don't require opaque tags,
     for example
     ```elm
-    Int.Order.increasing
-    --: Ordering Int Int.Order.Increasing
-
-    Order.by Record.Map.name Int.Order.increasing
-        |> Order.onTie
-            (Order.by Record.Map.status
-                (String.Order.earlier
-                    (Char.Order.alphabetically Char.Order.lowerUpper)
-                )
-            )
-    --: Ordering
-    --:     User
-    --:     (Order.OnTieNext
-    --:         (Order.By Record.Map.Name Int.Order.Increasing)
-    --:         (Order.By Record.Map.Status
-    --:             (String.Order.earlier
-    --:                 (Char.Order.Alphabetically Char.Order.LowerUpper)
-    --:             )
-    --:         )
-    --:     )
+    intKeys : Keys.Identity Int Int.Order.Increasing
+    intKeys =
+        Keys.identity Int.Order.increasing
     ```
-    with per project one
-    ```elm
-    module Record.Map exposing (Name, name, Status, status)
-
-    import Typed exposing (Typed, Internal, Public, tag, isChecked)
-
-    type Name -- no (..)
-        = Name
-    
-    type Status -- no (..)
-        = Status
-    
-    name : Typed Internal Name Public ({ record | name : name } -> name)
-    name =
-        .name |> tag Name |> isChecked Name
-    
-    status : Typed Internal Status Public ({ record | status : status } -> status)
-    status =
-        .status |> tag Status |> isChecked Status
-    ```
-        - 👎 chaining with `onTie` is slightly more verbose than `onTieNext [ ... ]`
+        - 👎 chaining with `onTie` is a bit more verbose than `onTieNext [ ... ]`
         - 👍 chaining with `onTie` is more obvious and easier to read than `onTieNext [ ... ]`
 
 #### 2.1.1
