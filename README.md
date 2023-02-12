@@ -79,7 +79,7 @@ for example separating [`Ordering`](Order#Ordering)s from data to each their own
     Emptiable (KeysSet ...) Never -> ...
     ```
     ```elm
-    -> Emptiable (KeysSet ...) neverEmpty_
+    -> Emptiable (KeysSet ...) never_
     ```
     which says the [`KeysSet`](KeysSet#KeysSet) can never be empty
 
@@ -105,7 +105,7 @@ import Stack
 import KeysSet exposing (KeysSet)
 import User exposing (User(..))
 
-users : Emptiable (KeysSet User User.Keys N2) neverEmpty_
+users : Emptiable (KeysSet User User.Keys N2) never_
 users =
     KeySet.fromStack User.byEmailHostFirst
         (Stack.topBelow
