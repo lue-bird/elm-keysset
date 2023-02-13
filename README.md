@@ -356,7 +356,7 @@ partners =
 ```
 A `KeysSet` ony makes sense when the **keys describe something different**
 
-Maybe take a look at [elm-bidict](https://github.com/Janiczek/elm-bidict) instead!
+Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidict) instead.
 
 ## goodies
 
