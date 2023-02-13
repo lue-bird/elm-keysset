@@ -74,9 +74,6 @@ Feels somewhat like "explicit typeclasses" :)
 → Solves problems listed in [prior art](#prior-art)
 alongside other [goodies](#goodies)
 
-Feel free to adapt this structure how you like it best,
-for example separating [`Ordering`](Order#Ordering)s from data to each their own `module Data.By`
-
 🧩
 
   - when annotating a [`KeysSet`](KeysSet#KeysSet), you'll run into types like
