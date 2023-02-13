@@ -374,8 +374,6 @@ Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidi
       - 👍 extra safety possible. Got enough elements? → `KeySet.end Up|Down`, `foldFromOne`, `fold` don't need `Maybe`
       - 🧩 [`allowable-state`](https://dark.elm.dmy.fr/packages/lue-bird/elm-allowable-state/latest/)
       - 🧩 [`emptiness-typed`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/)
-  - ↔ supply the direction as an argument
-      - 🧩 [`linear-direction`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/)
 
 ## prior art
 
