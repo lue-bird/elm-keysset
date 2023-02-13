@@ -121,8 +121,8 @@ height =
             Empty _ ->
                 0
 
-            Filled treeFilled ->
-                1 + (treeFilled |> filled |> childrenHeight)
+            Filled branch_ ->
+                1 + (branch_ |> filled |> childrenHeight)
 
 
 {-| Runtime `n`
@@ -136,7 +136,7 @@ size =
 
             Filled branch_ ->
                 let
-                    children_ : Children element
+                    children_ : Children element_
                     children_ =
                         branch_ |> filled |> children
                 in

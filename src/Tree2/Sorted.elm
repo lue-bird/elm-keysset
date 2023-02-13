@@ -26,9 +26,12 @@ treeElement :
 treeElement location =
     \tree_ ->
         tree_
-            |> Emptiable.map filled
             |> Emptiable.mapFlat
-                (\treeFilled ->
+                (\branch ->
+                    let
+                        treeFilled =
+                            branch |> filled
+                    in
                     case treeFilled |> Tree2.trunk |> location of
                         EQ ->
                             treeFilled |> Tree2.trunk |> filled
