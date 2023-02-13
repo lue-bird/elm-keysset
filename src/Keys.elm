@@ -1,25 +1,22 @@
 module Keys exposing
-    ( Keys, KeysTag
+    ( Keys, KeysTag, Key
     , identity, Identity
     , for, KeysBeingBuilt
     , by
-    , Key
-    , toKeyWith, keyOrderWith, keyIndex
     , toArray
+    , toKeyWith, keyOrderWith, keyIndex
     )
 
-{-| Multiple key-[`Ordering`](Order#Ordering) pairs
+{-| Multiple key [`Ordering`](Order#Ordering)s
 
 Configure what's considered a key inside a [`KeysSet`](KeysSet#KeysSet)
 
-Create using [`Keys.for`](#for), as shown in
-
-    - [`KeysSet` example](KeysSet#KeysSet)
-    - [readme examples](https://dark.elm.dmy.fr/packages/lue-bird/elm-keysset/)
+Create starting with [`Keys.for`](#for) and building with [`|> Keys.by`](#by) as shown in
+the [readme examples](https://dark.elm.dmy.fr/packages/lue-bird/elm-keysset/)
 
 You can just ignore the `Typed` thing but if you're curious → [`typed-value`](https://dark.elm.dmy.fr/packages/lue-bird/elm-typed-value/latest/)
 
-@docs Keys, KeysTag
+@docs Keys, KeysTag, Key
 
 
 ## create
@@ -29,15 +26,20 @@ You can just ignore the `Typed` thing but if you're curious → [`typed-value`](
 @docs by
 
 
-## single key
+# safe internals
 
-@docs Key
-@docs toKeyWith, keyOrderWith, keyIndex
+You won't need them if you just want to use [`KeysSet`](KeysSet#KeysSet).
+... It's safe to expose this information, tho, so why not make it available :)
 
 
 ## transform
 
 @docs toArray
+
+
+## single key
+
+@docs toKeyWith, keyOrderWith, keyIndex
 
 -}
 
@@ -48,36 +50,53 @@ import Order exposing (Ordering)
 import Typed exposing (Checked, Internal, Public, Typed)
 
 
-{-| How to annotate a fully constructed [`Keys`](#Keys) builder
+{-| The type of fully constructed [`KeysBeingBuilt`](#KeysBeingBuilt)
 ready to use.
-It preserves knowledge that each index is less than the whole count.
 
 "infer types" is your friend here
 
+    import Keys exposing (Keys, Key)
+    import Order
+    import Char.Order
+    import String.Order
     import Emptiable
+    import N exposing (Up, To, N0, N1, N2)
 
-    -- ↓ and tag should be in a separate module
     userKeys :
+        -- just infer this
         Keys
             User
-            { name : Key User String (Up N0 To N1)
-            , email : Key User String (Up N1 To N1)
+            { name :
+                Key
+                    User
+                    (Order.By
+                        User.Name
+                        (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))
+                    )
+                    String
+                    (Up N1 To N1)
+            , email : Key User (Order.By User.Email Email.DefaultOrder) String (Up N0 To N1)
             }
             N2
     userKeys =
         Keys.for (\name email -> { name = name, email = email } )
-            |> Keys.by .username
-                ( Record.Map.username, String.Order... )
-            |> Keys.by .email
-                ( Record.Map.email, String.Order... )
+            |> Keys.by ( .name, User.name )
+                (String.Order.earlier (Char.Order.alphabetically Order.tie))
+            |> Keys.by ( .email, User.email )
+                Email.defaultOrder
 
     Emptiable.empty
         |> KeysSet.insert userKeys
-            { username = "ben", email = "ben10@gmx.de" }
+            { username = "ben", email = ..ben10@gmx.de.. }
         |> KeysSet.insert userKeys
-            { username = "mai", email = "ben10@gmx.de" }
+            { username = "mai", email = ..ben10@gmx.de.. }
         -- not inserted
-        -- There's already an element where .email is "ben10@gmx.de"
+        -- There's already an element where .email is ..ben10@gmx.de..
+
+What's with those `Up N.. To N..`?
+_Internally_, each key will be assigned an index.
+that type from [bounded-nat](https://dark.elm.dmy.fr/packages/lue-bird/elm-bounded-nat/latest/)
+preserves the knowledge that each key's index is less than the whole count.
 
 -}
 type alias Keys element keys keyCount =
@@ -98,7 +117,7 @@ you can replace it by
 It's data is unaccessible because you shouldn't be able to
 
   - retrieve it's keys to use in different [`Keys`](#Keys)
-  - have an out of sync [array](https://dark.elm.dmy.fr/packages/lue-bird/elm-typesafe-array/latest/) representation
+  - have an out of sync [array](#toArray) representation
 
 -}
 type alias KeysBeingBuilt element keysComplete keysConstructor keyCount =
@@ -120,7 +139,21 @@ type KeysTag
     = Keys
 
 
-{-| List all keys in the `keys` record as functions
+{-| By which aspect = key and in which key `Order` elements should be sorted
+-}
+type alias Key element orderByTag key index =
+    Typed
+        Checked
+        ( KeysTag, orderByTag )
+        Public
+        { index : N (Exactly index)
+        , toKey : element -> key
+        , keyOrder : ( key, key ) -> Order
+        }
+
+
+{-| List all keys in the `keys` record as an [array](https://dark.elm.dmy.fr/packages/lue-bird/elm-typesafe-array/latest/)
+of functions
 determining the `Order` of 2 elements
 -}
 toArray :
@@ -137,19 +170,17 @@ toArray =
             |> ArraySized.map (\toOrder -> toOrder keysInfo.keys)
 
 
-{-| Start a [keys builder](#KeysBeingBuilt) by putting all keys coming in as arguments
-in a record
+{-| Start a [keys builder](#KeysBeingBuilt) by giving names to the individual keys as arguments
+using a record
 
     userKeys :
         Keys
             User
-            { email : Key User (Order.By Email Email.Order) Email (Up N0 To N0) }
+            { email : Key User (Order.By User.Email Email.Order) Email (Up N0 To N0) }
             N1
     userKeys =
         Keys.for (\email -> { email = email })
-            |> Keys.by .email ( Record.Map.email, Email.order )
-
-in [`KeysSet`](KeysSet#KeysSet)
+            |> Keys.by ( .email, User.email, Email.order )
 
     Emptiable.empty
         |> KeysSet.insert userKeys
@@ -385,20 +416,3 @@ keyOrderWith :
     -> (( key, key ) -> Order)
 keyOrderWith ( keys, key ) =
     ( keys, key ) |> keyInfo |> .keyOrder
-
-
-
--- key
-
-
-{-| By which aspect = key and in which key `Order` elements should be sorted
--}
-type alias Key element orderByTag key index =
-    Typed
-        Checked
-        ( KeysTag, orderByTag )
-        Public
-        { index : N (Exactly index)
-        , toKey : element -> key
-        , keyOrder : ( key, key ) -> Order
-        }
