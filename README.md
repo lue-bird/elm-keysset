@@ -341,10 +341,10 @@ partnerKeys =
         (\partner partnerOfPartner ->
             { partner = partner, partnerForPartner = partnerForPartner }
         )
-        |> Keys.by .partner
-            ( Record.Map.partner, String.Order... )
-        |> Keys.by .partnerOfPartner
-            ( Record.Map.partnerOfPartner, String.Order... )
+        |> Keys.by ( .partner, partner )
+            (String.Order...)
+        |> Keys.by ( .partnerOfPartner, partnerOfPartner )
+            (String.Order...)
 
 partners =
     KeysSet.fromList partnerKeys
