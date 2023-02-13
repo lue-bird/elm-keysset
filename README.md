@@ -371,7 +371,7 @@ Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidi
           - [`Orasund/elm-bag` `Bag`](https://package.elm-lang.org/packages/Orasund/elm-bag/latest/Bag))
   - 🗃 emptiability is part of the type
       - just use the same API with emptiable or non-empty conveniently
-      - 👍 extra safety possible. Got enough elements? → `KeySet.end Up|Down`, `foldFromOne`, `fold` don't need `Maybe`
+      - 👍 extra safety possible. Got enough elements? → `KeySet.minimum`, `maximum`, `foldFromOne`, `fold` don't need `Maybe`
       - 🧩 [`allowable-state`](https://dark.elm.dmy.fr/packages/lue-bird/elm-allowable-state/latest/)
       - 🧩 [`emptiness-typed`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/)
 
@@ -380,7 +380,8 @@ Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidi
   - `comparableKey`
       - examples
           - [`elm/core` `Dict`](https://dark.elm.dmy.fr/packages/elm/core/latest/Dict)
-      - 👎 requires a new `Dict` wrapper for each custom `type` key.
+          - [`miniBill/elm-fast-dict`](https://github.com/miniBill/elm-fast-dict)
+      - 👎 requires a new `Dict` wrapper when its key contains a custom `type`.
         Often more a hindrance than helpful
   - custom functions (to `comparable` or `k -> k -> Order`)
       - 👎 no guarantee that the given functions are the same
