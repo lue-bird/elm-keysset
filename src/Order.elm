@@ -8,9 +8,9 @@ module Order exposing
     , with
     )
 
-{-| Comparing 2 things
+{-| Comparing things
 
-Build `compare` operations for basic types, records, `type` choices.
+Build tagged `compare` functions for basic types, records, `type` choices.
 All without `comparable`, `number`, ...
 
     import Order exposing (Ordering)
@@ -20,6 +20,7 @@ All without `comparable`, `number`, ...
     import Map exposing (Mapping)
 
     type FirstName
+        -- no exposing (..)
         = FirstName
 
     firstName : Mapping User FirstName String
@@ -27,6 +28,7 @@ All without `comparable`, `number`, ...
         Typed.tag FirstName (\(User user) -> user.firstName)
 
     type LastName
+        -- no exposing (..)
         = LastName
 
     lastName : Mapping User LastName String
@@ -34,6 +36,7 @@ All without `comparable`, `number`, ...
         Typed.tag LastName (\(User user) -> user.lastName)
 
     type Age
+        -- no exposing (..)
         = Age
 
     age : Mapping User Age String
