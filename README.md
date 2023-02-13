@@ -2,7 +2,7 @@
 
 > lookup for multiple arbitrary keys. safe. log n
 
-🌏 Let's build a country lookup with `.flag` and `.code` keys
+🌏 Let's build a country lookup with `.code` and `.flag` as keys
 ```elm
 KeysSet.fromList keys
     [ { flag = "🇦🇺", code = "AU", name = "Australia" }
@@ -86,7 +86,7 @@ for example separating [`Ordering`](Order#Ordering)s from data to each their own
     ```elm
     -> Emptiable (KeysSet ...) never_
     ```
-    which says the [`KeysSet`](KeysSet#KeysSet) can never be empty
+    which say: the [`KeysSet`](KeysSet#KeysSet) can never be empty
 
     and
     ```elm
@@ -95,7 +95,7 @@ for example separating [`Ordering`](Order#Ordering)s from data to each their own
     ```elm
     Emptiable (KeysSet ...) possiblyOrNever -> ...
     ```
-    which says the [`KeysSet`](KeysSet#KeysSet) can possibly be empty.
+    which say: the [`KeysSet`](KeysSet#KeysSet) can possibly be empty.
 
     [`emptiness-typed`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/) lets us conveniently use one API
     for both non-empty and emptiable types.
