@@ -109,20 +109,20 @@ children =
     \tree -> tree |> branchInfo |> .children
 
 
+childrenHeight : Emptiable (Branch element_) Never -> Int
+childrenHeight =
+    \tree -> tree |> branchInfo |> .childrenHeight
+
+
 height : Emptiable (Branch element_) possiblyOrNever_ -> Int
 height =
     \tree ->
-        case tree |> Emptiable.map filled of
+        case tree of
             Empty _ ->
                 0
 
             Filled treeFilled ->
-                1 + (treeFilled |> childrenHeight)
-
-
-childrenHeight : Emptiable (Branch element_) Never -> Int
-childrenHeight =
-    \tree -> tree |> branchInfo |> .childrenHeight
+                1 + (treeFilled |> filled |> childrenHeight)
 
 
 {-| Runtime `n`
@@ -130,14 +130,19 @@ childrenHeight =
 size : Emptiable (Branch element_) possiblyOrNever_ -> Int
 size =
     \tree ->
-        case tree |> Emptiable.map filled of
+        case tree of
             Empty _ ->
                 0
 
-            Filled treeFilled ->
+            Filled branch_ ->
+                let
+                    children_ : Children element
+                    children_ =
+                        branch_ |> filled |> children
+                in
                 1
-                    + (treeFilled |> children |> .down |> sizeRecurse)
-                    + (treeFilled |> children |> .up |> sizeRecurse)
+                    + (children_ |> .down |> sizeRecurse)
+                    + (children_ |> .up |> sizeRecurse)
 
 
 sizeRecurse : Emptiable (Branch element_) possiblyOrNever_ -> Int
@@ -175,231 +180,246 @@ branchUnbalanced trunkElement children_ =
         |> filled
 
 
-branch :
-    element
-    -> Children element
-    -> Emptiable (Branch element) never_
-branch p pChildren =
-    case ( pChildren.down, pChildren.up ) of
-        ( Emptiable.Empty _, Emptiable.Empty _ ) ->
-            one p
-
-        ( Emptiable.Filled (Branch l), Emptiable.Empty _ ) ->
-            if l.childrenHeight >= 1 then
-                rotateUp p l.trunk l.children.down l.children.up pChildren.up
-
-            else
-                Branch { childrenHeight = 1 + l.childrenHeight, trunk = p, children = { down = pChildren.down, up = pChildren.up } } |> filled
-
-        ( Emptiable.Empty _, Emptiable.Filled (Branch r) ) ->
-            if r.childrenHeight >= 1 then
-                rotateDown p pChildren.down r.trunk r.children.down r.children.up
-
-            else
-                Branch { childrenHeight = 1 + r.childrenHeight, trunk = p, children = { down = pChildren.down, up = pChildren.up } } |> filled
-
-        ( Emptiable.Filled (Branch l), Emptiable.Filled (Branch r) ) ->
-            if l.childrenHeight - r.childrenHeight <= -2 then
-                rotateDown p pChildren.down r.trunk r.children.down r.children.up
-
-            else if l.childrenHeight - r.childrenHeight >= 2 then
-                rotateUp p l.trunk l.children.down l.children.up pChildren.up
-
-            else
-                branchUnbalanced p { down = pChildren.down, up = pChildren.up }
-
-
-rotateDown :
-    element
-    -> Emptiable (Branch element) Possibly
-    -> element
-    -> Emptiable (Branch element) Possibly
-    -> Emptiable (Branch element) Possibly
-    -> Emptiable (Branch element) never_
-rotateDown pivot pivotDown upTrunk upDown upUp =
-    case upDown of
-        Emptiable.Empty _ ->
-            branchUnbalanced upTrunk { down = filled (Branch { childrenHeight = height pivotDown, trunk = pivot, children = { down = pivotDown, up = empty } }), up = upUp }
-
-        Emptiable.Filled (Branch l) ->
-            if l.childrenHeight + 1 > height upUp then
-                branchUnbalanced l.trunk { down = branchUnbalanced pivot { down = pivotDown, up = l.children.down }, up = branchUnbalanced upTrunk { down = l.children.up, up = upUp } }
-
-            else
-                branchUnbalanced upTrunk { down = branchUnbalanced pivot { down = pivotDown, up = upDown }, up = upUp }
-
-
-rotateUp :
-    element
-    -> element
-    -> Emptiable (Branch element) Possibly
-    -> Emptiable (Branch element) Possibly
-    -> Emptiable (Branch element) Possibly
-    -> Emptiable (Branch element) never_
-rotateUp pivot downTrunk downDown downUp pivotUp =
-    case downUp of
-        Emptiable.Empty _ ->
-            branchUnbalanced downTrunk { down = downDown, up = filled (Branch { childrenHeight = height pivotUp, trunk = pivot, children = { down = empty, up = pivotUp } }) }
-
-        Emptiable.Filled (Branch r) ->
-            if height downDown < r.childrenHeight + 1 then
-                branchUnbalanced r.trunk { down = branchUnbalanced downTrunk { down = downDown, up = r.children.down }, up = branchUnbalanced pivot { down = r.children.up, up = pivotUp } }
-
-            else
-                branchUnbalanced downTrunk { down = downDown, up = branchUnbalanced pivot { down = downUp, up = pivotUp } }
-
-
 
 {-
-   {-| Branch off to sub-trees down and up. Will balance it out
-   -}
+
+
+
    branch :
        element
        -> Children element
        -> Emptiable (Branch element) never_
-   branch pivotTrunk pivotChildren =
-       case
-           ( pivotChildren.down |> Emptiable.map filled
-           , pivotChildren.up |> Emptiable.map filled
-           )
-       of
-           ( Empty _, Empty _ ) ->
-               branchUnbalanced pivotTrunk { down = empty, up = empty }
+   branch p pChildren =
+       case ( pChildren.down, pChildren.up ) of
+           ( Emptiable.Empty _, Emptiable.Empty _ ) ->
+               one p
 
-           ( Filled downFilled, Empty _ ) ->
-               if (downFilled |> childrenHeight) >= 1 then
-                   rotateUp pivotTrunk { down = downFilled, pivotUp = pivotChildren.up }
+           ( Emptiable.Filled (Branch l), Emptiable.Empty _ ) ->
+               if l.childrenHeight >= 1 then
+                   rotateUp p l.trunk l.children.down l.children.up pChildren.up
 
                else
-                   branchUnbalanced pivotTrunk pivotChildren
+                   Branch { childrenHeight = 1 + l.childrenHeight, trunk = p, children = { down = pChildren.down, up = pChildren.up } } |> filled
 
-           ( Empty _, Filled upFilled ) ->
-               if (upFilled |> childrenHeight) >= 1 then
-                   rotateDown pivotTrunk { pivotDown = pivotChildren.down, up = upFilled }
-
-               else
-                   branchUnbalanced pivotTrunk pivotChildren
-
-           ( Filled downFilled, Filled upFilled ) ->
-               let
-                   downToUpImbalance =
-                       (downFilled |> childrenHeight) - (upFilled |> childrenHeight)
-               in
-               if downToUpImbalance <= -2 then
-                   rotateDown pivotTrunk { pivotDown = pivotChildren.down, up = upFilled }
-
-               else if downToUpImbalance >= 2 then
-                   rotateUp pivotTrunk { down = downFilled, pivotUp = pivotChildren.up }
+           ( Emptiable.Empty _, Emptiable.Filled (Branch r) ) ->
+               if r.childrenHeight >= 1 then
+                   rotateDown p pChildren.down r.trunk r.children.down r.children.up
 
                else
-                   branchUnbalanced pivotTrunk pivotChildren
+                   Branch { childrenHeight = 1 + r.childrenHeight, trunk = p, children = { down = pChildren.down, up = pChildren.up } } |> filled
+
+           ( Emptiable.Filled (Branch l), Emptiable.Filled (Branch r) ) ->
+               if l.childrenHeight - r.childrenHeight <= -2 then
+                   rotateDown p pChildren.down r.trunk r.children.down r.children.up
+
+               else if l.childrenHeight - r.childrenHeight >= 2 then
+                   rotateUp p l.trunk l.children.down l.children.up pChildren.up
+
+               else
+                   branchUnbalanced p { down = pChildren.down, up = pChildren.up }
 
 
    rotateDown :
        element
-       ->
-           ({ pivotDown : Emptiable (Branch element) Possibly
-            , up : Emptiable (Branch element) Never
-            }
-            -> Emptiable (Branch element) never_
-           )
-   rotateDown pivotTrunk { pivotDown, up } =
-       let
-           upChildren : Children element
-           upChildren =
-               up |> children
+       -> Emptiable (Branch element) Possibly
+       -> element
+       -> Emptiable (Branch element) Possibly
+       -> Emptiable (Branch element) Possibly
+       -> Emptiable (Branch element) never_
+   rotateDown pivot pivotDown upTrunk upDown upUp =
+       case upDown of
+           Emptiable.Empty _ ->
+               branchUnbalanced upTrunk { down = filled (Branch { childrenHeight = height pivotDown, trunk = pivot, children = { down = pivotDown, up = empty } }), up = upUp }
 
-           new : { trunk : element, downUp : Emptiable (Branch element) Possibly, up : Emptiable (Branch element) Possibly }
-           new =
-               case upChildren.down |> Emptiable.map filled of
-                   Empty _ ->
-                       { trunk = up |> trunk
-                       , downUp = empty
-                       , up = upChildren.up
-                       }
+           Emptiable.Filled (Branch l) ->
+               if l.childrenHeight + 1 > height upUp then
+                   branchUnbalanced l.trunk { down = branchUnbalanced pivot { down = pivotDown, up = l.children.down }, up = branchUnbalanced upTrunk { down = l.children.up, up = upUp } }
 
-                   Filled upDownFilled ->
-                       if (upDownFilled |> height) > (upChildren.up |> height) then
-                           { trunk = upDownFilled |> trunk
-                           , downUp = upDownFilled |> children |> .down
-                           , up =
-                               branchUnbalanced
-                                   (up |> trunk)
-                                   { down = upDownFilled |> children |> .up
-                                   , up = upChildren.up
-                                   }
-                           }
-
-                       else
-                           { trunk = up |> trunk
-                           , downUp = upChildren.down
-                           , up = upChildren.up
-                           }
-       in
-       branchUnbalanced
-           new.trunk
-           { down =
-               branchUnbalanced
-                   pivotTrunk
-                   { down = pivotDown
-                   , up = new.downUp
-                   }
-           , up = new.up
-           }
+               else
+                   branchUnbalanced upTrunk { down = branchUnbalanced pivot { down = pivotDown, up = upDown }, up = upUp }
 
 
    rotateUp :
        element
-       ->
-           ({ down : Emptiable (Branch element) Never
-            , pivotUp : Emptiable (Branch element) Possibly
-            }
-            -> Emptiable (Branch element) never_
-           )
-   rotateUp pivotTrunk { down, pivotUp } =
-       let
-           downChildren : Children element
-           downChildren =
-               down |> children
+       -> element
+       -> Emptiable (Branch element) Possibly
+       -> Emptiable (Branch element) Possibly
+       -> Emptiable (Branch element) Possibly
+       -> Emptiable (Branch element) never_
+   rotateUp pivot downTrunk downDown downUp pivotUp =
+       case downUp of
+           Emptiable.Empty _ ->
+               branchUnbalanced downTrunk { down = downDown, up = filled (Branch { childrenHeight = height pivotUp, trunk = pivot, children = { down = empty, up = pivotUp } }) }
 
-           new : { trunk : element, down : Emptiable (Branch element) Possibly, upDown : Emptiable (Branch element) Possibly }
-           new =
-               case downChildren.up |> Emptiable.map filled of
-                   Empty _ ->
-                       { trunk = down |> trunk
-                       , down = downChildren.down
-                       , upDown = empty
-                       }
+           Emptiable.Filled (Branch r) ->
+               if height downDown < r.childrenHeight + 1 then
+                   branchUnbalanced r.trunk { down = branchUnbalanced downTrunk { down = downDown, up = r.children.down }, up = branchUnbalanced pivot { down = r.children.up, up = pivotUp } }
 
-                   Filled downUpFilled ->
-                       if (downChildren.down |> height) < (downUpFilled |> height) then
-                           { trunk = downUpFilled |> trunk
-                           , down =
-                               branchUnbalanced
-                                   (down |> trunk)
-                                   { down = downChildren.down
-                                   , up = downUpFilled |> children |> .down
-                                   }
-                           , upDown = downUpFilled |> children |> .up
-                           }
+               else
+                   branchUnbalanced downTrunk { down = downDown, up = branchUnbalanced pivot { down = downUp, up = pivotUp } }
 
-                       else
-                           { trunk = down |> trunk
-                           , down = downChildren.down
-                           , upDown = downChildren.up
-                           }
-       in
-       branchUnbalanced
-           new.trunk
-           { down = new.down
-           , up =
-               branchUnbalanced
-                   pivotTrunk
-                   { down = new.upDown
-                   , up = pivotUp
-                   }
-           }
 -}
+
+
+{-| Branch off to sub-trees down and up. Will balance it out
+-}
+branch :
+    element
+    -> Children element
+    -> Emptiable (Branch element) never_
+branch pivotTrunk pivotChildren =
+    case
+        ( pivotChildren.down |> Emptiable.map filled
+        , pivotChildren.up |> Emptiable.map filled
+        )
+    of
+        ( Empty _, Empty _ ) ->
+            branchUnbalanced pivotTrunk { down = empty, up = empty }
+
+        ( Filled downFilled, Empty _ ) ->
+            if (downFilled |> childrenHeight) >= 1 then
+                rotateUp pivotTrunk { down = downFilled, pivotUp = pivotChildren.up }
+
+            else
+                branchUnbalanced pivotTrunk pivotChildren
+
+        ( Empty _, Filled upFilled ) ->
+            if (upFilled |> childrenHeight) >= 1 then
+                rotateDown pivotTrunk { pivotDown = pivotChildren.down, up = upFilled }
+
+            else
+                branchUnbalanced pivotTrunk pivotChildren
+
+        ( Filled downFilled, Filled upFilled ) ->
+            let
+                downToUpImbalance =
+                    (downFilled |> childrenHeight) - (upFilled |> childrenHeight)
+            in
+            if downToUpImbalance <= -2 then
+                rotateDown pivotTrunk { pivotDown = pivotChildren.down, up = upFilled }
+
+            else if downToUpImbalance >= 2 then
+                rotateUp pivotTrunk { down = downFilled, pivotUp = pivotChildren.up }
+
+            else
+                branchUnbalanced pivotTrunk pivotChildren
+
+
+rotateDown :
+    element
+    ->
+        ({ pivotDown : Emptiable (Branch element) Possibly
+         , up : Emptiable (Branch element) Never
+         }
+         -> Emptiable (Branch element) never_
+        )
+rotateDown pivotTrunk { pivotDown, up } =
+    let
+        upChildren : Children element
+        upChildren =
+            up |> children
+
+        new : { trunk : element, downUp : Emptiable (Branch element) Possibly, up : Emptiable (Branch element) Possibly }
+        new =
+            case upChildren.down of
+                Empty _ ->
+                    { trunk = up |> trunk
+                    , downUp = empty
+                    , up = upChildren.up
+                    }
+
+                Filled upDownBranch ->
+                    let
+                        upDownFilled =
+                            upDownBranch |> filled
+                    in
+                    if (upDownFilled |> height) > (upChildren.up |> height) then
+                        { trunk = upDownFilled |> trunk
+                        , downUp = upDownFilled |> children |> .down
+                        , up =
+                            branchUnbalanced
+                                (up |> trunk)
+                                { down = upDownFilled |> children |> .up
+                                , up = upChildren.up
+                                }
+                        }
+
+                    else
+                        { trunk = up |> trunk
+                        , downUp = upChildren.down
+                        , up = upChildren.up
+                        }
+    in
+    branchUnbalanced
+        new.trunk
+        { down =
+            branchUnbalanced
+                pivotTrunk
+                { down = pivotDown
+                , up = new.downUp
+                }
+        , up = new.up
+        }
+
+
+rotateUp :
+    element
+    ->
+        ({ down : Emptiable (Branch element) Never
+         , pivotUp : Emptiable (Branch element) Possibly
+         }
+         -> Emptiable (Branch element) never_
+        )
+rotateUp pivotTrunk { down, pivotUp } =
+    let
+        downChildren : Children element
+        downChildren =
+            down |> children
+
+        new : { trunk : element, down : Emptiable (Branch element) Possibly, upDown : Emptiable (Branch element) Possibly }
+        new =
+            case downChildren.up of
+                Empty _ ->
+                    { trunk = down |> trunk
+                    , down = downChildren.down
+                    , upDown = empty
+                    }
+
+                Filled downUpBranch ->
+                    let
+                        downUpFilled =
+                            downUpBranch |> filled
+                    in
+                    if (downChildren.down |> height) < (downUpFilled |> height) then
+                        { trunk = downUpFilled |> trunk
+                        , down =
+                            branchUnbalanced
+                                (down |> trunk)
+                                { down = downChildren.down
+                                , up = downUpFilled |> children |> .down
+                                }
+                        , upDown = downUpFilled |> children |> .up
+                        }
+
+                    else
+                        { trunk = down |> trunk
+                        , down = downChildren.down
+                        , upDown = downChildren.up
+                        }
+    in
+    branchUnbalanced
+        new.trunk
+        { down = new.down
+        , up =
+            branchUnbalanced
+                pivotTrunk
+                { down = new.upDown
+                , up = pivotUp
+                }
+        }
+
+
+
 -- scan
 
 
@@ -640,11 +660,15 @@ foldUpFrom :
         )
 foldUpFrom initial reduce =
     \tree ->
-        case tree |> Emptiable.map filled of
+        case tree of
             Empty _ ->
                 initial
 
-            Filled treeFilled ->
+            Filled branch_ ->
+                let
+                    treeFilled =
+                        branch_ |> filled
+                in
                 treeFilled
                     |> children
                     |> .up
@@ -667,11 +691,15 @@ foldDownFrom :
         )
 foldDownFrom initial reduce =
     \tree ->
-        case tree |> Emptiable.map filled of
+        case tree of
             Empty _ ->
                 initial
 
-            Filled treeFilled ->
+            Filled branch_ ->
+                let
+                    treeFilled =
+                        branch_ |> filled
+                in
                 treeFilled
                     |> children
                     |> .down

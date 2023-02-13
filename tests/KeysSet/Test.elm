@@ -45,11 +45,15 @@ createSuite =
 treeToString : Emptiable (Tree2.Branch element_) Possibly -> String
 treeToString =
     \tree ->
-        case tree |> Emptiable.map filled of
+        case tree of
             Emptiable.Empty _ ->
                 "()"
 
-            Emptiable.Filled treeFilled ->
+            Emptiable.Filled branch ->
+                let
+                    treeFilled =
+                        branch |> filled
+                in
                 [ treeFilled
                     |> Tree2.children
                     |> .up
@@ -152,12 +156,15 @@ validateHelp :
          -> Result String { height : Int }
         )
 validateHelp order tree =
-    case tree |> Emptiable.map filled of
+    case tree of
         Empty _ ->
             { height = 0 } |> Ok
 
-        Filled treeFilled ->
+        Filled branch ->
             let
+                treeFilled =
+                    branch |> filled
+
                 checkFurther =
                     Result.andThen
                         (\children ->
@@ -949,7 +956,7 @@ mapTrySuite =
                     |> KeysSet.mapTry
                         (\element ->
                             if element.id > 3 || element.char == 'B' then
-                                filled element
+                                element |> filled
 
                             else
                                 Emptiable.empty

@@ -50,11 +50,15 @@ treeInsertIfNoCollision :
         )
 treeInsertIfNoCollision order toInsert =
     \tree_ ->
-        case tree_ |> Emptiable.map filled of
+        case tree_ of
             Empty _ ->
                 toInsert |> Tree2.one
 
-            Filled treeFilled ->
+            Filled branch ->
+                let
+                    treeFilled =
+                        branch |> filled
+                in
                 case ( toInsert, treeFilled |> Tree2.trunk ) |> order of
                     EQ ->
                         -- to alter
@@ -120,11 +124,15 @@ treeRemove locationToRemove =
                     (children.down |> Tree2.height)
                         < (children.up |> Tree2.height)
                 then
-                    case children.up |> Emptiable.map filled of
+                    case children.up of
                         Empty _ ->
                             children.down
 
-                        Filled upTreeFilled ->
+                        Filled upBranch ->
+                            let
+                                upTreeFilled =
+                                    upBranch |> filled
+                            in
                             Tree2.branch
                                 (upTreeFilled |> Tree2.end Down)
                                 { children
@@ -133,11 +141,15 @@ treeRemove locationToRemove =
 
                 else
                     -- down >= up
-                    case children.down |> Emptiable.map filled of
+                    case children.down of
                         Empty _ ->
                             children.up
 
-                        Filled downTreeFilled ->
+                        Filled downBranch ->
+                            let
+                                downTreeFilled =
+                                    downBranch |> filled
+                            in
                             Tree2.branch
                                 (downTreeFilled |> Tree2.end Up)
                                 { children

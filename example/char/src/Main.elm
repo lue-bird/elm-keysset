@@ -7,7 +7,7 @@ import Element.Background as UiBackground
 import Element.Border as UiBorder
 import Element.Font as UiFont
 import Element.Input as UiInput
-import Emptiable exposing (Emptiable)
+import Emptiable exposing (Emptiable, filled)
 import Html exposing (Html, text)
 import Html.Attributes
 import Html.Events exposing (onInput)
@@ -36,7 +36,7 @@ main =
 initialModel : State
 initialModel =
     { textInLetterInfo = "a"
-    , letterInfo = Emptiable.filled aLetterInfo
+    , letterInfo = aLetterInfo |> filled
     , textInOpenCloseBrackets = "just type "
     }
 

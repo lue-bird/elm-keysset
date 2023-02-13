@@ -610,7 +610,7 @@ insertIfNoCollision keys toInsertOrReplacement =
                         keysSetFill
                             |> elementCollisions keys toInsertOrReplacement
                 in
-                case collisions |> Emptiable.map filled of
+                case collisions of
                     Emptiable.Empty _ ->
                         keysSetFill |> fillInsertOnNoCollision keys toInsertOrReplacement
 
@@ -656,7 +656,7 @@ insertReplacingCollisions keys toInsertOrReplacement =
                         keysSetFill
                             |> elementCollisions keys toInsertOrReplacement
                 in
-                case collisions |> Emptiable.map filled of
+                case collisions of
                     Emptiable.Empty _ ->
                         keysSetFill |> fillInsertOnNoCollision keys toInsertOrReplacement
 
@@ -664,7 +664,7 @@ insertReplacingCollisions keys toInsertOrReplacement =
                         case
                             keysSetFill
                                 |> filled
-                                |> exceptTree keys collisionsTreeFilled
+                                |> exceptTree keys (collisionsTreeFilled |> filled)
                         of
                             Emptiable.Empty _ ->
                                 toInsertOrReplacement |> one
