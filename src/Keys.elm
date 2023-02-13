@@ -84,13 +84,21 @@ type alias Keys element keys keyCount =
     KeysBeingBuilt element keys keys (On keyCount)
 
 
-{-| Once you supply all the necessary key-[`Ordering`](Order#Ordering) pairs with [`by`](#by),
-a [`KeysBeingBuilt`](#KeysBeingBuilt) automatically becomes a [`Keys`](#Keys)
+{-| Once you supply all the necessary key-[`Ordering`](Order#Ordering)s with [`by`](#by),
+a [`KeysBeingBuilt`](#KeysBeingBuilt) is automatically of type [`Keys`](#Keys).
 
-It's opaque because you shouldn't be able to
+So if you for example infer the type
+
+    KeysBeingBuilt element { yourKeys } { yourKeys } keyCount
+
+you can replace it by
+
+    Keys element { yourKeys } keyCount
+
+It's data is unaccessible because you shouldn't be able to
 
   - retrieve it's keys to use in different [`Keys`](#Keys)
-  - throw it's array representation out of sync
+  - have an out of sync [array](https://dark.elm.dmy.fr/packages/lue-bird/elm-typesafe-array/latest/) representation
 
 -}
 type alias KeysBeingBuilt element keysComplete keysConstructor keyCount =
@@ -101,9 +109,7 @@ type alias KeysBeingBuilt element keysComplete keysConstructor keyCount =
         { keys : keysConstructor
         , toArray :
             ArraySized
-                (keysComplete
-                 -> (( element, element ) -> Order)
-                )
+                (keysComplete -> (( element, element ) -> Order))
                 (Exactly keyCount)
         }
 
