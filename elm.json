@@ -3,7 +3,7 @@
     "name": "lue-bird/elm-keysset",
     "summary": "lookup for multiple arbitrary keys. safe. log n",
     "license": "MIT",
-    "version": "3.0.0",
+    "version": "3.0.1",
     "exposed-modules": [
         "KeysSet",
         "Keys",
