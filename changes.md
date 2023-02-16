@@ -1,5 +1,9 @@
 # change log
 
+#### 3.0.1
+
+- readme goodies add
+
 ## 3.0.0
 
 - `KeySet`, `KeysSet` merge
