@@ -357,15 +357,23 @@ Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidi
 
 ## goodies
 
-  - ⚖ orderKey by [`Ordering key = ... key, key -> Order`](Order#Ordering)
+  - 🦄 multiple possible `log n` keys
+  - ⚖ sorted by [`Ordering key = ... key, key -> Order`](Order#Ordering)
       - 👍 no reliance on `comparable`
       - 👍 no inconvenient `key -> String`
+      - 👍 no extra type argument for `comparableKey`
+      - 👍 highly customizable with stuff like `Order.reverse`
   - 🔑 `element -> key` function as part of a given [`Key`](Keys#Key)
       - 👍 simpler type
       - 👍 simpler internals :)
       - same idea is also implemented in
           - [`escherlies/elm-ix-dict`: `IxDict`](https://package.elm-lang.org/packages/escherlies/elm-ix-dict/latest/IxDict)
           - [`Orasund/elm-bag` `Bag`](https://package.elm-lang.org/packages/Orasund/elm-bag/latest/Bag))
+  - no stored function but tags to ensure the given [`Keys`](Keys#Keys) are the same
+      - 👍 debugger, json import/export work
+      - 👍 lamdera works
+      - 👍 hot module reloading → never have an old model
+      - 👍 no accidental (==) crash
   - 🗃 emptiability is part of the type
       - just use the same API with emptiable or non-empty conveniently
       - 👍 extra safety possible. Got enough elements? → `KeySet.minimum`, `maximum`, `foldFromOne`, `fold` don't need `Maybe`
@@ -377,7 +385,7 @@ Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidi
   - `comparableKey`
       - examples
           - [`elm/core` `Dict`](https://dark.elm.dmy.fr/packages/elm/core/latest/Dict)
-          - [`miniBill/elm-fast-dict`](https://github.com/miniBill/elm-fast-dict)
+          - [`miniBill/elm-fast-dict`](https://dark.elm.dmy.fr/packages/miniBill/elm-fast-dict/latest/)
       - 👎 requires a new `Dict` wrapper when its key contains a custom `type`.
         Often more a hindrance than helpful
   - custom functions (to `comparable` or `k -> k -> Order`)
