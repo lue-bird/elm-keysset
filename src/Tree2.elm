@@ -619,10 +619,10 @@ foldFromOne :
 foldFromOne firstToInitial direction reduce =
     \tree ->
         tree
-            |> removeEnd (direction |> Linear.opposite)
+            |> removeEnd (direction |> Linear.directionOpposite)
             |> foldFrom
                 (tree
-                    |> end (direction |> Linear.opposite)
+                    |> end (direction |> Linear.directionOpposite)
                     |> firstToInitial
                 )
                 direction

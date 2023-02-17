@@ -1,5 +1,10 @@
 # change log
 
+#### 3.0.2
+
+- `linear-direction` → >= 11.0.0
+- `typesafe-array` → >= 30.0.0
+
 #### 3.0.1
 
 - readme goodies add
