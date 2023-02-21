@@ -1,5 +1,9 @@
 # change log
 
+#### 3.0.3
+
+- `miniBill/elm-generic-dict` disadvantages correct
+
 #### 3.0.2
 
 - `linear-direction` → >= 11.0.0
