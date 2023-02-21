@@ -415,10 +415,12 @@ Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidi
       - build the complete API from a given function
           - examples
               - [`edkelly303/elm-any-type-collections`](https://dark.elm.dmy.fr/packages/edkelly303/elm-any-type-collections/latest/Any-Dict) with a `toComparable` function
+                  - 👎 dead code elimination doesn't work
+                  - 👎 obscure API and interface type
               - [`miniBill/elm-generic-dict`](https://github.com/miniBill/elm-generic-dict) with a `toComparable` function
+                  - 👎 code duplication
           - using the constructed API is rather simple
-          - 👎 dead code elimination and semantic versioning don't work
-          - 👎 obscure API and interface type
+          - 👎 semantic versioning doesn't work
           - 👍 functions aren't stored in the data structure
           - using for example `insert` from the wrong API "instance" with a different function is still possible but less likely to happen in practice
       - just the function `key -> Maybe value` instead of a data structure
