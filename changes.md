@@ -1,5 +1,9 @@
 # change log
 
+#### 3.0.4
+
+- readme prior art expand
+
 #### 3.0.3
 
 - `miniBill/elm-generic-dict` disadvantages correct
