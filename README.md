@@ -385,7 +385,8 @@ Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidi
   - `comparableKey`
       - examples
           - [`elm/core` `Dict`](https://dark.elm.dmy.fr/packages/elm/core/latest/Dict)
-          - [`miniBill/elm-fast-dict`](https://dark.elm.dmy.fr/packages/miniBill/elm-fast-dict/latest/)
+          - [`miniBill/elm-fast-dict` `FastDict`](https://dark.elm.dmy.fr/packages/miniBill/elm-fast-dict/latest/)
+          - [`wittjosiah/elm-ordered-dict` `OrderedDict`](https://package.elm-lang.org/packages/wittjosiah/elm-ordered-dict/latest/OrderedDict)
       - 👎 requires a new `Dict` wrapper when its key contains a custom `type`.
         Often more a hindrance than helpful
   - custom functions (to `comparable` or `k -> k -> Order`)
@@ -393,9 +394,9 @@ Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidi
         when trying to combine (`union`, `intersection`, ...)
       - `key -> key -> Order`
           - examples
-              - [`owanturist/elm-avl-dict`](https://dark.elm.dmy.fr/packages/owanturist/elm-avl-dict/latest/)
+              - [`owanturist/elm-avl-dict` `AVL.Set`, `AVL.Dict`](https://dark.elm.dmy.fr/packages/owanturist/elm-avl-dict/latest/)
           - 👍 simple to create
-              - see for example [`Order` API](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-direction/latest/Order)
+              - see for example [`Order`'s prior art](Order#prior-art)
           - 👍 simple type
           - 👍 not limited to `comparable` keys. Therefore simpler while not relying on magic
       - `... -> comparable`
@@ -406,15 +407,15 @@ Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidi
               - [`escherlies/elm-ix-dict`: `IxDict`](https://package.elm-lang.org/packages/escherlies/elm-ix-dict/latest/)
           - `key -> String`
               - examples (in no specific order)
-                  - [`matzko/elm-opaque-dict`](https://dark.elm.dmy.fr/packages/matzko/elm-opaque-dict/latest/)
-                  - [`edkv/elm-generic-dict`](https://dark.elm.dmy.fr/packages/edkv/elm-generic-dict/latest/)
+                  - [`matzko/elm-opaque-dict` `OpaqueDict`](https://dark.elm.dmy.fr/packages/matzko/elm-opaque-dict/latest/)
+                  - [`edkv/elm-generic-dict` `GenericDict`](https://dark.elm.dmy.fr/packages/edkv/elm-generic-dict/latest/)
               - 👍 avoid having an extra type variable
               - 👎 requires more work
               - 👎 more prone to bugs in `toString` implementation not returning a unique `String` for all keys
               - 👎 slightly less performant when `toString` needs to do heavy work
       - build the complete API from a given function
           - examples
-              - [`edkelly303/elm-any-type-collections`](https://dark.elm.dmy.fr/packages/edkelly303/elm-any-type-collections/latest/Any-Dict) with a `toComparable` function
+              - [`edkelly303/elm-any-type-collections` `Any.Set`, `Any.Dict`](https://dark.elm.dmy.fr/packages/edkelly303/elm-any-type-collections/latest/) with a `toComparable` function
                   - 👎 dead code elimination doesn't work
                   - 👎 obscure API and interface type
               - [`miniBill/elm-generic-dict`](https://github.com/miniBill/elm-generic-dict) with a `toComparable` function
@@ -425,7 +426,7 @@ Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidi
           - using for example `insert` from the wrong API "instance" with a different function is still possible but less likely to happen in practice
       - just the function `key -> Maybe value` instead of a data structure
           - examples
-              - [`jjant/elm-dict`](https://dark.elm.dmy.fr/packages/jjant/elm-dict/latest/AllDict)
+              - [`jjant/elm-dict` `AllDict`](https://dark.elm.dmy.fr/packages/jjant/elm-dict/latest/AllDict)
           - 👎 `>= n` runtime
           - 👎 doesn't simplify it's structure. Every remove, insert, union, difference, _adds_ to the function logic
           - 👍 pretty easy to understand and build on with powerful features like assigning a specific value x whenever a condition is met
@@ -441,7 +442,9 @@ Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidi
           - 👎 no guarantee that the given functions are the same
   - association-list
       - examples
-          - [`pzp1997/assoc-list`](https://dark.elm.dmy.fr/packages/pzp1997/assoc-list/latest/)
+          - [`pzp1997/assoc-list` `AssocList`](https://dark.elm.dmy.fr/packages/pzp1997/assoc-list/latest/)
+          - [`erlandsona/assoc-set` `AssocSet`](https://dark.elm.dmy.fr/packages/erlandsona/assoc-set/latest/)
+          - [`Orasund/elm-bag` `List.Bag`](https://dark.elm.dmy.fr/packages/Orasund/elm-bag/latest/List-Bag)
       - 👎 `n` runtime
       - 👍 no setup
       - 👍 simple type
