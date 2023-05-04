@@ -4,6 +4,8 @@ module Tree2 exposing
     , size, height, children, trunk, end
     , childrenDownAlter, childrenUpAlter, removeEnd, map
     , foldFrom, foldFromOne
+    , foldUntilCompleteFrom, foldUntilCompleteFromOne
+    , foldNavigateFrom
     )
 
 {-| Tree with a branching factor of 2
@@ -31,11 +33,14 @@ module Tree2 exposing
 ## transform
 
 @docs foldFrom, foldFromOne
+@docs foldUntilCompleteFrom, foldUntilCompleteFromOne
+@docs foldNavigateFrom
 
 -}
 
 import Emptiable exposing (Emptiable(..), empty, emptyAdapt, fill, filled)
 import Linear exposing (Direction(..))
+import PartialOrComplete exposing (PartialOrComplete)
 import Possibly exposing (Possibly(..))
 
 
@@ -697,6 +702,7 @@ foldDownFrom initial reduce =
 
             Filled branch_ ->
                 let
+                    treeFilled : Emptiable (Branch element) never_
                     treeFilled =
                         branch_ |> filled
                 in
@@ -711,3 +717,212 @@ foldDownFrom initial reduce =
                             |> reduce (treeFilled |> trunk)
                         )
                         reduce
+
+
+foldNavigateFrom :
+    folded
+    ->
+        ({ trunk : element, children : { down : () -> folded, up : () -> folded } }
+         -> folded
+        )
+    -> (Emptiable (Branch element) Possibly -> folded)
+foldNavigateFrom initial reduce =
+    \tree ->
+        case tree of
+            Empty _ ->
+                initial
+
+            Filled branch_ ->
+                let
+                    treeFilled : Emptiable (Branch element) never_
+                    treeFilled =
+                        branch_ |> filled
+                in
+                { trunk = treeFilled |> trunk
+                , children =
+                    { down =
+                        \() ->
+                            treeFilled
+                                |> children
+                                |> .down
+                                |> foldNavigateFrom initial reduce
+                    , up =
+                        \() ->
+                            treeFilled
+                                |> children
+                                |> .up
+                                |> foldNavigateFrom initial reduce
+                    }
+                }
+                    |> reduce
+
+
+foldUntilCompleteUpFrom :
+    foldedPartial
+    -> (element -> (foldedPartial -> PartialOrComplete foldedPartial foldedComplete))
+    ->
+        (Emptiable (Branch element) Possibly
+         -> PartialOrComplete foldedPartial foldedComplete
+        )
+foldUntilCompleteUpFrom initialFoldedPartial reduceStep =
+    \tree2 ->
+        case tree2 of
+            Emptiable.Empty _ ->
+                initialFoldedPartial |> PartialOrComplete.Partial
+
+            Emptiable.Filled branch_ ->
+                let
+                    treeFilled : Emptiable (Branch element) never_
+                    treeFilled =
+                        branch_ |> filled
+                in
+                (treeFilled |> children |> .down)
+                    |> foldUntilCompleteUpFrom initialFoldedPartial reduceStep
+                    |> PartialOrComplete.onPartialMapFlat
+                        (\afterDownPartial ->
+                            afterDownPartial
+                                |> reduceStep (treeFilled |> trunk)
+                                |> PartialOrComplete.onPartialMapFlat
+                                    (\afterDownAndTrunkPartial ->
+                                        (treeFilled |> children |> .up)
+                                            |> foldUntilCompleteUpFrom afterDownAndTrunkPartial reduceStep
+                                    )
+                        )
+
+
+foldUntilCompleteDownFrom :
+    foldedPartial
+    -> (element -> (foldedPartial -> PartialOrComplete foldedPartial foldedComplete))
+    ->
+        (Emptiable (Branch element) Possibly
+         -> PartialOrComplete foldedPartial foldedComplete
+        )
+foldUntilCompleteDownFrom initialFolded reduceStep =
+    \tree2 ->
+        case tree2 of
+            Emptiable.Empty _ ->
+                initialFolded |> PartialOrComplete.Partial
+
+            Emptiable.Filled branch_ ->
+                let
+                    treeFilled : Emptiable (Branch element) never_
+                    treeFilled =
+                        branch_ |> filled
+                in
+                (treeFilled |> children |> .up)
+                    |> foldUntilCompleteDownFrom initialFolded reduceStep
+                    |> PartialOrComplete.onPartialMapFlat
+                        (\afterDownPartial ->
+                            afterDownPartial
+                                |> reduceStep (treeFilled |> trunk)
+                                |> PartialOrComplete.onPartialMapFlat
+                                    (\afterDownAndTrunkPartial ->
+                                        (treeFilled |> children |> .down)
+                                            |> foldUntilCompleteDownFrom afterDownAndTrunkPartial reduceStep
+                                    )
+                        )
+
+
+foldUntilCompleteFrom :
+    foldedPartial
+    -> Linear.Direction
+    ->
+        (element
+         -> (foldedPartial -> PartialOrComplete foldedPartial foldedComplete)
+        )
+    ->
+        (Emptiable (Branch element) Possibly
+         -> PartialOrComplete foldedPartial foldedComplete
+        )
+foldUntilCompleteFrom initialFoldedPartial direction reduceStep =
+    case direction of
+        Down ->
+            \tree_ -> tree_ |> foldUntilCompleteDownFrom initialFoldedPartial reduceStep
+
+        Up ->
+            \tree_ -> tree_ |> foldUntilCompleteUpFrom initialFoldedPartial reduceStep
+
+
+foldUntilCompleteFromOne :
+    (element -> PartialOrComplete foldedPartial foldedComplete)
+    -> Linear.Direction
+    ->
+        (element
+         -> (foldedPartial -> PartialOrComplete foldedPartial foldedComplete)
+        )
+    ->
+        (Emptiable (Branch element) Never
+         -> PartialOrComplete foldedPartial foldedComplete
+        )
+foldUntilCompleteFromOne startElementStep direction reduceStep =
+    case direction of
+        Down ->
+            \tree_ -> tree_ |> foldUntilCompleteDownFromOne startElementStep reduceStep
+
+        Up ->
+            \tree_ -> tree_ |> foldUntilCompleteUpFromOne startElementStep reduceStep
+
+
+foldUntilCompleteUpFromOne :
+    (element -> PartialOrComplete foldedPartial foldedComplete)
+    -> (element -> (foldedPartial -> PartialOrComplete foldedPartial foldedComplete))
+    ->
+        (Emptiable (Branch element) Never
+         -> PartialOrComplete foldedPartial foldedComplete
+        )
+foldUntilCompleteUpFromOne startElementStep reduceStep =
+    \treeFilled ->
+        let
+            foldedAfterDownAndTrunk : PartialOrComplete foldedPartial foldedComplete
+            foldedAfterDownAndTrunk =
+                case treeFilled |> children |> .down of
+                    Emptiable.Empty Possible ->
+                        treeFilled |> trunk |> startElementStep
+
+                    Emptiable.Filled downBranch ->
+                        downBranch
+                            |> filled
+                            |> foldUntilCompleteUpFromOne startElementStep reduceStep
+                            |> PartialOrComplete.onPartialMapFlat
+                                (\afterDownPartial ->
+                                    afterDownPartial |> reduceStep (treeFilled |> trunk)
+                                )
+        in
+        foldedAfterDownAndTrunk
+            |> PartialOrComplete.onPartialMapFlat
+                (\afterDownAndTrunkPartial ->
+                    (treeFilled |> children |> .up)
+                        |> foldUntilCompleteUpFrom afterDownAndTrunkPartial reduceStep
+                )
+
+
+foldUntilCompleteDownFromOne :
+    (element -> PartialOrComplete foldedPartial foldedComplete)
+    -> (element -> (foldedPartial -> PartialOrComplete foldedPartial foldedComplete))
+    ->
+        (Emptiable (Branch element) Never
+         -> PartialOrComplete foldedPartial foldedComplete
+        )
+foldUntilCompleteDownFromOne startElementStep reduceStep =
+    \treeFilled ->
+        let
+            foldedAfterUpAndTrunk =
+                case treeFilled |> children |> .up of
+                    Emptiable.Empty Possible ->
+                        treeFilled |> trunk |> startElementStep
+
+                    Emptiable.Filled upBranch ->
+                        upBranch
+                            |> filled
+                            |> foldUntilCompleteDownFromOne startElementStep reduceStep
+                            |> PartialOrComplete.onPartialMapFlat
+                                (\afterDownPartial ->
+                                    afterDownPartial |> reduceStep (treeFilled |> trunk)
+                                )
+        in
+        foldedAfterUpAndTrunk
+            |> PartialOrComplete.onPartialMapFlat
+                (\afterDownAndTrunkPartial ->
+                    (treeFilled |> children |> .down)
+                        |> foldUntilCompleteDownFrom afterDownAndTrunkPartial reduceStep
+                )

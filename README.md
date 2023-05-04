@@ -24,11 +24,12 @@ in `log n` time:
 |> KeysSet.element ( keys, .code ) "LB"
 --→ Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 
-|> KeySet.minimum ( keys, .code )
+|> KeysSet.end ( keys, .code ) Down -- minimum
 --→ { flag = "🇦🇶", code = "AQ", name = "Antarctica" } no Maybe
 ```
 
-We supplied `keys` to construct and operate on our [`KeysSet`](KeysSet#KeysSet). Which aspects do we want it to be sorted by?
+We supplied `keys` to construct and operate on our [`KeysSet`](KeysSet#KeysSet),
+so... Which aspects do we want it to be sorted by?
 ```elm
 keys : Keys Country CountryKeys N2
 keys =
@@ -368,7 +369,7 @@ Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidi
       - 👍 simpler internals :)
       - same idea is also implemented in
           - [`escherlies/elm-ix-dict`: `IxDict`](https://package.elm-lang.org/packages/escherlies/elm-ix-dict/latest/IxDict)
-          - [`Orasund/elm-bag` `Bag`](https://package.elm-lang.org/packages/Orasund/elm-bag/latest/Bag))
+          - [`Orasund/elm-bag` `Bag`](https://package.elm-lang.org/packages/Orasund/elm-bag/latest/Bag)
   - no stored function but tags to ensure the given [`Keys`](Keys#Keys) are the same
       - 👍 debugger, json import/export work
       - 👍 lamdera works
@@ -405,6 +406,7 @@ Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidi
               - [`turboMaCk/any-dict`](https://dark.elm.dmy.fr/packages/turboMaCk/any-dict/latest/)
               - [`Orasund/elm-bag` `Bag`](https://package.elm-lang.org/packages/Orasund/elm-bag/latest/Bag)
               - [`escherlies/elm-ix-dict`: `IxDict`](https://package.elm-lang.org/packages/escherlies/elm-ix-dict/latest/)
+              - [`bburdette/typed-collections` `TSet`, `TDict`](https://package.elm-lang.org/packages/bburdette/typed-collections/latest/)
           - `key -> String`
               - examples (in no specific order)
                   - [`matzko/elm-opaque-dict` `OpaqueDict`](https://dark.elm.dmy.fr/packages/matzko/elm-opaque-dict/latest/)

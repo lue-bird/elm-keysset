@@ -13,7 +13,7 @@ import KeysSet.Internal
 import Linear exposing (Direction(..))
 import List.Extra
 import List.Linear
-import N exposing (Add1, N2, n1)
+import N exposing (Add1, N2, n0, n1)
 import Possibly exposing (Possibly(..))
 import Stack
 import Test exposing (Test, describe, fuzz, fuzz2, test)
@@ -118,7 +118,12 @@ validate context keys =
                                 , " does not match with real one "
                                 , tree |> Tree2.size |> String.fromInt
                                 , " for\n"
-                                , keysSet |> KeysSet.foldFrom [] (::) |> List.map Debug.toString |> String.join " "
+                                , case keysSet of
+                                    Emptiable.Empty _ ->
+                                        "[]"
+
+                                    Emptiable.Filled fill ->
+                                        fill |> KeysSet.Internal.treeForIndex n0 |> Tree2.foldFrom [] Down (::) |> List.map Debug.toString |> String.join " "
                                 , " :\n\n"
                                 , keysSet |> Debug.toString
                                 , "\n\nwhere the tree instead is\n"
@@ -1217,8 +1222,8 @@ scanTest =
     describe "scan"
         [ sizeSuite
         , elementSuite
-        , minimumSuite
-        , maximumSuite
+        , endUpSuite
+        , endUpSuite
         ]
 
 
@@ -1320,14 +1325,14 @@ elementSuite =
         ]
 
 
-maximumSuite : Test
-maximumSuite =
-    describe "maximum"
+endUpSuite : Test
+endUpSuite =
+    describe "end Up"
         [ fuzz Character.fuzz
             "one"
             (\character ->
                 KeysSet.one character
-                    |> KeysSet.minimum ( Character.keys, .id )
+                    |> KeysSet.end ( Character.keys, .id ) Up
                     |> Expect.equal character
             )
         , fuzz
@@ -1349,7 +1354,7 @@ maximumSuite =
             "fromStack"
             (\stack ->
                 KeysSet.fromStack Character.keys stack
-                    |> KeysSet.maximum ( Character.keys, .id )
+                    |> KeysSet.end ( Character.keys, .id ) Up
                     |> Expect.equal
                         (stack
                             |> Stack.fold Up
@@ -1363,16 +1368,14 @@ maximumSuite =
                         )
             )
         ]
-
-
-minimumSuite : Test
-minimumSuite =
-    describe "minimum"
+endUpSuite : Test
+endUpSuite =
+    describe "end Down"
         [ fuzz Character.fuzz
             "one"
             (\character ->
                 KeysSet.one character
-                    |> KeysSet.maximum ( Character.keys, .id )
+                    |> KeysSet.end ( Character.keys, .id ) Down
                     |> Expect.equal character
             )
         , fuzz
@@ -1394,7 +1397,7 @@ minimumSuite =
             "fromStack"
             (\stack ->
                 KeysSet.fromStack Character.keys stack
-                    |> KeysSet.minimum ( Character.keys, .id )
+                    |> KeysSet.end ( Character.keys, .id ) Down
                     |> Expect.equal
                         (stack
                             |> Stack.fold Up
@@ -1416,7 +1419,7 @@ minimumSuite =
                         [ { open = 'b', closed = 'A' }
                         ]
                     )
-                    |> KeysSet.minimum ( BracketPair.keys, .open )
+                    |> KeysSet.end ( BracketPair.keys, .open ) Down
                     |> Expect.equal
                         { open = 'a', closed = 'B' }
             )
@@ -1512,7 +1515,7 @@ foldFromSuite =
             "hardcoded sum"
             (\list ->
                 KeysSet.fromList Character.keys list
-                    |> KeysSet.foldFrom 0 (\c soFar -> soFar + c.id)
+                    |> KeysSet.foldFrom ( Character.keys, .id ) 0 Up (\c soFar -> soFar + c.id)
                     |> Expect.equal
                         (list
                             |> List.map .id
@@ -1526,7 +1529,10 @@ foldFromSuite =
                     [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
                     , { username = "gria", priority = 3, email = "miggo@inlook.com" }
                     ]
-                    |> KeysSet.foldFrom False (\user soFar -> soFar || (user.priority > 4))
+                    |> KeysSet.foldFrom ( User.byEmail, .email )
+                        False
+                        Up
+                        (\user soFar -> soFar || (user.priority >= 4))
                     |> Expect.equal False
             )
         , test "hardcoded all"
@@ -1536,7 +1542,10 @@ foldFromSuite =
                     [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
                     , { username = "gria", priority = 3, email = "miggo@inlook.com" }
                     ]
-                    |> KeysSet.foldFrom True (\user soFar -> soFar && (user.priority < 4))
+                    |> KeysSet.foldFrom ( User.byEmail, .email )
+                        True
+                        Up
+                        (\user soFar -> soFar && (user.priority <= 3))
                     |> Expect.equal True
             )
         ]

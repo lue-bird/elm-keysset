@@ -1,5 +1,12 @@
 # change log
 
+## 4.0.0
+
+- `KeysSet`
+    - `fold` remove
+    - `foldFrom`, `foldFromOne` aren't order-independent anymore. Instead they now take a key and direction
+    - `foldUntilCompleteFrom`, `foldUntilCompleteFromOne` add
+
 #### 3.0.4
 
 - readme prior art expand
