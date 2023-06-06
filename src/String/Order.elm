@@ -30,7 +30,7 @@ type EarlierTag
 
     Order.with
         (String.Order.earlier
-            (Char.Order.alphabetically Char.Order.lowerUpper)
+            (Char.Order.aToZ Char.Order.lowerUpper)
         )
         "hello, human!"
         "hello, Human"
@@ -87,7 +87,7 @@ onEQ orderBreakingTie =
 
     import Int.Order
 
-    nothingJust Int.Order.increasing
+    nothingJust Int.Order.up
         (Just -99999)
         Nothing
     --→ GT

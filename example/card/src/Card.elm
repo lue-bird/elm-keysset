@@ -96,7 +96,7 @@ type Value
 
 
 type alias SuiteOrder =
-    Order.By SuiteToRank Int.Order.Increasing
+    Order.By SuiteToRank Int.Order.Up
 
 
 type SuiteToRank
@@ -105,7 +105,7 @@ type SuiteToRank
 
 suiteOrder : Ordering Suite
 suiteOrder =
-    Order.by suiteToRank Int.Order.increasing
+    Order.by suiteToRank Int.Order.up
 
 
 suiteToRank : Mapping Suite SuiteToRank Int
@@ -128,13 +128,13 @@ suiteToRank =
 
 
 type alias ValueOrder =
-    Order.By ValueToRank Int.Order.Increasing
+    Order.By ValueToRank Int.Order.Up
 
 
 valueOrder : Ordering Value
 valueOrder =
     Order.by
-        Int.Order.increasing
+        Int.Order.up
 
 
 type ValueToRank

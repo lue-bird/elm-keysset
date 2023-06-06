@@ -4,7 +4,7 @@ module Keys exposing
     , for, KeysBeingBuilt
     , by
     , toArray
-    , toKeyWith, keyOrderWith, keyIndex
+    , toKeyWith, keyOrderWith
     )
 
 {-| Multiple key [`Ordering`](Order#Ordering)s
@@ -39,15 +39,15 @@ You won't need them if you just want to use [`KeysSet`](KeysSet#KeysSet).
 
 ## single key
 
-@docs toKeyWith, keyOrderWith, keyIndex
+@docs toKeyWith, keyOrderWith
 
 -}
 
 import ArraySized exposing (ArraySized)
+import Keys.Internal
 import Map exposing (Mapping)
-import N exposing (Add1, Exactly, N, N0, N1, On, To, Up, Up0, n1)
+import N exposing (Add1, Exactly, N1, On, To, Up, Up0)
 import Order exposing (Ordering)
-import Typed exposing (Checked, Internal, Public, Typed)
 
 
 {-| The type of fully constructed [`KeysBeingBuilt`](#KeysBeingBuilt)
@@ -60,7 +60,7 @@ ready to use.
     import Char.Order
     import String.Order
     import Emptiable
-    import N exposing (Up, To, N0, N1, N2)
+    import N exposing (N2)
 
     userKeys :
         -- just infer this
@@ -71,17 +71,17 @@ ready to use.
                     User
                     (Order.By
                         User.Name
-                        (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))
+                        (String.Order.Earlier (Char.Order.AToZ Order.Tie))
                     )
                     String
-                    (Up N1 To N1)
-            , email : Key User (Order.By User.Email Email.DefaultOrder) String (Up N0 To N1)
+                    N2
+            , email : Key User (Order.By User.Email Email.DefaultOrder) String N2
             }
             N2
     userKeys =
         Keys.for (\name email -> { name = name, email = email } )
             |> Keys.by ( .name, User.name )
-                (String.Order.earlier (Char.Order.alphabetically Order.tie))
+                (String.Order.earlier (Char.Order.aToZ Order.tie))
             |> Keys.by ( .email, User.email )
                 Email.defaultOrder
 
@@ -121,35 +121,19 @@ It's data is unaccessible because you shouldn't be able to
 
 -}
 type alias KeysBeingBuilt element keysComplete keysConstructor keyCount =
-    Typed
-        Checked
-        KeysTag
-        Internal
-        { keys : keysConstructor
-        , toArray :
-            ArraySized
-                (keysComplete -> (( element, element ) -> Order))
-                (Exactly keyCount)
-        }
+    Keys.Internal.KeysBeingBuilt element keysComplete keysConstructor keyCount
 
 
 {-| Tags correctly constructed [`Keys`](#Keys) (and each [`Key`](#Key))
 -}
-type KeysTag
-    = Keys
+type alias KeysTag =
+    Keys.Internal.KeysTag
 
 
 {-| By which aspect = key and in which key `Order` elements should be sorted
 -}
-type alias Key element orderByTag key index =
-    Typed
-        Checked
-        ( KeysTag, orderByTag )
-        Public
-        { index : N (Exactly index)
-        , toKey : element -> key
-        , keyOrder : ( key, key ) -> Order
-        }
+type alias Key element orderByTag key keyCount =
+    Keys.Internal.Key element orderByTag key keyCount
 
 
 {-| List all keys in the `keys` record as an [array](https://dark.elm.dmy.fr/packages/lue-bird/elm-typesafe-array/latest/)
@@ -160,14 +144,7 @@ toArray :
     Keys element keys_ keyCount
     -> ArraySized (( element, element ) -> Order) (Exactly (On keyCount))
 toArray =
-    \keysInfoTagged ->
-        let
-            keysInfo =
-                keysInfoTagged |> Typed.internal Keys
-        in
-        keysInfo
-            |> .toArray
-            |> ArraySized.map (\toOrder -> toOrder keysInfo.keys)
+    Keys.Internal.toArray
 
 
 {-| Start a [keys builder](#KeysBeingBuilt) by giving names to the individual keys as arguments
@@ -176,7 +153,7 @@ using a record
     userKeys :
         Keys
             User
-            { email : Key User (Order.By User.Email Email.Order) Email (Up N0 To N0) }
+            { email : Key User (Order.By User.Email Email.Order) Email N1 }
             N1
     userKeys =
         Keys.for (\email -> { email = email })
@@ -193,12 +170,9 @@ using a record
 -}
 for :
     keysConstructor
-    -> KeysBeingBuilt element_ completeKeys_ keysConstructor (Up0 x_)
+    -> KeysBeingBuilt element_ completeKeys_ keysConstructor (Up0 keyCount_)
 for keysConstructor =
-    { keys = keysConstructor
-    , toArray = ArraySized.empty
-    }
-        |> Typed.tag Keys
+    Keys.Internal.for keysConstructor
 
 
 {-| Ordering by the element itself.
@@ -206,22 +180,22 @@ for keysConstructor =
 Short for
 
     Keys.identity order =
-        for identity |> by ( identity, Map.identity ) order
+        Keys.for identity |> Keys.by ( identity, Map.identity ) order
 
 in [`KeysSet`](KeysSet#KeysSet)
 
     import Map
     import Order
     import Int.Order
-    import N exposing (Up, To, N0)
+    import Keys
     import KeysSet
 
-    intIncreasing : Keys.Identity Int Int.Order.Increasing
-    intIncreasing =
-        Keys.identity Int.Order.increasing
+    intUp : Keys.Identity Int Int.Order.Up
+    intUp =
+        Keys.identity Int.Order.up
 
-    KeysSet.fromList intIncreasing [ -1, 5, 5, 8, 7 ]
-        |> KeysSet.toList ( intIncreasing, Basics.identity )
+    KeysSet.fromList intUp [ -1, 5, 5, 8, 7 ]
+        |> KeysSet.toList ( intUp, Basics.identity )
     --> [ -1, 5, 7, 8 ]
 
 -}
@@ -235,20 +209,23 @@ identity order =
     import Map
     import Order
     import Float.Order
-    import N exposing (Up, To, N0)
     import KeysSet
+    import Keys
 
-    floatIncreasing : Keys.Identity Float Float.Order.Increasing
-    floatIncreasing =
-        Keys.identity Float.Order.increasing
+    floatUp : Keys.Identity Float Float.Order.Up
+    floatUp =
+        Keys.identity Float.Order.up
 
-    KeysSet.fromList floatIncreasing [ -1.1, 5, 5, 8.7, 7.8 ]
-        |> KeysSet.toList ( floatIncreasing, Basics.identity )
+    KeysSet.fromList floatUp [ -1.1, 5, 5, 8.7, 7.8 ]
+        |> KeysSet.toList ( floatUp, Basics.identity )
     --> [ -1.1, 5, 7.8, 8.7 ]
 
 -}
 type alias Identity element elementOrderTag =
-    Keys element (Key element (Order.By Map.Identity elementOrderTag) element (Up N0 To N0)) N1
+    Keys
+        element
+        (Key element (Order.By Map.Identity elementOrderTag) element N1)
+        N1
 
 
 {-| Add a key
@@ -260,7 +237,7 @@ type alias Identity element elementOrderTag =
 -}
 by :
     ( keysComplete
-      -> Key element (Order.By toKeyTag keyOrderTag) key (Up indexToLast To lastIndex)
+      -> Key element (Order.By toKeyTag keyOrderTag) key (Add1 keyCountFrom1)
     , Mapping element toKeyTag key
     )
     -> Ordering key keyOrderTag
@@ -268,151 +245,39 @@ by :
         (KeysBeingBuilt
             element
             keysComplete
-            (Key element (Order.By toKeyTag keyOrderTag) key (Up indexToLast To lastIndex)
+            (Key element (Order.By toKeyTag keyOrderTag) key (Add1 keyCountFrom1)
              -> keysConstructedPartially
             )
-            (Up (Add1 indexToLast) To (Add1 lastIndex))
+            (Up (Add1 toKeyCountFrom1) To (Add1 keyCountFrom1))
          ->
             KeysBeingBuilt
                 element
                 keysComplete
                 keysConstructedPartially
-                (Up indexToLast To (Add1 lastIndex))
+                (Up toKeyCountFrom1 To (Add1 keyCountFrom1))
         )
 by ( keysAccessKey, toKey ) keyOrder =
-    let
-        keysInfoPush :
-            { keys :
-                Key
-                    element
-                    (Order.By toKeyTag keyOrderTag)
-                    key
-                    (Up indexToLast To lastIndex)
-                -> keysConstructedPartially
-            , toArray :
-                ArraySized
-                    (keysComplete -> (( element, element ) -> Order))
-                    (Exactly (Up (Add1 indexToLast) To (Add1 lastIndex)))
-            }
-            ->
-                { keys : keysConstructedPartially
-                , toArray :
-                    ArraySized
-                        (keysComplete -> (( element, element ) -> Order))
-                        (Exactly (Up indexToLast To (Add1 lastIndex)))
-                }
-        keysInfoPush keysInfo =
-            let
-                index : N (Exactly (Up indexToLast To lastIndex))
-                index =
-                    keysInfo.toArray
-                        |> ArraySized.length
-                        |> N.minEndsSubtract n1
-                        |> N.maxEndsSubtract n1
-
-                keyField :
-                    Key
-                        element
-                        (Order.By toKeyTag keyOrderTag)
-                        key
-                        (Up indexToLast To lastIndex)
-                keyField =
-                    Typed.mapToWrap Keys
-                        (\_ ->
-                            { index = index
-                            , toKey = Map.with toKey
-                            , keyOrder = keyOrder |> Typed.untag
-                            }
-                        )
-                        (Order.by toKey keyOrder)
-
-                toArrayPushed :
-                    ArraySized
-                        (keysComplete
-                         -> (( element, element ) -> Order)
-                        )
-                        (Exactly (Up indexToLast To (Add1 lastIndex)))
-                toArrayPushed =
-                    keysInfo.toArray
-                        |> ArraySized.push
-                            (\keysComplete ->
-                                keysComplete
-                                    |> keysAccessKey
-                                    |> orderWithKey
-                            )
-                        |> ArraySized.maxEndsSubtract n1
-                        |> ArraySized.minEndsSubtract n1
-            in
-            { keys = keysInfo.keys keyField
-            , toArray = toArrayPushed
-            }
-    in
-    \keysInfoTagged ->
-        keysInfoTagged
-            |> Typed.internal Keys
-            |> keysInfoPush
-            |> Typed.tag Keys
-
-
-orderWithKey :
-    Key element key_ by_ index_
-    -> (( element, element ) -> Order)
-orderWithKey =
-    \key_ ->
-        let
-            keyInfo_ =
-                key_ |> Typed.untag
-        in
-        \( a, b ) ->
-            keyInfo_.keyOrder
-                ( a |> keyInfo_.toKey, b |> keyInfo_.toKey )
-
-
-keyInfo :
-    ( Keys element keys (Add1 lastIndex)
-    , keys -> Key element by_ key (Up indexToLast To lastIndex)
-    )
-    ->
-        { index : N (Exactly (Up indexToLast To lastIndex))
-        , toKey : element -> key
-        , keyOrder : ( key, key ) -> Order
-        }
-keyInfo ( keys, field ) =
-    let
-        info =
-            keys |> Typed.internal Keys
-    in
-    info |> .keys |> field |> Typed.untag
-
-
-{-| A [`Key`](#Key)'s distance from the first [`by`](#by) in the [`Keys` builder](#KeysBeingBuilt)
--}
-keyIndex :
-    ( Keys element keys (Add1 lastIndex)
-    , keys -> Key element key_ by_ (Up indexToLast To lastIndex)
-    )
-    -> N (Exactly (Up indexToLast To lastIndex))
-keyIndex ( keys, key ) =
-    ( keys, key ) |> keyInfo |> .index
+    \keysSoFar ->
+        keysSoFar |> Keys.Internal.by ( keysAccessKey, toKey ) keyOrder
 
 
 {-| How to turn the element into the specified key
 -}
 toKeyWith :
-    ( Keys element keys (Add1 lastIndex)
-    , keys -> Key element by_ key (Up indexToLast_ To lastIndex)
+    ( Keys element keys keyCount
+    , keys -> Key element by_ key keyCount
     )
     -> (element -> key)
 toKeyWith ( keys, key ) =
-    ( keys, key ) |> keyInfo |> .toKey
+    ( keys, key ) |> Keys.Internal.keyInfo |> .toKey
 
 
 {-| How to order by the specified key
 -}
 keyOrderWith :
-    ( Keys element keys (Add1 lastIndex)
-    , keys -> Key element by_ key (Up indexToLast_ To lastIndex)
+    ( Keys element keys keyCount
+    , keys -> Key element by_ key keyCount
     )
     -> (( key, key ) -> Order)
 keyOrderWith ( keys, key ) =
-    ( keys, key ) |> keyInfo |> .keyOrder
+    ( keys, key ) |> Keys.Internal.keyInfo |> .keyOrder

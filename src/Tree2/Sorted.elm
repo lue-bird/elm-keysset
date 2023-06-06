@@ -1,17 +1,22 @@
-module Tree2.Sorted exposing (treeElement, treeExcept, treeInsertIfNoCollision, treeRemove)
+module Tree2.Sorted exposing
+    ( treeElement, treeExcept, treeInsertIfNoCollision, treeRemove
+    , fold2FromOne, fold2From
+    )
 
-{-|
-
-
-## sorted tree
+{-| sorted tree
 
 @docs treeElement, treeExcept, treeInsertIfNoCollision, treeRemove
+@docs fold2FromOne, fold2From
 
 -}
 
+import And exposing (And)
+import AndOr exposing (AndOr)
 import Emptiable exposing (Emptiable(..), filled)
 import Linear exposing (Direction(..))
+import Or
 import Possibly exposing (Possibly(..))
+import Stack exposing (Stacked)
 import Tree2
 
 
@@ -182,3 +187,155 @@ treeExcept order exceptions =
                                     |> treeRemove (\el -> ( collision, el ) |> order)
                             )
                 )
+
+
+fold2FromOne :
+    (( key, key ) -> Order)
+    -> (AndOr firstElement secondElement -> accumulated)
+    ->
+        (AndOr firstElement secondElement
+         -> (accumulated -> accumulated)
+        )
+    ->
+        (And
+            { key : firstElement -> key
+            , tree : Emptiable (Tree2.Branch firstElement) Never
+            }
+            { key : secondElement -> key
+            , tree :
+                Emptiable (Tree2.Branch secondElement) secondPossiblyOrNever_
+            }
+         -> accumulated
+        )
+fold2FromOne keyOrder startToInitialFolded reduce ( first, second ) =
+    let
+        secondAccumulate :
+            firstElement
+            ->
+                ({ secondRemainder : Emptiable (Stacked secondElement) Possibly
+                 , accumulated : Maybe accumulated
+                 }
+                 ->
+                    { secondRemainder : Emptiable (Stacked secondElement) Possibly
+                    , accumulated : accumulated
+                    }
+                )
+        secondAccumulate firstElement =
+            \soFar ->
+                let
+                    reduceOrInitializeWith with =
+                        case soFar.accumulated of
+                            Nothing ->
+                                startToInitialFolded with
+
+                            Just soFarAccumulated ->
+                                soFarAccumulated |> reduce with
+                in
+                case soFar.secondRemainder of
+                    Emptiable.Empty _ ->
+                        { secondRemainder = Emptiable.empty
+                        , accumulated =
+                            reduceOrInitializeWith (AndOr.Only (Or.First firstElement))
+                        }
+
+                    Emptiable.Filled secondStacked ->
+                        let
+                            secondStackFilled : Emptiable (Stacked secondElement) never_
+                            secondStackFilled =
+                                secondStacked |> filled
+                        in
+                        case
+                            ( firstElement |> first.key
+                            , secondStackFilled |> Stack.top |> second.key
+                            )
+                                |> keyOrder
+                        of
+                            EQ ->
+                                { secondRemainder = secondStackFilled |> Stack.removeTop
+                                , accumulated =
+                                    reduceOrInitializeWith (AndOr.Both ( firstElement, secondStackFilled |> Stack.top ))
+                                }
+
+                            LT ->
+                                { secondRemainder = secondStackFilled |> Emptiable.emptyAdapt (\_ -> Possible)
+                                , accumulated =
+                                    reduceOrInitializeWith (AndOr.Only (Or.First firstElement))
+                                }
+
+                            GT ->
+                                secondAccumulate firstElement
+                                    { secondRemainder = secondStackFilled |> Stack.removeTop
+                                    , accumulated =
+                                        reduceOrInitializeWith (AndOr.Only (Or.Second (secondStackFilled |> Stack.top)))
+                                            |> Just
+                                    }
+
+        secondAccumulated :
+            { secondRemainder : Emptiable (Stacked secondElement) Possibly
+            , accumulated : accumulated
+            }
+        secondAccumulated =
+            first.tree
+                |> Tree2.foldFromOne
+                    (\firstStart ->
+                        secondAccumulate firstStart
+                            { secondRemainder =
+                                second.tree
+                                    |> Tree2.toStack
+                                    |> Emptiable.emptyAdapt (\_ -> Possible)
+                            , accumulated = Nothing
+                            }
+                    )
+                    Up
+                    (\firstElement soFar ->
+                        secondAccumulate firstElement
+                            { accumulated = soFar.accumulated |> Just
+                            , secondRemainder = soFar.secondRemainder
+                            }
+                    )
+    in
+    secondAccumulated.secondRemainder
+        |> Stack.foldFrom secondAccumulated.accumulated
+            Up
+            (\secondRemainderElement soFar ->
+                soFar |> reduce (AndOr.Only (Or.Second secondRemainderElement))
+            )
+
+
+fold2From :
+    (( key, key ) -> Order)
+    -> folded
+    ->
+        (AndOr firstElement secondElement
+         -> (folded -> folded)
+        )
+    ->
+        (And
+            { key : firstElement -> key
+            , tree : Emptiable (Tree2.Branch firstElement) firstPossiblyOrNever_
+            }
+            { key : secondElement -> key
+            , tree :
+                Emptiable (Tree2.Branch secondElement) secondPossiblyOrNever_
+            }
+         -> folded
+        )
+fold2From keyOrder initial reduce =
+    \( first, second ) ->
+        case first.tree of
+            Emptiable.Empty _ ->
+                second.tree
+                    |> Tree2.foldFrom initial
+                        Up
+                        (\el -> el |> Or.Second |> AndOr.Only |> reduce)
+
+            Emptiable.Filled firstBranch ->
+                ( { tree = firstBranch |> filled
+                  , key = first.key
+                  }
+                , second
+                )
+                    |> fold2FromOne
+                        keyOrder
+                        (\start -> initial |> reduce start)
+                        reduce

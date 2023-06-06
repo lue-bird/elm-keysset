@@ -37,7 +37,7 @@ keys =
         |> Keys.by ( .flag, flag )
             (String.Order.earlier Char.Order.unicode)
         |> Keys.by ( .code, code )
-            (String.Order.earlier (Char.Order.alphabetically Order.tie))
+            (String.Order.earlier (Char.Order.aToZ Order.tie))
 ```
 
 [`KeysSet`](KeysSet#KeysSet) holds no functions, so the [`Keys`](Keys#Keys) have to be supplied on every operation.
@@ -65,8 +65,8 @@ code =
 
 type alias CountryKeys =
     -- you can just infer this
-    { flag : Key Country (Order.By Flag (String.Order.Earlier Char.Order.Unicode)) (Up N1 To N1)
-    , code : Key Country (Order.By Code (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))) (Up N0 To N1)
+    { flag : Key Country (Order.By Flag (String.Order.Earlier Char.Order.Unicode)) N2
+    , code : Key Country (Order.By Code (String.Order.Earlier (Char.Order.AToZ Order.Tie))) N2
     }
 ```
 
@@ -97,7 +97,7 @@ alongside other [goodies](#goodies)
 
     [`emptiness-typed`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/) lets us conveniently use one API
     for both non-empty and emptiable types.
-  - the types of key counts like `N2` and indexes like `Up N0 To N1` can be found in [`bounded-nat`](https://dark.elm.dmy.fr/packages/lue-bird/elm-bounded-nat/latest/). No need to understand the details; type inference has your back.
+  - the types of key counts like `N2` can be found in [`bounded-nat`](https://dark.elm.dmy.fr/packages/lue-bird/elm-bounded-nat/latest/). No need to understand the details; type inference has your back.
   - Wanna dig a bit deeper? Giving an [`Ordering`](Order#Ordering) or [`Mapping`](Map#Mapping) a unique tag is enabled by [`typed-value`](https://dark.elm.dmy.fr/packages/lue-bird/elm-typed-value/latest/): convenient control of reading and writing for tagged things.
 
 ### another example: operator
@@ -122,11 +122,11 @@ operatorKeys =
         |> Keys.by ( .symbol, symbol )
             (String.Order.earlier Char.Order.unicode)
         |> Keys.by ( .name, name )
-            (String.Order.earlier (Char.Order.alphabetically Order.tie))
+            (String.Order.earlier (Char.Order.aToZ Order.tie))
 
 type alias OperatorKeys =
-    { symbol : Key Operator (Order.By Symbol (String.Order.Earlier Char.Order.Unicode)) String (Up N1 To N1)
-    , name : Key Operator (Order.By Name (String.Order.Earlier Char.Order.Alphabetically (Order.Tie))) String (Up N0 To N1)
+    { symbol : Key Operator (Order.By Symbol (String.Order.Earlier Char.Order.Unicode)) String N2
+    , name : Key Operator (Order.By Name (String.Order.Earlier Char.Order.AToZ (Order.Tie))) String N2
     }
 
 operators : Emptiable (KeysSet Operator OperatorKeys N2) never_
@@ -166,13 +166,13 @@ type alias ConversationStep =
     { youSay : String, answer : String }
 
 type alias ByYouSay =
-    { youSay : Key ConversationStep (Order.By YouSay (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))) String (Up N0 To N0) }
+    { youSay : Key ConversationStep (Order.By YouSay (String.Order.Earlier (Char.Order.AToZ Order.Tie))) String (Up N0 To N0) }
 
 youSayKey : Keys ConversationStep ByYouSay N1
 youSayKey =
     Keys.for (\youSay_ -> { youSay = youSay_ })
         |> Keys.by ( .youSay, youSay )
-            (String.Order.earlier (Char.Order.alphabetically Order.tie))
+            (String.Order.earlier (Char.Order.aToZ Order.tie))
 
 answers : Emptiable (KeysSet ConversationStep ByYouSay N1) Possibly
 answers =
@@ -249,11 +249,11 @@ keys =
     Keys.for (\email_ name_ -> { email = email_, name = name_ })
        |> Keys.by ( .email, email ) Email.byHostFirst
        |> Keys.by ( .name, name )
-            (String.Order.earlier (Char.Order.alphabetically Order.tie))
+            (String.Order.earlier (Char.Order.aToZ Order.tie))
 
 type alias Keys =
     { email : Key User (Order.By EmailTag Email.ByHostFirst) Email (Up N1 To N1)
-    , name : Key User (Order.By NameTag (String.Order.Earlier (Char.Order.Alphabetically Order.Tie))) String (Up N0 To N1)
+    , name : Key User (Order.By NameTag (String.Order.Earlier (Char.Order.AToZ Order.Tie))) String (Up N0 To N1)
     }
 ```
 ```elm
@@ -263,16 +263,16 @@ type alias Email =
 
 type alias ByHostFirst =
     Order.OnTieNext
-        (Order.By Email.HostTag (String.Order.Earlier (Char.Order.Alphabetically Order.Tie)))
-        (Order.By Email.LabelTag (String.Order.Earlier (Char.Order.Alphabetically Order.Tie)))
+        (Order.By Email.HostTag (String.Order.Earlier (Char.Order.AToZ Order.Tie)))
+        (Order.By Email.LabelTag (String.Order.Earlier (Char.Order.AToZ Order.Tie)))
 
 byHostFirst : Ordering Email ByHostFirst 
 byHostFirst =
     Order.by Email.host
-        (String.Order.earlier (Char.Order.alphabetically Order.tie))
+        (String.Order.earlier (Char.Order.aToZ Order.tie))
         |> Order.onTie
             (Order.by Email.label
-                (String.Order.earlier (Char.Order.alphabetically Order.tie))
+                (String.Order.earlier (Char.Order.aToZ Order.tie))
             )
 ```
 
@@ -336,8 +336,8 @@ reactTo event =
 ```elm
 partnerKeys =
     Keys.for
-        (\partner partnerOfPartner ->
-            { partner = partner, partnerForPartner = partnerForPartner }
+        (\partner_ partnerOfPartner_ ->
+            { partner = partner_, partnerOfPartner = partnerOfPartner_ }
         )
         |> Keys.by ( .partner, partner )
             (String.Order...)

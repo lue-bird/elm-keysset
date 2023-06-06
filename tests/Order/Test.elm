@@ -21,10 +21,10 @@ suite =
           in
           Test.fuzz
             (Fuzz.pair unicodeNonLetter unicodeNonLetter)
-            "non-letter: Char.Order.alphabetically = compare"
+            "non-letter: Char.Order.aToZ = compare"
             (\( char0, char1 ) ->
                 Order.with
-                    (Char.Order.alphabetically Char.Order.upperLower)
+                    (Char.Order.aToZ Char.Order.upperLower)
                     char0
                     char1
                     |> Expect.equal

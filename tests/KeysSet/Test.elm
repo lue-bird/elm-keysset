@@ -1,6 +1,7 @@
 module KeysSet.Test exposing (suite)
 
-import ArraySized
+import AndOr
+import ArraySized exposing (ArraySized)
 import Atom
 import BracketPair exposing (BracketPair)
 import Character exposing (Character)
@@ -13,7 +14,8 @@ import KeysSet.Internal
 import Linear exposing (Direction(..))
 import List.Extra
 import List.Linear
-import N exposing (Add1, N2, n0, n1)
+import N exposing (Add1, Exactly, N2, On, n1)
+import Or
 import Possibly exposing (Possibly(..))
 import Stack
 import Test exposing (Test, describe, fuzz, fuzz2, test)
@@ -77,31 +79,36 @@ treeToString =
 
 validate :
     String
-    -> Keys element keys (Add1 lastIndex)
+    -> Keys element keys (Add1 keyCountFrom1)
     ->
-        (Emptiable (KeysSet element keys (Add1 lastIndex)) Possibly
+        (Emptiable (KeysSet element keys (Add1 keyCountFrom1)) Possibly
          -> Result String ()
         )
 validate context keys =
     \keysSet ->
         let
+            keysArray :
+                ArraySized
+                    (( element, element ) -> Order)
+                    (Exactly (On (Add1 keyCountFrom1)))
             keysArray =
                 keys |> Keys.toArray
         in
         keysArray
-            |> ArraySized.and
-                (ArraySized.upTo (keysArray |> ArraySized.length |> N.subtract n1))
+            |> ArraySized.andIndexes
             |> ArraySized.map
-                (\( order, index ) ->
+                (\order ->
                     let
                         tree =
-                            keysSet |> Emptiable.mapFlat (KeysSet.Internal.treeForIndex index)
+                            keysSet
+                                |> Emptiable.mapFlat
+                                    (KeysSet.Internal.treeForElement (ArraySized.element ( Up, order.index )))
                     in
-                    case tree |> validateHelp order of
+                    case tree |> validateHelp order.element of
                         Err error ->
                             [ error
                             , " for index "
-                            , index |> N.toString
+                            , order.index |> N.toString
                             , " in\n\n"
                             , tree |> treeToString
                             ]
@@ -123,7 +130,7 @@ validate context keys =
                                         "[]"
 
                                     Emptiable.Filled fill ->
-                                        fill |> KeysSet.Internal.treeForIndex n0 |> Tree2.foldFrom [] Down (::) |> List.map Debug.toString |> String.join " "
+                                        fill |> KeysSet.Internal.treeForElement (ArraySized.element ( Up, n1 )) |> Tree2.foldFrom [] Down (::) |> List.map Debug.toString |> String.join " "
                                 , " :\n\n"
                                 , keysSet |> Debug.toString
                                 , "\n\nwhere the tree instead is\n"
@@ -301,7 +308,7 @@ alterSuite =
         , insertIfNoCollisionSuite
         , insertReplacingCollisionsSuite
         , mapSuite
-        , mapTrySuite
+        , fillsMapSuite
         , removeSuite
         ]
 
@@ -850,7 +857,7 @@ removeSuite =
                                                         "empty"
 
                                                     Emptiable.Filled keysSetFill ->
-                                                        keysSetFill |> KeysSet.Internal.treeForIndex n1 |> treeToString
+                                                        keysSetFill |> KeysSet.Internal.treeForElement (ArraySized.element ( Up, n1 )) |> treeToString
                                                 , "\n\n"
                                                 , error
                                                 ]
@@ -946,9 +953,9 @@ mapSuite =
         ]
 
 
-mapTrySuite : Test
-mapTrySuite =
-    describe "mapTry"
+fillsMapSuite : Test
+fillsMapSuite =
+    describe "fillsMap"
         [ test "hardcoded filter"
             (\() ->
                 KeysSet.fromList Character.keys
@@ -958,7 +965,7 @@ mapTrySuite =
                     , { id = 5, char = 'D' }
                     , { id = 2, char = 'E' }
                     ]
-                    |> KeysSet.mapTry
+                    |> KeysSet.fillsMap
                         (\element ->
                             if element.id > 3 || element.char == 'B' then
                                 element |> filled
@@ -1134,13 +1141,13 @@ fold2FromSuite =
                     soFar
                         |> (::)
                             (case toBeMerged of
-                                KeysSet.First first ->
+                                AndOr.Only (Or.First first) ->
                                     (first.id |> String.fromInt) ++ (first.char |> String.fromChar)
 
-                                KeysSet.Second second ->
+                                AndOr.Only (Or.Second second) ->
                                     String.fromList (List.repeat second.id second.char)
 
-                                KeysSet.FirstSecond ( first, second ) ->
+                                AndOr.Both ( first, second ) ->
                                     String.fromList (List.repeat first.id first.char)
                                         ++ ((second.id |> String.fromInt)
                                                 ++ (second.char |> String.fromChar)
@@ -1151,15 +1158,13 @@ fold2FromSuite =
     describe "fold2From"
         [ test "hardcoded second is empty"
             (\() ->
-                { first =
-                    { key = ( Character.keys, .id )
-                    , set = KeysSet.one { id = 0, char = 'A' }
-                    }
-                , second =
-                    { key = ( Character.keys, .id )
-                    , set = Emptiable.empty
-                    }
-                }
+                ( { key = ( Character.keys, .id )
+                  , set = KeysSet.one { id = 0, char = 'A' }
+                  }
+                , { key = ( Character.keys, .id )
+                  , set = Emptiable.empty
+                  }
+                )
                     |> testFold2
                     |> Expect.equalLists
                         [ "0A"
@@ -1167,15 +1172,13 @@ fold2FromSuite =
             )
         , test "hardcoded first is empty"
             (\() ->
-                { first =
-                    { key = ( Character.keys, .id )
-                    , set = Emptiable.empty
-                    }
-                , second =
-                    { key = ( Character.keys, .id )
-                    , set = KeysSet.one { id = 3, char = 'A' }
-                    }
-                }
+                ( { key = ( Character.keys, .id )
+                  , set = Emptiable.empty
+                  }
+                , { key = ( Character.keys, .id )
+                  , set = KeysSet.one { id = 3, char = 'A' }
+                  }
+                )
                     |> testFold2
                     |> Expect.equalLists
                         [ "AAA"
@@ -1183,28 +1186,26 @@ fold2FromSuite =
             )
         , test "hardcoded"
             (\() ->
-                testFold2
-                    { first =
-                        { key = ( Character.keys, .id )
-                        , set =
-                            KeysSet.fromList Character.keys
-                                [ { id = 2, char = 'C' }
-                                , { id = 3, char = 'd' }
-                                , { id = 4, char = 'e' }
-                                , { id = 5, char = 'f' }
-                                ]
-                        }
-                    , second =
-                        { key = ( Character.keys, .id )
-                        , set =
-                            KeysSet.fromList Character.keys
-                                [ { id = 0, char = 'A' }
-                                , { id = 1, char = 'B' }
-                                , { id = 2, char = 'c' }
-                                , { id = 3, char = 'd' }
-                                ]
-                        }
-                    }
+                ( { key = ( Character.keys, .id )
+                  , set =
+                        KeysSet.fromList Character.keys
+                            [ { id = 2, char = 'C' }
+                            , { id = 3, char = 'd' }
+                            , { id = 4, char = 'e' }
+                            , { id = 5, char = 'f' }
+                            ]
+                  }
+                , { key = ( Character.keys, .id )
+                  , set =
+                        KeysSet.fromList Character.keys
+                            [ { id = 0, char = 'A' }
+                            , { id = 1, char = 'B' }
+                            , { id = 2, char = 'c' }
+                            , { id = 3, char = 'd' }
+                            ]
+                  }
+                )
+                    |> testFold2
                     |> Expect.equalLists
                         [ "5f"
                         , "4e"
@@ -1219,11 +1220,11 @@ fold2FromSuite =
 
 scanTest : Test
 scanTest =
-    describe "scan"
+    describe "observe"
         [ sizeSuite
         , elementSuite
         , endUpSuite
-        , endUpSuite
+        , endDownSuite
         ]
 
 
@@ -1368,8 +1369,10 @@ endUpSuite =
                         )
             )
         ]
-endUpSuite : Test
-endUpSuite =
+
+
+endDownSuite : Test
+endDownSuite =
     describe "end Down"
         [ fuzz Character.fuzz
             "one"

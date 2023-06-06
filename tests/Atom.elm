@@ -4,7 +4,7 @@ import Char.Order
 import Int.Order
 import Keys exposing (Key, Keys)
 import Map exposing (Mapping)
-import N exposing (N0, N1, N2, To, Up)
+import N exposing (N2)
 import Order
 import String.Order
 import Typed
@@ -17,17 +17,17 @@ type alias Keys =
             (Order.By
                 Symbol
                 (String.Order.Earlier
-                    (Char.Order.Alphabetically Char.Order.LowerUpper)
+                    (Char.Order.AToZ Char.Order.LowerUpper)
                 )
             )
             String
-            (Up N1 To N1)
+            N2
     , atomicNumber :
         Key
             Atom
-            (Order.By AtomicNumber Int.Order.Increasing)
+            (Order.By AtomicNumber Int.Order.Up)
             Int
-            (Up N0 To N1)
+            N2
     }
 
 
@@ -54,12 +54,12 @@ keys =
         )
         |> Keys.by ( .symbol, symbol )
             (String.Order.earlier
-                (Char.Order.alphabetically
+                (Char.Order.aToZ
                     Char.Order.lowerUpper
                 )
             )
         |> Keys.by ( .atomicNumber, atomicNumber )
-            Int.Order.increasing
+            Int.Order.up
 
 
 symbol : Mapping Atom Symbol String

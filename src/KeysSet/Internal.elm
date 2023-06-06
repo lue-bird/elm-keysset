@@ -1,23 +1,24 @@
-module KeysSet.Internal exposing (KeysSet(..), KeysSetTag, Multiple, fromMultiple, one, size, tagFor, tagForIdentity, toMultiple, treeForIndex)
+module KeysSet.Internal exposing (KeysSet(..), KeysSetTag, Multiple, fromMultiple, one, size, tagFor, tagForIdentity, toMultiple, treeForAnyElementTry, treeForElement)
 
 {-| Helps keeping the scope of unsafe operations like creating a tag narrow.
 This setup also improves testability (accessing internal trees for validation for example)
 -}
 
 import ArraySized exposing (ArraySized)
-import Emptiable exposing (Emptiable, fill, filled)
+import Emptiable exposing (Emptiable, fill)
 import Keys exposing (Key, Keys)
-import Linear exposing (Direction(..))
-import Map
-import N exposing (Add1, Exactly, In, N, N0, To, Up, n0)
+import Linear
+import N exposing (Exactly, On, n1)
 import Order
+import Possibly exposing (Possibly(..))
 import Tree2
 import Typed exposing (Checked, Public, Typed)
 
 
 type KeysSet element keys keyCount
     = One element
-    | Multiple (Multiple element keys keyCount)
+    | -- no guarantee that there will be >= 2 elements. Just >= 1 is guaranteed
+      Multiple (Multiple element keys keyCount)
 
 
 {-| Underlying representation of a [`KeysSet`](#KeysSet) with some elements
@@ -41,13 +42,15 @@ type KeysSetTag keys
     = KeysSet
 
 
-treeForIndex :
-    N (In min_ (Up maxToLastIndex_ To lastIndex))
+treeForElement :
+    (ArraySized (Tree2.Branch element) (Exactly (On keyCount))
+     -> Tree2.Branch element
+    )
     ->
-        (KeysSet element keys_ (Add1 lastIndex)
+        (KeysSet element keys_ keyCount
          -> Emptiable (Tree2.Branch element) never_
         )
-treeForIndex index =
+treeForElement element =
     \keysSet ->
         case keysSet of
             One singleElement ->
@@ -58,8 +61,27 @@ treeForIndex index =
                     |> Typed.untag
                     |> .byKeys
                     |> ArraySized.inToOn
-                    |> ArraySized.element ( Up, index )
+                    |> element
                     |> Emptiable.filled
+
+
+treeForAnyElementTry :
+    KeysSet element keys_ keyCount_
+    -> Emptiable (Tree2.Branch element) Possibly
+treeForAnyElementTry =
+    \keysSetFill ->
+        case keysSetFill of
+            One singleElement ->
+                singleElement |> Tree2.one
+
+            Multiple multiple ->
+                multiple
+                    |> Typed.untag
+                    |> .byKeys
+                    |> ArraySized.inToOn
+                    |> ArraySized.elementTry ( Linear.Up, n1 )
+                    |> Emptiable.map Emptiable.filled
+                    |> Emptiable.fillElseOnEmpty (\Possible -> Emptiable.empty)
 
 
 tagFor : Keys element_ keys keyCount_ -> KeysSetTag keys
@@ -71,7 +93,7 @@ tagForIdentity :
     ( Keys element keys keyCount_
     , keys -> Key element (Order.By toKeyTag_ orderTag) key index_
     )
-    -> KeysSetTag (Key key (Order.By Map.Identity orderTag) key (Up N0 To N0))
+    -> KeysSetTag (Keys.Identity key orderTag)
 tagForIdentity _ =
     KeysSet
 
@@ -105,22 +127,22 @@ one singleElement =
     One singleElement
 
 
-fromMultiple : Multiple element keys (Add1 lastIndex) -> KeysSet element keys (Add1 lastIndex)
+fromMultiple : Multiple element keys keyCount -> KeysSet element keys keyCount
 fromMultiple =
     \multipleLike ->
-        case multipleLike |> Typed.untag |> .size of
-            1 ->
-                multipleLike
-                    |> Typed.untag
-                    |> .byKeys
-                    |> ArraySized.inToOn
-                    |> ArraySized.element ( Up, n0 )
-                    |> filled
-                    |> Tree2.trunk
-                    |> One
-
-            _ ->
-                multipleLike |> Multiple
+        -- case multipleLike |> Typed.untag |> .size of
+        --     1 ->
+        --         multipleLike
+        --             |> Typed.untag
+        --             |> .byKeys
+        --             |> ArraySized.inToOn
+        --             |> ArraySized.element ( Up, n0 )
+        --             |> filled
+        --             |> Tree2.trunk
+        --             |> One
+        --
+        --     _ ->
+        multipleLike |> Multiple
 
 
 size : KeysSet element_ keys_ lastIndex_ -> Int

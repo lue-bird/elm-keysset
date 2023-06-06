@@ -3,7 +3,7 @@ module User exposing (ByEmail, User, byEmail)
 import Char.Order
 import Keys exposing (Keys)
 import Map exposing (Mapping)
-import N exposing (N0, N1, To, Up)
+import N exposing (N1)
 import Order
 import String.Order
 import Typed
@@ -20,12 +20,9 @@ type alias ByEmail =
     { email :
         Keys.Key
             User
-            (Order.By
-                Email
-                (String.Order.Earlier (Char.Order.Alphabetically Char.Order.LowerUpper))
-            )
+            (Order.By Email (String.Order.Earlier (Char.Order.AToZ Char.Order.LowerUpper)))
             String
-            (Up N0 To N0)
+            N1
     }
 
 
@@ -38,7 +35,7 @@ byEmail =
     Keys.for (\email_ -> { email = email_ })
         |> Keys.by ( .email, email )
             (String.Order.earlier
-                (Char.Order.alphabetically Char.Order.lowerUpper)
+                (Char.Order.aToZ Char.Order.lowerUpper)
             )
 
 

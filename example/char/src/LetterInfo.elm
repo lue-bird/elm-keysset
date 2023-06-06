@@ -16,9 +16,9 @@ type alias LetterInfo =
 
 
 type alias Keys =
-    { lowercase : Keys.Key LetterInfo (Order.By Lowercase (Char.Order.Alphabetically Order.Tie)) Char (Up N2 To N2)
-    , uppercase : Keys.Key LetterInfo (Order.By Uppercase (Char.Order.Alphabetically Order.Tie)) Char (Up N1 To N2)
-    , inAlphabet : Keys.Key LetterInfo (Order.By InAlphabet Int.Order.Increasing) Int (Up N0 To N2)
+    { lowercase : Keys.Key LetterInfo (Order.By Lowercase (Char.Order.AToZ Order.Tie)) Char (Up N2 To N2)
+    , uppercase : Keys.Key LetterInfo (Order.By Uppercase (Char.Order.AToZ Order.Tie)) Char (Up N1 To N2)
+    , inAlphabet : Keys.Key LetterInfo (Order.By InAlphabet Int.Order.Up) Int (Up N0 To N2)
     }
 
 
@@ -28,9 +28,9 @@ keys =
         (\lowercase_ uppercase_ inAlphabet_ ->
             { lowercase = lowercase_, uppercase = uppercase_, inAlphabet = inAlphabet_ }
         )
-        |> Keys.by ( .lowercase, lowercase ) (Char.Order.alphabetically Order.tie)
-        |> Keys.by ( .uppercase, uppercase ) (Char.Order.alphabetically Order.tie)
-        |> Keys.by ( .inAlphabet, inAlphabet ) Int.Order.increasing
+        |> Keys.by ( .lowercase, lowercase ) (Char.Order.aToZ Order.tie)
+        |> Keys.by ( .uppercase, uppercase ) (Char.Order.aToZ Order.tie)
+        |> Keys.by ( .inAlphabet, inAlphabet ) Int.Order.up
 
 
 type Lowercase

@@ -3,6 +3,7 @@ module Tree2 exposing
     , one, branch
     , size, height, children, trunk, end
     , childrenDownAlter, childrenUpAlter, removeEnd, map
+    , toStack
     , foldFrom, foldFromOne
     , foldUntilCompleteFrom, foldUntilCompleteFromOne
     , foldNavigateFrom
@@ -32,6 +33,7 @@ module Tree2 exposing
 
 ## transform
 
+@docs toStack
 @docs foldFrom, foldFromOne
 @docs foldUntilCompleteFrom, foldUntilCompleteFromOne
 @docs foldNavigateFrom
@@ -42,6 +44,7 @@ import Emptiable exposing (Emptiable(..), empty, emptyAdapt, fill, filled)
 import Linear exposing (Direction(..))
 import PartialOrComplete exposing (PartialOrComplete)
 import Possibly exposing (Possibly(..))
+import Stack exposing (Stacked)
 
 
 {-| Binary tree with at least one element
@@ -632,6 +635,18 @@ foldFromOne firstToInitial direction reduce =
                 )
                 direction
                 reduce
+
+
+toStack :
+    Emptiable (Branch element) possiblyOrNever
+    -> Emptiable (Stacked element) possiblyOrNever
+toStack =
+    \tree ->
+        tree
+            |> Emptiable.mapFlat
+                (\branch_ ->
+                    branch_ |> filled |> foldFromOne Stack.one Down Stack.onTopLay
+                )
 
 
 foldFrom :

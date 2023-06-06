@@ -28,7 +28,7 @@ type EarlierTag
     import Int.Order
     import List.Order
 
-    Order.with (List.Order.earlier Int.Order.increasing)
+    Order.with (List.Order.earlier Int.Order.up)
         [ 11, 22, 33, 188 ]
         [ 11, 22, 34 ]
     --> LT

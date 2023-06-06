@@ -1,8 +1,8 @@
-module Float.Order exposing (increasing, Increasing, decreasing)
+module Float.Order exposing (up, Up, down)
 
 {-| `Order` `Float`s
 
-@docs increasing, Increasing, decreasing
+@docs up, Up, down
 
 -}
 
@@ -10,33 +10,33 @@ import Order exposing (Ordering)
 import Typed
 
 
-{-| Tag for [`increasing`](#increasing)
+{-| Tag for [`up`](#up)
 -}
-type Increasing
-    = Increasing
+type Up
+    = Up
 
 
 {-| `Order` `Float`s where lower means greater
 
     import Order
 
-    Order.with Float.Order.increasing 40.34 2.1
+    Order.with Float.Order.up 40.34 2.1
     --> GT
 
 -}
-increasing : Ordering Float Increasing
-increasing =
-    Typed.tag Increasing (\( a, b ) -> compare a b)
+up : Ordering Float Up
+up =
+    Typed.tag Up (\( a, b ) -> compare a b)
 
 
 {-| `Order` `Float`s where higher means greater
 
     import Order
 
-    Order.with Float.Order.decreasing 2.1 40.34
+    Order.with Float.Order.down 2.1 40.34
     --> GT
 
 -}
-decreasing : Ordering Float (Order.Reverse Increasing)
-decreasing =
-    increasing |> Order.reverse
+down : Ordering Float (Order.Reverse Up)
+down =
+    up |> Order.reverse

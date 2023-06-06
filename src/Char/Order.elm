@@ -2,7 +2,7 @@ module Char.Order exposing
     ( Case(..)
     , lowerUpper, LowerUpper, upperLower
     , unicode, Unicode
-    , alphabetically, Alphabetically, AlphabeticallyTag
+    , aToZ, AToZ, AToZTag
     )
 
 {-| `Order` `Char`s
@@ -21,7 +21,7 @@ module Char.Order exposing
 ## [`Order`](Order#Ordering)
 
 @docs unicode, Unicode
-@docs alphabetically, Alphabetically, AlphabeticallyTag
+@docs aToZ, AToZ, AToZTag
 
 -}
 
@@ -75,43 +75,43 @@ type Case
     | CaseUpper
 
 
-{-| Tag for [`alphabetically`](#alphabetically)
+{-| Tag for [`aToZ`](#aToZ)
 -}
-type alias Alphabetically caseOrder =
-    ( AlphabeticallyTag, caseOrder )
+type alias AToZ caseOrder =
+    ( AToZTag, caseOrder )
 
 
-{-| Wrapper tag for [`Alphabetically`](#Alphabetically)
+{-| Wrapper tag for [`AToZ`](#AToZ)
 -}
-type AlphabeticallyTag
-    = Alphabetically
+type AToZTag
+    = AToZ
 
 
 {-| `Order` `Char`s
 
-  - Both are letters → `Order` alphabetically
+  - Both are letters → `Order` ascii-alphabetically (a < ... < z)
       - They're the same letter? → a given [`Ordering`](Order#Ordering) on their [cases](#Case)
   - Both aren't letters → `Order` [according to unicode char code](#unicode)
   - Only one is a letter → the letter is considered greater
 
 ```
-Order.with (Char.Order.alphabetically Char.Order.upperLower) 'b' 'D'
+Order.with (Char.Order.aToZ Char.Order.upperLower) 'b' 'D'
 --> LT
 
-Order.with (Char.Order.alphabetically Char.Order.upperLower) 'l' 'L'
+Order.with (Char.Order.aToZ Char.Order.upperLower) 'l' 'L'
 --> GT
 
-Order.with (Char.Order.alphabetically Char.Order.upperLower) 'i' '!'
+Order.with (Char.Order.aToZ Char.Order.upperLower) 'i' '!'
 --> GT
 
-Order.with (Char.Order.alphabetically Char.Order.upperLower) '-' '!'
+Order.with (Char.Order.aToZ Char.Order.upperLower) '-' '!'
 --> Order.with Char.Order.unicode '-' '!'
 ```
 
 -}
-alphabetically : Ordering Case charOrderTag -> Ordering Char (Alphabetically charOrderTag)
-alphabetically caseOrdering =
-    Typed.mapToWrap Alphabetically
+aToZ : Ordering Case charOrderTag -> Ordering Char (AToZ charOrderTag)
+aToZ caseOrdering =
+    Typed.mapToWrap AToZ
         (\caseOrder ( char0, char1 ) ->
             case ( char0 |> charCase, char1 |> charCase ) of
                 ( Just case0, Just case1 ) ->

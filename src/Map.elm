@@ -86,7 +86,7 @@ type alias Mapping unmapped mapTag mapped =
 
 [`Altering`](#Altering) can be used to simplify argument and result types
 
-    module User.Map exposing (onHead)
+    -- module User.Map exposing (onHead)
 
     import Map
 

@@ -52,30 +52,30 @@ All without `comparable`, `number`, ...
 
     type alias NameOrder =
         String.Order.Earlier
-            (Char.Order.Alphabetically Char.Order.LowerUpper)
+            (Char.Order.AToZ Char.Order.LowerUpper)
 
     type alias Order =
         Order.NextOnTie
             (Order.By LastName NameOrder)
             (Order.NextOnTie
                 (Order.By FirstName NameOrder)
-                (Order.By Age Order.Int.Increasing)
+                (Order.By Age Order.Int.Up)
             )
 
     order : Ordering User Order
     order =
         Order.by lastName
             (String.Order.earlier
-                (Char.Order.alphabetically Char.Order.lowerUpper)
+                (Char.Order.aToZ Char.Order.lowerUpper)
             )
             |> Order.onTie
                 (Order.by .firstName
                     (String.Order.earlier
-                        (Char.Order.alphabetically Char.Order.lowerUpper)
+                        (Char.Order.aToZ Char.Order.lowerUpper)
                     )
                 )
             |> Order.onTie
-                (Order.by .age Int.Order.increasing)
+                (Order.by .age Int.Order.up)
 
     [ User { firstName = "Andy", lastName = "Baldwin", age = 90 }
     , User { firstName = "Bert", lastName = "Anderson", age = 23 }
@@ -234,13 +234,13 @@ type ByTag
     [ { name = "Bo" }, { name = "Amy" }, { name = "Cam" } ]
         |> (List.sortWith << Order.with)
             (Order.by name
-                (String.Order.earlier (Char.Order.alphabetically Order.tie))
+                (String.Order.earlier (Char.Order.aToZ Order.tie))
             )
     --> [ { name = "Amy" }, { name = "Bo" }, { name = "Cam" } ]
 
     {-| `Order` `Tuple.first`, then on tie `Tuple.second`
 
-        Order.tuple ( Int.Order.increasing, Int.Order.increasing ) ( 0, 2 ) ( 0, -2 )
+        Order.tuple ( Int.Order.up, Int.Order.up ) ( 0, 2 ) ( 0, -2 )
         --→ GT
     -}
     tuple :
@@ -273,7 +273,7 @@ type ByTag
         Order.by (\(User user) -> user)
             (Order.by .name
                 (String.Order.earlier
-                    (Char.Order.alphabetically Char.Order.lowerUpper)
+                    (Char.Order.aToZ Char.Order.lowerUpper)
                 )
             )
 
@@ -297,7 +297,7 @@ type ByTag
                     Lower ->
                         1
             )
-            Int.Order.increasing
+            Int.Order.up
 
 neat!
 
@@ -336,7 +336,8 @@ In comparison to [`Order.by`](#by), mapping can produce `Nothing` in which case 
 
 Continue by adding all possibilities with [`Order.onTie`](#onTie)
 
-    module Card exposing (Card(..), CardNormal, order)
+    -- module Card exposing (Card(..), CardNormal, order)
+
 
     import Order exposing (Ordering)
     import RecordWithoutConstructorFunction exposing (RecordWithoutConstructorFunction)
@@ -570,11 +571,11 @@ tricks elm into not creating a `Card` function)
             )
 
     type SuiteOrder =
-        Order.By SuiteToInt Int.Order.Increasing
+        Order.By SuiteToInt Int.Order.Up
 
     suiteOrder : Ordering Suite SuiteOrder
     suiteOrder =
-        Order.by suiteToInt Int.Order.increasing
+        Order.by suiteToInt Int.Order.up
 
 [`onTie`](#onTie) can also be used to order different variants and values → see [`on`](#on)
 
@@ -632,14 +633,14 @@ type ReverseTag
     [ "b", "c", "a" ]
         |> (List.sortWith << Order.with)
             (String.Order.earlier
-                (Char.Order.alphabetically Order.tie)
+                (Char.Order.aToZ Order.tie)
             )
     --> [ "a", "b", "c" ]
 
     [ "b", "c", "a" ]
         |> (List.sortWith << Order.with)
             (String.Order.earlier
-                (Char.Order.alphabetically Order.tie)
+                (Char.Order.aToZ Order.tie)
                 |> Order.reverse
             )
     --> [ "c", "b", "a" ]

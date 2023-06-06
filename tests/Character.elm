@@ -5,7 +5,7 @@ import Fuzz exposing (Fuzzer)
 import Int.Order
 import Keys exposing (Keys)
 import Map exposing (Mapping)
-import N exposing (N0, N1, N2, To, Up)
+import N exposing (N2)
 import Order
 import Typed
 
@@ -17,8 +17,8 @@ type alias Character =
 
 
 type alias Keys =
-    { id : Keys.Key Character (Order.By Id Int.Order.Increasing) Int (Up N1 To N1)
-    , char : Keys.Key Character (Order.By CharTag (Char.Order.Alphabetically Char.Order.LowerUpper)) Char (Up N0 To N1)
+    { id : Keys.Key Character (Order.By Id Int.Order.Up) Int N2
+    , char : Keys.Key Character (Order.By CharTag (Char.Order.AToZ Char.Order.LowerUpper)) Char N2
     }
 
 
@@ -33,9 +33,9 @@ type CharTag
 keys : Keys.Keys Character Keys N2
 keys =
     Keys.for (\id_ char_ -> { id = id_, char = char_ })
-        |> Keys.by ( .id, id ) Int.Order.increasing
+        |> Keys.by ( .id, id ) Int.Order.up
         |> Keys.by ( .char, char )
-            (Char.Order.alphabetically Char.Order.lowerUpper)
+            (Char.Order.aToZ Char.Order.lowerUpper)
 
 
 id : Mapping Character Id Int

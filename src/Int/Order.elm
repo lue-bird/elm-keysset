@@ -1,8 +1,12 @@
-module Int.Order exposing (increasing, Increasing, decreasing)
+module Int.Order exposing
+    ( up, Up
+    , down, Down
+    )
 
 {-| `Order` `Int`s
 
-@docs increasing, Increasing, decreasing
+@docs up, Up
+@docs down, Down
 
 -}
 
@@ -10,33 +14,39 @@ import Order exposing (Ordering)
 import Typed
 
 
-{-| Tag for [`increasing`](#increasing)
+{-| Tag for [`up`](#up)
 -}
-type Increasing
-    = Increasing
+type Up
+    = Up
 
 
 {-| `Order` `Int`s where lower means greater
 
     import Order
 
-    Order.with Int.Order.increasing 40 2
+    Order.with Int.Order.up 40 2
     --> GT
 
 -}
-increasing : Ordering Int Increasing
-increasing =
-    Typed.tag Increasing (\( a, b ) -> compare a b)
+up : Ordering Int Up
+up =
+    Typed.tag Up (\( a, b ) -> compare a b)
+
+
+{-| Tag for [`down`](#down)
+-}
+type alias Down =
+    Order.Reverse Up
 
 
 {-| `Order` `Int`s where higher means greater
 
     import Order
 
-    Order.with Int.Order.decreasing 2 40
+    Order.with Int.Order.down 2 40
     --> GT
 
 -}
-decreasing : Ordering Int (Order.Reverse Increasing)
-decreasing =
-    increasing |> Order.reverse
+down : Ordering Int Down
+down =
+    up |> Order.reverse
