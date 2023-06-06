@@ -914,12 +914,9 @@ toKeys ( keys, key ) =
 
 {-| Convert to a `List`
 
-    import N exposing (Up, To, N0)
     import Stack
     import Keys exposing (Keys, Key)
     import KeysSet
-    import Map
-    import Order
     import Char.Order
     import String.Order
 
@@ -965,9 +962,7 @@ toList ( keys, key ) =
 
 {-| Convert to a `List` sorted by a given key
 
-    import N exposing (Up, To, N0)
     import Stack
-    import Map
     import Order
     import Char.Order
     import String.Order
@@ -996,10 +991,7 @@ The cool thing is that information about (non-)emptiness is carried over to the 
 
 Use this to fold over its elements
 
-    import N exposing (Up, To, N0)
-    import Map
     import Stack
-    import Order
     import Int.Order
     import Keys exposing (Keys, Key)
     import KeysSet
@@ -1133,6 +1125,7 @@ foldFromAnyOrder initial reduce =
 
 
 {-| Try to change each element based on its current value.
+Often, this is called "filterMap"
 
 Runtime `n * log n` just like [`KeysSet.map`](#map) because mapped keys could be different
 

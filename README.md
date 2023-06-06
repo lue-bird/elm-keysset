@@ -111,7 +111,7 @@ import Order
 import String.Order
 import Char.Order
 import Map exposing (Mapping)
-import N exposing (Up, To, N0, N1, N2)
+import N exposing (N2)
 
 type alias Operator =
     { symbol : String, name : String, kind : OperatorKind }
@@ -166,7 +166,7 @@ type alias ConversationStep =
     { youSay : String, answer : String }
 
 type alias ByYouSay =
-    { youSay : Key ConversationStep (Order.By YouSay (String.Order.Earlier (Char.Order.AToZ Order.Tie))) String (Up N0 To N0) }
+    { youSay : Key ConversationStep (Order.By YouSay (String.Order.Earlier (Char.Order.AToZ Order.Tie))) String N1 }
 
 youSayKey : Keys ConversationStep ByYouSay N1
 youSayKey =
@@ -198,6 +198,7 @@ answers =
 import Emptiable exposing (Emptiable)
 import Stack
 import KeysSet exposing (KeysSet)
+import N exposing (N2)
 import User exposing (User(..))
 
 exampleUsers : Emptiable (KeysSet User User.Keys N2) never_
@@ -221,6 +222,12 @@ exampleUsers |> KeySet.element User.keys ..ann@mail.xyz..
 -- module User exposing (User(..), Keys, keys)
 
 import KeySet
+import Keys
+import Order
+import String.Order
+import Char.Order
+import Map exposing (Mapping)
+import N exposing (N2)
 import Email
 
 type User
@@ -233,14 +240,14 @@ type User
 type EmailTag
     = Email
 
-email : Map User EmailTag Email
+email : Mapping User EmailTag Email
 email =
     Map.tag Email (\(User userData) -> userData.email)
 
 type NameTag
     = Name
 
-name : Map User NameTag String
+name : Mapping User NameTag String
 name =
     Map.tag Name (\(User userData) -> userData.name)
 
@@ -252,8 +259,8 @@ keys =
             (String.Order.earlier (Char.Order.aToZ Order.tie))
 
 type alias Keys =
-    { email : Key User (Order.By EmailTag Email.ByHostFirst) Email (Up N1 To N1)
-    , name : Key User (Order.By NameTag (String.Order.Earlier (Char.Order.AToZ Order.Tie))) String (Up N0 To N1)
+    { email : Key User (Order.By EmailTag Email.ByHostFirst) Email N2
+    , name : Key User (Order.By NameTag (String.Order.Earlier (Char.Order.AToZ Order.Tie))) String N2
     }
 ```
 ```elm
@@ -280,6 +287,7 @@ byHostFirst =
 import KeysSet exposing (KeysSet)
 import Emptiable exposing (Emptiable)
 import Possibly exposing (Possibly)
+import N exposing (N2)
 
 type alias State =
     { users : Emptiable (KeysSet User UserKeys N2) Possibly
