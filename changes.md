@@ -6,6 +6,16 @@
     - `fold` remove
     - `foldFrom`, `foldFromOne` aren't order-independent anymore. Instead they now take a key and direction
     - `foldUntilCompleteFrom`, `foldUntilCompleteFromOne` add
+    - `mapTry` name → `fillsMap`
+    - `toKeys` return keys as `Keys.Identity`
+- `Keys`
+    - each key stores an access function instead of an index
+    - `keyIndex` → `keyElement`
+- `Char.Order`
+    - alphabetically name → aToZ
+- `Int.Order`, `Float.Order`
+    - increasing → up, decreasing → down
+- `typesafe-array` upgrade to >= 31.0.0
 
 #### 3.0.4
 
