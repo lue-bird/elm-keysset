@@ -3,7 +3,7 @@
     "name": "lue-bird/elm-keysset",
     "summary": "lookup for multiple arbitrary keys. safe. log n",
     "license": "MIT",
-    "version": "3.0.4",
+    "version": "4.0.0",
     "exposed-modules": [
         "KeysSet",
         "Keys",
@@ -19,12 +19,13 @@
     "dependencies": {
         "elm/core": "1.0.0 <= v < 2.0.0",
         "lue-bird/elm-allowable-state": "1.0.2 <= v < 2.0.0",
-        "lue-bird/elm-bounded-nat": "33.1.0 <= v < 34.0.0",
+        "lue-bird/elm-and-or": "1.0.0 <= v < 2.0.0",
+        "lue-bird/elm-bounded-nat": "33.2.0 <= v < 34.0.0",
         "lue-bird/elm-emptiness-typed": "9.1.2 <= v < 10.0.0",
         "lue-bird/elm-linear-direction": "11.0.0 <= v < 12.0.0",
         "lue-bird/elm-partial-or-complete": "1.0.0 <= v < 2.0.0",
         "lue-bird/elm-typed-value": "8.2.0 <= v < 9.0.0",
-        "lue-bird/elm-typesafe-array": "30.0.0 <= v < 31.0.0"
+        "lue-bird/elm-typesafe-array": "31.0.0 <= v < 32.0.0"
     },
     "test-dependencies": {
         "elm-community/list-extra": "8.7.0 <= v < 9.0.0",
