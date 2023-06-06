@@ -6,6 +6,8 @@
     - `fold` remove
     - `foldFrom`, `foldFromOne` aren't order-independent anymore. Instead they now take a key and direction
     - `foldUntilCompleteFrom`, `foldUntilCompleteFromOne` add
+    - fold2s use [`AndOr`](https://dark.elm.dmy.fr/packages/lue-bird/elm-and-or/latest/)
+    - `fold2FromOne` add
     - `mapTry` name → `fillsMap`
     - `toKeys` return keys as `Keys.Identity`
 - `Keys`
