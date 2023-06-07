@@ -1,5 +1,9 @@
 # change log
 
+#### 4.0.1
+
+- `typesafe-array` upgrade to >= 32.0.0
+
 ## 4.0.0
 
 - `KeysSet`
