@@ -11,6 +11,7 @@ import Emptiable exposing (Emptiable, filled)
 import Html exposing (Html, text)
 import Html.Attributes
 import Html.Events exposing (onInput)
+import Keys exposing (key)
 import KeysSet exposing (KeysSet)
 import LetterInfo exposing (LetterInfo)
 import N exposing (N2, N3)
@@ -92,12 +93,12 @@ reactTo msg model =
                                     beforeNew =
                                         text |> String.left textMatchLength
                                 in
-                                case brackets |> KeysSet.element ( Bracket.keys, .open ) new of
+                                case brackets |> KeysSet.element (key .open Bracket.keys) new of
                                     Emptiable.Filled { closed } ->
                                         beforeNew ++ String.fromList [ new, closed ] ++ afterNew
 
                                     Emptiable.Empty _ ->
-                                        case brackets |> KeysSet.element ( Bracket.keys, .closed ) new of
+                                        case brackets |> KeysSet.element (key .closed Bracket.keys) new of
                                             Emptiable.Filled { open } ->
                                                 beforeNew ++ String.fromList [ open, new ] ++ afterNew
 
@@ -115,13 +116,13 @@ reactTo msg model =
                                     beforeRemoved =
                                         model.textInOpenCloseBrackets |> String.left textMatchLength
                                 in
-                                case brackets |> KeysSet.element ( Bracket.keys, .open ) removed of
+                                case brackets |> KeysSet.element (key .open Bracket.keys) removed of
                                     Emptiable.Filled bracket ->
                                         beforeRemoved
                                             ++ (afterRemoved |> removeFirstIndex (bracket.closed |> String.fromChar))
 
                                     Emptiable.Empty _ ->
-                                        case brackets |> KeysSet.element ( Bracket.keys, .closed ) removed of
+                                        case brackets |> KeysSet.element (key .closed Bracket.keys) removed of
                                             Emptiable.Filled bracket ->
                                                 (beforeRemoved |> removeLastIndex (bracket.open |> String.fromChar))
                                                     ++ afterRemoved
@@ -269,17 +270,17 @@ letterInfos =
 
 casedLetterByLowercase : Char -> Emptiable LetterInfo Possibly
 casedLetterByLowercase char =
-    letterInfos |> KeysSet.element ( LetterInfo.keys, .lowercase ) char
+    letterInfos |> KeysSet.element (key .lowercase LetterInfo.keys) char
 
 
 casedLetterByUppercase : Char -> Emptiable LetterInfo Possibly
 casedLetterByUppercase char =
-    letterInfos |> KeysSet.element ( LetterInfo.keys, .uppercase ) char
+    letterInfos |> KeysSet.element (key .uppercase LetterInfo.keys) char
 
 
 casedLetterInAlphabet : Int -> Emptiable LetterInfo Possibly
 casedLetterInAlphabet inAlphabet =
-    letterInfos |> KeysSet.element ( LetterInfo.keys, .inAlphabet ) inAlphabet
+    letterInfos |> KeysSet.element (key .inAlphabet LetterInfo.keys) inAlphabet
 
 
 brackets : Emptiable (KeysSet Bracket Bracket.Keys N2) Possibly

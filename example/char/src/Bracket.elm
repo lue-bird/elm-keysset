@@ -12,8 +12,8 @@ type alias Bracket =
 
 
 type alias Keys =
-    { open : Key Bracket (Order.By Open Char.Order.Unicode) Char (Up N1 To N1)
-    , closed : Key Bracket (Order.By Closed Char.Order.Unicode) Char (Up N0 To N1)
+    { open : Key Bracket (Order.By Open Char.Order.Unicode) Char N2
+    , closed : Key Bracket (Order.By Closed Char.Order.Unicode) Char N2
     }
 
 
