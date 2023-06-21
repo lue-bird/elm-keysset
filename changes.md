@@ -1,5 +1,17 @@
 # change log
 
+## 5.0.0
+
+- `KeysSet`
+    - `IdentitySet` add
+    - switch from `( keys, keysToKey )` to `key keysToKey keys` where the `key keysToKey`
+      isn't necessary if there's just one key
+- `Keys`
+    - `KeysWithFocus`, `KeysBeingBuiltWithFocus` add
+    - `key` add
+    - switch from `( keys, keysToKey )` to `key keysToKey keys` where the `key keysToKey`
+      isn't necessary if there's just one key
+
 #### 4.0.2
 
 - `typesafe-array` upgrade to >= 33.0.0
