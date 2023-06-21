@@ -6,7 +6,7 @@ This setup also improves testability (accessing internal trees for validation fo
 
 import ArraySized exposing (ArraySized)
 import Emptiable exposing (Emptiable, fill)
-import Keys exposing (Key, Keys)
+import Keys exposing (IdentityKeys, Key, Keys, KeysWithFocus)
 import Linear
 import N exposing (Exactly, On, n1)
 import Order
@@ -84,22 +84,20 @@ treeForAnyElementTry =
                     |> Emptiable.fillElseOnEmpty (\Possible -> Emptiable.empty)
 
 
-tagFor : Keys element_ keys keyCount_ -> KeysSetTag keys
+tagFor : KeysWithFocus element_ keys focus_ keyCount_ -> KeysSetTag keys
 tagFor _ =
     KeysSet
 
 
 tagForIdentity :
-    ( Keys element keys keyCount_
-    , keys -> Key element (Order.By toKeyTag_ orderTag) key index_
-    )
-    -> KeysSetTag (Keys.Identity key orderTag)
+    KeysWithFocus element keys (Key element (Order.By toKeyTag_ orderTag) key index_) keyCount_
+    -> KeysSetTag (IdentityKeys key orderTag)
 tagForIdentity _ =
     KeysSet
 
 
 toMultiple :
-    Keys element keys keyCount
+    KeysWithFocus element keys focus_ keyCount
     ->
         (KeysSet element keys keyCount
          -> Multiple element keys keyCount

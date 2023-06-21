@@ -17,13 +17,11 @@ type alias User =
 
 
 type alias ByEmail =
-    { email :
-        Keys.Key
-            User
-            (Order.By Email (String.Order.Earlier (Char.Order.AToZ Char.Order.LowerUpper)))
-            String
-            N1
-    }
+    Keys.Key
+        User
+        (Order.By Email (String.Order.Earlier (Char.Order.AToZ Char.Order.LowerUpper)))
+        String
+        N1
 
 
 type Email
@@ -32,11 +30,10 @@ type Email
 
 byEmail : Keys User ByEmail N1
 byEmail =
-    Keys.for (\email_ -> { email = email_ })
-        |> Keys.by ( .email, email )
-            (String.Order.earlier
-                (Char.Order.aToZ Char.Order.lowerUpper)
-            )
+    Keys.oneBy email
+        (String.Order.earlier
+            (Char.Order.aToZ Char.Order.lowerUpper)
+        )
 
 
 email : Mapping User Email String

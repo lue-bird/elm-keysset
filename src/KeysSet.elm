@@ -1,5 +1,5 @@
 module KeysSet exposing
-    ( KeysSet
+    ( KeysSet, IdentitySet
     , one
     , fromStack, fromList
     , size, element, end
@@ -16,7 +16,7 @@ module KeysSet exposing
 
 {-| Lookup with multiple [`Keys`](Keys#Keys)
 
-@docs KeysSet
+@docs KeysSet, IdentitySet
 
   - [`element`](#element), [`end`](#end), [insert](#insertIfNoCollision) versions, [elementAlter](#elementAlterIfNoCollision) versions, [`remove`](#remove) are runtime `log n`
   - [`size`](#size) is runtime `1`
@@ -70,11 +70,12 @@ import And exposing (And)
 import AndOr exposing (AndOr)
 import ArraySized exposing (ArraySized)
 import Emptiable exposing (Emptiable(..), emptyAdapt, fill, filled)
-import Keys exposing (Key, Keys, keyOrderWith, toKeyWith)
+import Keys exposing (IdentityKeys, Key, Keys, KeysWithFocus, keyOrderWith, toKeyWith)
 import Keys.Internal exposing (keyElement)
 import KeysSet.Internal
 import Linear exposing (Direction(..))
 import List.Linear
+import Map
 import N exposing (Add1, Exactly, N1, On, n1)
 import Order
 import PartialOrComplete exposing (PartialOrComplete)
@@ -87,7 +88,7 @@ import Typed
 
 {-| 🗃️ Non-empty AVL-tree-based look-up. Elements and keys can be of any type
 
-    import KeysSet exposing (KeysSet)
+    import KeysSet exposing (KeySet)
     import Stack
     import User exposing (User(..))
 
@@ -110,7 +111,6 @@ where
     import Keys exposing (Key, Keys)
     import KeysSet
     import Map exposing (Mapping)
-    import N exposing (N1)
     import Order
     import String.Order
 
@@ -122,33 +122,59 @@ where
 
     name : Mapping User Name String
     name =
-        Map.tag Data (\(User userData) -> userData.name)
+        Map.tag Name (\(User userData) -> userData.name)
 
     type alias ByName =
-        { name :
-            Key
-                User
-                (Order.By
-                    Name
-                    (String.Order.Earlier
-                        (Char.Order.AToZ Char.Order.LowerUpper)
-                    )
+        Keys.Key
+            User
+            (Order.By
+                Name
+                (String.Order.Earlier
+                    (Char.Order.AToZ Char.Order.LowerUpper)
                 )
-                String
-                N1
-        }
+            )
+            String
+            N1
 
     byName : Keys User ByName N1
     byName =
-        Keys.for (\name_ -> { name = name_ })
-            |> Keys.by ( identity, Map.identity )
-                (String.Order.earlier
-                    (Char.Order.aToZ Char.Order.lowerUpper)
-                )
+        Keys.oneBy name
+            (String.Order.earlier
+                (Char.Order.aToZ Char.Order.lowerUpper)
+            )
 
 -}
 type alias KeysSet element keys keyCount =
     KeysSet.Internal.KeysSet element keys keyCount
+
+
+{-| Use [`IdentitySet`](#IdentitySet)
+when you just want a `Set` with non-comparable element.
+
+The type allows you to just annotate a [`KeysSet`](#KeysSet)
+without creating an alias for the [keys](Keys#Key):
+
+    import Stack
+    import Int.Order
+    import Keys exposing (IdentityKeys)
+    import KeysSet exposing (IdentitySet)
+    import Linear exposing (Direction(..))
+    import Emptiable exposing (Emptiable)
+
+    intUp : IdentityKeys Int Int.Order.Up
+    intUp =
+        Keys.identity Int.Order.up
+
+    sumbers : Emptiable (IdentitySet Int Int.Order.Up) never_
+    sumbers =
+        KeysSet.fromStack intUp (Stack.topBelow 345 [ 234, 543 ])
+
+    sumbers |> KeysSet.toStack intUp
+    --> Stack.topBelow 234 [ 345, 543 ]
+
+-}
+type alias IdentitySet element elementOrderTag =
+    KeysSet element (Keys.Key element (Order.By Map.Identity elementOrderTag) element N1) N1
 
 
 {-| [`KeysSet`](#KeysSet) containing a single given element.
@@ -243,9 +269,7 @@ size =
 
 
 tree :
-    ( Keys element keys keyCount
-    , keys -> Key element key_ by_ keyCount
-    )
+    KeysWithFocus element keys (Key element key_ by_ keyCount) keyCount
     ->
         (KeysSet element keys keyCount
          -> Emptiable (Tree2.Branch element) never_
@@ -279,18 +303,16 @@ If no element with the given key is not present, `Emptiable.empty`
         | Cat
 
     type alias ByName =
-        { name :
-            Key
-                Animal
-                (Order.By
-                    Name
-                    (String.Order.Earlier
-                        (Char.Order.AToZ Char.Order.LowerUpper)
-                    )
+        Keys.Key
+            Animal
+            (Order.By
+                Name
+                (String.Order.Earlier
+                    (Char.Order.AToZ Char.Order.LowerUpper)
                 )
-                String
-                N1
-        }
+            )
+            String
+            N1
 
     animals : Emptiable (KeysSet Animal ByName N1) never_
     animals =
@@ -310,43 +332,40 @@ If no element with the given key is not present, `Emptiable.empty`
 
     animalByName : Keys Animal ByName N1
     animalByName =
-        Keys.for (\name_ -> { name = name_ })
-            |> Keys.by ( .name, name )
-                (String.Order.earlier
-                    (Char.Order.aToZ Char.Order.lowerUpper)
-                )
+        Keys.oneBy name
+            (String.Order.earlier
+                (Char.Order.aToZ Char.Order.lowerUpper)
+            )
 
-    animals |> KeysSet.element ( animalByName, .name ) "Tom" |> Emptiable.map .kind
+    animals |> KeysSet.element animalByName "Tom" |> Emptiable.map .kind
     --> filled Cat
 
-    animals |> KeysSet.element ( animalByName, .name ) "Jerry" |> Emptiable.map .kind
+    animals |> KeysSet.element animalByName "Jerry" |> Emptiable.map .kind
     --> filled Mouse
 
-    animals |> KeysSet.element ( animalByName, .name ) "Spike" |> Emptiable.map .kind
+    animals |> KeysSet.element animalByName "Spike" |> Emptiable.map .kind
     --> Emptiable.empty
 
 -}
 element :
-    ( Keys element keys keyCount
-    , keys -> Key element by_ key keyCount
-    )
+    KeysWithFocus element keys (Key element by_ key keyCount) keyCount
     -> key
     ->
         (Emptiable (KeysSet element keys keyCount) possiblyOrNever_
          -> Emptiable element Possibly
         )
-element ( keys, key ) keyToAccess =
+element key keyToAccess =
     \keysSet ->
         keysSet
             |> Emptiable.emptyAdapt (\_ -> Possible)
             |> Emptiable.mapFlat
                 (\info ->
                     info
-                        |> tree ( keys, key )
+                        |> tree key
                         |> Tree2.Sorted.treeElement
                             (\el ->
-                                ( keyToAccess, el |> toKeyWith ( keys, key ) )
-                                    |> keyOrderWith ( keys, key )
+                                ( keyToAccess, el |> toKeyWith key )
+                                    |> keyOrderWith key
                             )
                 )
 
@@ -374,10 +393,10 @@ element ( keys, key ) keyToAccess =
                 ]
             )
 
-    users |> KeysSet.end ( userByName, .name ) Down
+    users |> KeysSet.end userByName Down
     --> { name = "Alia", age = 28, height = 1.69 }
 
-    users |> KeysSet.end ( userByName, .name ) Up
+    users |> KeysSet.end userByName Up
     --> { name = "Chucki", age = 33, height = 1.75 }
 
     type alias User =
@@ -387,18 +406,16 @@ element ( keys, key ) keyToAccess =
         }
 
     type alias ByName =
-        { name :
-            Key
-                User
-                (Order.By
-                    Name
-                    (String.Order.Earlier
-                        (Char.Order.AToZ Char.Order.LowerUpper)
-                    )
+        Keys.Key
+            User
+            (Order.By
+                Name
+                (String.Order.Earlier
+                    (Char.Order.AToZ Char.Order.LowerUpper)
                 )
-                String
-                N1
-        }
+            )
+            String
+            N1
 
     type Name
         = Name -- not exposed
@@ -409,11 +426,10 @@ element ( keys, key ) keyToAccess =
 
     userByName : Keys User ByName N1
     userByName =
-        Keys.for (\name_ -> { name = name_ })
-            |> Keys.by ( .name, name )
-                (String.Order.earlier
-                    (Char.Order.aToZ Char.Order.lowerUpper)
-                )
+        Keys.oneBy name
+            (String.Order.earlier
+                (Char.Order.aToZ Char.Order.lowerUpper)
+            )
 
 Notice how we safely avoided returning a `Maybe`
 through the use of [`Emptiable ... Never`](https://dark.elm.dmy.fr/packages/lue-bird/elm-emptiness-typed/latest/Emptiable)
@@ -421,24 +437,22 @@ through the use of [`Emptiable ... Never`](https://dark.elm.dmy.fr/packages/lue-
 If you don't know whether the [`KeysSet`](#KeysSet) will be empty
 
     users
-        |> Emptiable.map (filled >> KeysSet.end ( userByName, .name ) Down)
+        |> Emptiable.map (filled >> KeysSet.end userByName Down)
     --: Emptiable element Possibly
 
 -}
 end :
-    ( Keys element keys keyCount
-    , keys -> Key element key_ by_ keyCount
-    )
+    KeysWithFocus element keys (Key element key_ by_ keyCount) keyCount
     -> Linear.Direction
     ->
         (Emptiable (KeysSet element keys keyCount) Never
          -> element
         )
-end ( keys, key ) direction =
+end key direction =
     \keysSet ->
         keysSet
             |> fill
-            |> tree ( keys, key )
+            |> tree key
             |> Tree2.end direction
 
 
@@ -479,7 +493,7 @@ fillInsertOnNoCollision keys toInsert =
 
 
 elementCollisions :
-    Keys element keys keyCount
+    KeysWithFocus element keys focus_ keyCount
     -> element
     ->
         (KeysSet element keys keyCount
@@ -521,6 +535,7 @@ To replace collisions instead → [`insertReplacingCollisions`](#insertReplacing
 
     import BracketPair
     import Emptiable
+    import Keys exposing (key)
 
     Emptiable.empty
         |> KeysSet.insertIfNoCollision BracketPair.keys
@@ -529,7 +544,7 @@ To replace collisions instead → [`insertReplacingCollisions`](#insertReplacing
             { open = 'c', closed = 'A' }
         |> KeysSet.insertIfNoCollision BracketPair.keys
             { open = 'c', closed = 'C' }
-        |> KeysSet.toList ( BracketPair.keys, .open )
+        |> KeysSet.toList (key .open BracketPair.keys)
     --> [ { open = 'b', closed = 'C' }, { open = 'c', closed = 'A' } ]
 
 -}
@@ -567,6 +582,7 @@ To keep collisions instead → [`insertIfNoCollision`](#insertIfNoCollision)
 
     import BracketPair
     import Emptiable
+    import Keys exposing (key)
 
     Emptiable.empty
         |> KeysSet.insertReplacingCollisions BracketPair.keys
@@ -575,7 +591,7 @@ To keep collisions instead → [`insertIfNoCollision`](#insertIfNoCollision)
             { open = 'c', closed = 'A' }
         |> KeysSet.insertReplacingCollisions BracketPair.keys
             { open = 'c', closed = 'C' }
-        |> KeysSet.toList ( BracketPair.keys, .open )
+        |> KeysSet.toList (key .open BracketPair.keys)
     --> [ { open = 'c', closed = 'C' } ]
 
 -}
@@ -685,6 +701,7 @@ exceptTree keys exceptions =
 If the key is not found, no changes are made
 
     import Character
+    import Keys exposing (key)
 
     KeysSet.fromList Character.keys
         [ { id = 0, char = 'A' }
@@ -692,25 +709,23 @@ If the key is not found, no changes are made
         ]
         |> KeysSet.insertIfNoCollision Character.keys
             { id = 2, char = 'C' }
-        |> KeysSet.remove ( Character.keys, .id ) 2
-        |> KeysSet.toList ( Character.keys, .id )
+        |> KeysSet.remove (key .id Character.keys) 2
+        |> KeysSet.toList (key .id Character.keys)
     --> [ { id = 0, char = 'A' }
     --> , { id = 1, char = 'B' }
     --> ]
 
 -}
 remove :
-    ( Keys element keys keyCount
-    , keys -> Key element by_ key keyCount
-    )
+    KeysWithFocus element keys (Key element by_ key keyCount) keyCount
     -> key
     ->
         (Emptiable (KeysSet element keys keyCount) possiblyOrNever_
          -> Emptiable (KeysSet element keys keyCount) Possibly
         )
-remove ( keys, key ) keyToRemove =
+remove key keyToRemove =
     \keysSet ->
-        case keysSet |> element ( keys, key ) keyToRemove of
+        case keysSet |> element key keyToRemove of
             Emptiable.Empty _ ->
                 keysSet |> Emptiable.emptyAdapt (\_ -> Possible)
 
@@ -722,13 +737,13 @@ remove ( keys, key ) keyToRemove =
                             let
                                 multipleLike : KeysSet.Internal.Multiple element keys keyCount
                                 multipleLike =
-                                    keysSetFill |> KeysSet.Internal.toMultiple keys
+                                    keysSetFill |> KeysSet.Internal.toMultiple key
                             in
                             multipleLike
                                 |> Typed.untag
                                 |> .byKeys
                                 |> ArraySized.and
-                                    (keys
+                                    (key
                                         |> Keys.toArray
                                         |> ArraySized.inToNumber
                                     )
@@ -749,7 +764,7 @@ remove ( keys, key ) keyToRemove =
                                                     , byKeys = byKeysResult
                                                     }
                                                 )
-                                            |> Typed.toChecked (KeysSet.Internal.tagFor keys)
+                                            |> Typed.toChecked (KeysSet.Internal.tagFor key)
                                             |> KeysSet.Internal.fromMultiple
                                     )
                         )
@@ -760,18 +775,19 @@ Only actually alter the element if the result doesn't have existing elements wit
 To replace collisions with the result instead → [`elementAlterReplacingCollisions`](#elementAlterReplacingCollisions)
 
     import Character
+    import Keys exposing (key)
 
     KeysSet.fromList Character.keys
         [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
-        |> KeysSet.elementAlterIfNoCollision ( Character.keys, .id )
+        |> KeysSet.elementAlterIfNoCollision (key .id Character.keys)
             1
             (\c -> { c | char = 'C' })
             -- gets changed
-        |> KeysSet.elementAlterIfNoCollision ( Character.keys, .id )
+        |> KeysSet.elementAlterIfNoCollision (key .id Character.keys)
             1
             (\c -> { c | id = 0 })
             -- doesn't get changed
-        |> KeysSet.toList ( Character.keys, .id )
+        |> KeysSet.toList (key .id Character.keys)
         --> [ { id = 0, char = 'A' }, { id = 1, char = 'C' } ]
 
 If you want to sometimes [`remove`](#remove)
@@ -782,18 +798,16 @@ and operate as you like
 
 -}
 elementAlterIfNoCollision :
-    ( Keys element keys keyCount
-    , keys -> Key element by_ key keyCount
-    )
+    KeysWithFocus element keys (Key element by_ key keyCount) keyCount
     -> key
     -> (element -> element)
     ->
         (Emptiable (KeysSet element keys keyCount) possiblyOrNever
          -> Emptiable (KeysSet element keys keyCount) possiblyOrNever
         )
-elementAlterIfNoCollision ( keys, key ) keyToAlter elementChange =
+elementAlterIfNoCollision key keyToAlter elementChange =
     \keysSet ->
-        case keysSet |> element ( keys, key ) keyToAlter of
+        case keysSet |> element key keyToAlter of
             Emptiable.Empty _ ->
                 keysSet
 
@@ -807,18 +821,18 @@ elementAlterIfNoCollision ( keys, key ) keyToAlter elementChange =
                     collisionsTree =
                         keysSet
                             |> Emptiable.emptyAdapt (\_ -> Possible)
-                            |> Emptiable.mapFlat (elementCollisions keys elementAltered)
+                            |> Emptiable.mapFlat (elementCollisions key elementAltered)
                 in
                 if (collisionsTree |> Tree2.size) >= 2 then
                     keysSet
 
                 else
-                    case keysSet |> remove ( keys, key ) keyToAlter of
+                    case keysSet |> remove key keyToAlter of
                         Emptiable.Empty _ ->
                             elementAltered |> one
 
                         Emptiable.Filled removed ->
-                            removed |> fillInsertOnNoCollision keys elementAltered
+                            removed |> fillInsertOnNoCollision (Keys.key identity key) elementAltered
 
 
 {-| Change the element with a given key in a given way
@@ -826,18 +840,19 @@ If the result has existing elements with a matching key (collisions), replace th
 To not alter the element if there are collisions with the result instead → [`elementAlterIfNoCollision`](#elementAlterIfNoCollision)
 
     import Character
+    import Keys exposing (key)
 
     KeysSet.fromList Character.keys
         [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
-        |> KeysSet.elementAlterIfNoCollision ( Character.keys, .id )
+        |> KeysSet.elementAlterIfNoCollision (key .id Character.keys)
             1
             (\c -> { c | char = 'C' })
             -- gets changed
-        |> KeysSet.elementAlterIfNoCollision ( Character.keys, .id )
+        |> KeysSet.elementAlterIfNoCollision (key .id Character.keys)
             1
             (\c -> { c | id = 0 })
             -- doesn't get changed
-        |> KeysSet.toList ( Character.keys, .id )
+        |> KeysSet.toList (key .id Character.keys)
         --> [ { id = 0, char = 'A' }, { id = 1, char = 'C' } ]
 
 If you want to sometimes [`remove`](#remove)
@@ -848,18 +863,16 @@ and operate as you like
 
 -}
 elementAlterReplacingCollisions :
-    ( Keys element keys keyCount
-    , keys -> Key element by_ key keyCount
-    )
+    KeysWithFocus element keys (Key element by_ key keyCount) keyCount
     -> key
     -> (element -> element)
     ->
         (Emptiable (KeysSet element keys keyCount) possiblyOrNever
          -> Emptiable (KeysSet element keys keyCount) possiblyOrNever
         )
-elementAlterReplacingCollisions ( keys, key ) keyToAlter elementChange =
+elementAlterReplacingCollisions key keyToAlter elementChange =
     \keysSet ->
-        case keysSet |> element ( keys, key ) keyToAlter of
+        case keysSet |> element key keyToAlter of
             Emptiable.Empty _ ->
                 keysSet
 
@@ -870,25 +883,23 @@ elementAlterReplacingCollisions ( keys, key ) keyToAlter elementChange =
                         elementToAlter |> elementChange
                 in
                 keysSet
-                    |> remove ( keys, key ) keyToAlter
-                    |> insertReplacingCollisions keys elementAltered
+                    |> remove key keyToAlter
+                    |> insertReplacingCollisions (Keys.key identity key) elementAltered
 
 
 {-| A [`KeysSet`](#KeysSet) sorted by the identity of one of the keys of the original set.
 Runtime is O(n).
 -}
 toKeys :
-    ( Keys element keys keyCount
-    , keys -> Key element (Order.By toKeyTag_ keyOrderTag) key keyCount
-    )
+    KeysWithFocus element keys (Key element (Order.By toKeyTag_ keyOrderTag) key keyCount) keyCount
     ->
         (Emptiable (KeysSet element keys keyCount) possiblyOrNever
          ->
             Emptiable
-                (KeysSet key (Keys.Identity key keyOrderTag) N1)
+                (KeysSet key (IdentityKeys key keyOrderTag) N1)
                 possiblyOrNever
         )
-toKeys ( keys, key ) =
+toKeys key =
     \keysSet ->
         keysSet
             |> Emptiable.map
@@ -896,18 +907,18 @@ toKeys ( keys, key ) =
                     let
                         info : { size : Int, byKeys : ArraySized (Tree2.Branch element) (Exactly keyCount) }
                         info =
-                            keysSetFill |> KeysSet.Internal.toMultiple keys |> Typed.untag
+                            keysSetFill |> KeysSet.Internal.toMultiple key |> Typed.untag
                     in
                     { size = info.size
                     , byKeys =
                         keysSetFill
-                            |> tree ( keys, key )
-                            |> Tree2.map (Keys.toKeyWith ( keys, key ))
+                            |> tree key
+                            |> Tree2.map (Keys.toKeyWith key)
                             |> fill
                             |> ArraySized.one
                             |> ArraySized.inToNumber
                     }
-                        |> Typed.tag (KeysSet.Internal.tagForIdentity ( keys, key ))
+                        |> Typed.tag (KeysSet.Internal.tagForIdentity key)
                         |> KeysSet.Internal.fromMultiple
                 )
 
@@ -915,26 +926,26 @@ toKeys ( keys, key ) =
 {-| Convert to a `List`
 
     import Stack
-    import Keys exposing (Keys, Key)
+    import Keys exposing (IdentityKeys, Key)
     import KeysSet
     import Char.Order
     import String.Order
 
-    nameAlphabetical : Keys.Identity String (String.Order.Earlier (Char.Order.AToZ Char.Order.LowerUpper))
-    nameAlphabetical =
+    nameAToZ : IdentityKeys String (String.Order.Earlier (Char.Order.AToZ Char.Order.LowerUpper))
+    nameAToZ =
         Keys.identity
             (String.Order.earlier
                 (Char.Order.aToZ Char.Order.lowerUpper)
             )
 
-    KeysSet.fromStack nameAlphabetical
+    KeysSet.fromStack nameAToZ
         (Stack.topBelow "Bob" [ "Alice" ])
-        |> KeysSet.toList ( nameAlphabetical, identity )
+        |> KeysSet.toList nameAToZ
     --> [ "Alice", "Bob" ]
 
-    KeysSet.fromStack nameAlphabetical
+    KeysSet.fromStack nameAToZ
         (Stack.topBelow "Bob" [ "Alice" ])
-        |> KeysSet.toList ( nameAlphabetical, identity )
+        |> KeysSet.toList nameAToZ
         |> List.reverse
     --> [ "Bob", "Alice" ]
 
@@ -944,16 +955,14 @@ Using `==` on [`KeysSet`](#KeysSet)s will be slower than [`toList`](#toList) if 
 
 -}
 toList :
-    ( Keys element keys keyCount
-    , keys -> Key element key_ by_ keyCount
-    )
+    KeysWithFocus element keys (Key element key_ by_ keyCount) keyCount
     ->
         (Emptiable (KeysSet element keys keyCount) possiblyOrNever_
          -> List element
         )
-toList ( keys, key ) =
+toList key =
     \keysSet ->
-        keysSet |> foldFrom ( keys, key ) [] Down (::)
+        keysSet |> foldFrom key [] Down (::)
 
 
 
@@ -969,21 +978,21 @@ toList ( keys, key ) =
     import Keys exposing (Keys, Key)
     import KeysSet
 
-    nameAlphabetical : Keys.Identity String (String.Order.Earlier (Char.Order.AToZ Char.Order.LowerUpper))
-    nameAlphabetical =
+    nameAToZ : IdentityKeys String (String.Order.Earlier (Char.Order.AToZ Char.Order.LowerUpper))
+    nameAToZ =
         Keys.identity
             (String.Order.earlier
                 (Char.Order.aToZ Char.Order.lowerUpper)
             )
 
-    KeysSet.fromStack nameAlphabetical
+    KeysSet.fromStack nameAToZ
         (Stack.topBelow "Bob" [ "Alice" ])
-        |> KeysSet.toStack ( nameAlphabetical, identity )
+        |> KeysSet.toStack nameAToZ
     --> Stack.topBelow "Alice" [ "Bob" ]
 
-    KeysSet.fromStack nameAlphabetical
+    KeysSet.fromStack nameAToZ
         (Stack.topBelow "Bob" [ "Alice", "Christoph" ])
-        |> KeysSet.toStack ( nameAlphabetical, identity )
+        |> KeysSet.toStack nameAToZ
         |> Stack.reverse
     --> Stack.topBelow "Christoph" [ "Bob", "Alice" ]
 
@@ -993,31 +1002,29 @@ Use this to fold over its elements
 
     import Stack
     import Int.Order
-    import Keys exposing (Keys, Key)
+    import Keys exposing (IdentityKeys)
     import KeysSet
     import Linear exposing (Direction(..))
 
-    intUp : Keys.Identity Int Int.Order.Up
+    intUp : IdentityKeys Int Int.Order.Up
     intUp =
         Keys.identity Int.Order.up
 
     KeysSet.fromStack intUp
         (Stack.topBelow 345 [ 234, 543 ])
-        |> KeysSet.toStack ( intUp, identity )
+        |> KeysSet.toStack intUp
     --> Stack.topBelow 234 [ 345, 543 ]
     --  the type knows it's never empty
 
     KeysSet.fromStack intUp
         (Stack.topBelow 1 [ 2, 8, 16 ])
-        |> KeysSet.toStack ( intUp, identity )
+        |> KeysSet.toStack intUp
         |> Stack.fold Down (\n soFar -> soFar - n)
     --> 5
 
 -}
 toStack :
-    ( Keys element keys keyCount
-    , keys -> Key element key_ by_ keyCount
-    )
+    KeysWithFocus element keys (Key element key_ by_ keyCount) keyCount
     ->
         (Emptiable (KeysSet element keys keyCount) possiblyOrNever
          -> Emptiable (Stacked element) possiblyOrNever
@@ -1177,26 +1184,24 @@ in a given [`Direction`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-di
     import Linear exposing (Direction(..))
     import Stack
     import Int.Order
-    import Keys
+    import Keys exposing (IdentityKeys)
     import KeysSet
 
     KeysSet.fromStack intUp
         (Stack.topBelow 234 [ 345, 543 ])
-        |> KeysSet.foldFromOne ( intUp, identity )
+        |> KeysSet.foldFromOne intUp
             Stack.one
             Up
             Stack.onTopLay
     --> Stack.topBelow 543 [ 345, 234 ]
 
-    intUp : Keys.Identity Int Int.Order.Up
+    intUp : IdentityKeys Int Int.Order.Up
     intUp =
         Keys.identity Int.Order.up
 
 -}
 foldFromOne :
-    ( Keys element keys keyCount
-    , keys -> Key element key_ by_ keyCount
-    )
+    KeysWithFocus element keys (Key element key_ by_ keyCount) keyCount
     -> (element -> folded)
     -> Linear.Direction
     -> (element -> (folded -> folded))
@@ -1217,27 +1222,25 @@ in a given [`Direction`](https://dark.elm.dmy.fr/packages/lue-bird/elm-linear-di
     import Stack
     import Int.Order
     import KeysSet
-    import Keys
+    import Keys exposing (IdentityKeys)
 
     KeysSet.fromStack intUp
         (Stack.topBelow 234 [ 345, 543 ])
-        |> KeysSet.foldFrom ( intUp, identity ) [] Down (::)
+        |> KeysSet.foldFrom intUp [] Down (::)
     --> [ 234, 345, 543]
 
     KeysSet.fromStack intUp
         (Stack.topBelow 5 [ 7, -6 ])
-        |> KeysSet.foldFrom ( intUp, identity ) 0 Up (+)
+        |> KeysSet.foldFrom intUp 0 Up (+)
     --> 6
 
-    intUp : Keys.Identity Int Int.Order.Up
+    intUp : IdentityKeys Int Int.Order.Up
     intUp =
         Keys.identity Int.Order.up
 
 -}
 foldFrom :
-    ( Keys element keys keyCount
-    , keys -> Key element key_ by_ keyCount
-    )
+    KeysWithFocus element keys (Key element key_ by_ keyCount) keyCount
     -> folded
     -> Linear.Direction
     -> (element -> (folded -> folded))
@@ -1262,13 +1265,13 @@ a given reduce function returns a [`Complete`](https://dark.elm.dmy.fr/packages/
     import Stack
     import Int.Order
     import KeysSet
-    import Keys
+    import Keys exposing (IdentityKeys)
     -- from lue-bird/partial-or-complete
     import PartialOrComplete exposing (PartialOrComplete(..))
 
     KeysSet.fromList intUp [ 11, 21, 31, 41, 51 ]
         -- do we have a sum >= 100?
-        |> KeysSet.foldUntilCompleteFrom ( intUp, identity )
+        |> KeysSet.foldUntilCompleteFrom intUp
             0
             Up
             (\n sumSoFar ->
@@ -1282,15 +1285,13 @@ a given reduce function returns a [`Complete`](https://dark.elm.dmy.fr/packages/
     --> True
 
 
-    intUp : Keys.Identity Int Int.Order.Up
+    intUp : IdentityKeys Int Int.Order.Up
     intUp =
         Keys.identity Int.Order.up
 
 -}
 foldUntilCompleteFrom :
-    ( Keys element keys keyCount
-    , keys -> Key element key_ by_ keyCount
-    )
+    KeysWithFocus element keys (Key element key_ by_ keyCount) keyCount
     -> folded
     -> Linear.Direction
     -> (element -> (folded -> PartialOrComplete folded complete))
@@ -1316,14 +1317,14 @@ a given reduce function returns a [`Complete`](https://dark.elm.dmy.fr/packages/
     import Stack
     import Int.Order
     import KeysSet
-    import Keys
+    import Keys exposing (IdentityKeys)
     -- from lue-bird/partial-or-complete
     import PartialOrComplete exposing (PartialOrComplete(..))
 
     KeysSet.fromStack intUp
         (Stack.topBelow 11 [ 21, 31, 41, 51 ])
         -- take the last 3
-        |> KeysSet.foldUntilCompleteFromOne ( intUp, identity )
+        |> KeysSet.foldUntilCompleteFromOne intUp
             (\lastElement ->
                 { stack = lastElement |> Stack.one
                 , length = 1
@@ -1345,15 +1346,13 @@ a given reduce function returns a [`Complete`](https://dark.elm.dmy.fr/packages/
     --> Stack.topBelow 31 [ 41, 51 ]
 
 
-    intUp : Keys.Identity Int Int.Order.Up
+    intUp : IdentityKeys Int Int.Order.Up
     intUp =
         Keys.identity Int.Order.up
 
 -}
 foldUntilCompleteFromOne :
-    ( Keys element keys keyCount
-    , keys -> Key element key_ by_ keyCount
-    )
+    KeysWithFocus element keys (Key element key_ by_ keyCount) keyCount
     -> (element -> PartialOrComplete folded complete)
     -> Linear.Direction
     -> (element -> (folded -> PartialOrComplete folded complete))
@@ -1396,35 +1395,34 @@ unifyWith orderKey toCombineWith =
 {-| Keep each element whose key also appears in a given [`KeysSet`](#KeysSet)
 -}
 intersect :
-    ( Keys element keys keyCount
-    , keys -> Key element key_ by_ keyCount
-    )
+    KeysWithFocus element keys (Key element key_ by_ keyCount) keyCount
     -> Emptiable (KeysSet element keys keyCount) incomingPossiblyOrNever_
     ->
         (Emptiable (KeysSet element keys keyCount) possiblyOrNever_
          -> Emptiable (KeysSet element keys keyCount) Possibly
         )
-intersect ( keys, key ) toIntersectWith =
+intersect key toIntersectWith =
     \keysSet ->
         keysSet
             |> foldFromAnyOrder
                 (keysSet |> emptyAdapt (\_ -> Possible))
                 (\element_ ->
-                    case toIntersectWith |> element ( keys, key ) (element_ |> toKeyWith ( keys, key )) of
+                    case toIntersectWith |> element key (element_ |> toKeyWith key) of
                         Emptiable.Filled _ ->
                             identity
 
                         Emptiable.Empty _ ->
                             \intersectionSoFar ->
                                 intersectionSoFar
-                                    |> remove ( keys, key )
-                                        (element_ |> toKeyWith ( keys, key ))
+                                    |> remove key
+                                        (element_ |> toKeyWith key)
                 )
 
 
 {-| Keep only those elements whose keys don't appear in the given [`KeysSet`](#KeysSet)
 
     import Character
+    import Keys exposing (key)
 
     KeysSet.fromList Character.keys
         [ { id = 0, char = 'A' }
@@ -1432,37 +1430,35 @@ intersect ( keys, key ) toIntersectWith =
         , { id = 2, char = 'c' }
         , { id = 3, char = 'd' }
         ]
-        |> KeysSet.except ( Character.keys, .id )
+        |> KeysSet.except (key .id Character.keys)
             (KeysSet.fromList Character.keys
                 [ { id = 2, char = 'c' }
                 , { id = 3, char = 'd' }
                 , { id = 4, char = 'e' }
                 , { id = 5, char = 'f' }
                 ]
-                |> KeysSet.toKeys ( Character.keys, .id )
+                |> KeysSet.toKeys (key .id Character.keys)
             )
-        |> KeysSet.toList ( Character.keys, .id )
+        |> KeysSet.toList (key .id Character.keys)
     --> [ { id = 0, char = 'A' }
     --> , { id = 1, char = 'B' }
     --> ]
 
 -}
 except :
-    ( Keys element keys keyCount
-    , keys -> Key element by_ key keyCount
-    )
+    KeysWithFocus element keys (Key element by_ key keyCount) keyCount
     -> Emptiable (KeysSet key incomingKeys_ incomingKeyCount_) incomingPossiblyOrNever_
     ->
         (Emptiable (KeysSet element keys keyCount) possiblyOrNever_
          -> Emptiable (KeysSet element keys keyCount) Possibly
         )
-except ( keys, key ) toExcludeKeys =
+except key toExcludeKeys =
     \keysSet ->
         toExcludeKeys
             |> foldFromAnyOrder
                 (keysSet |> emptyAdapt (\_ -> Possible))
                 (\keyToExclude diffSoFar ->
-                    diffSoFar |> remove ( keys, key ) keyToExclude
+                    diffSoFar |> remove key keyToExclude
                 )
 
 
@@ -1491,18 +1487,22 @@ fold2From :
     ->
         (And
             { key :
-                ( Keys firstElement firstKeys firstKeyCount
-                , firstKeys -> Key firstElement firstBy_ key firstKeyCount
-                )
+                KeysWithFocus
+                    firstElement
+                    firstKeys
+                    (Key firstElement firstBy_ key firstKeyCount)
+                    firstKeyCount
             , set :
                 Emptiable
                     (KeysSet firstElement firstKeys firstKeyCount)
                     firstPossiblyOrNever_
             }
             { key :
-                ( Keys secondElement secondKeys secondKeyCount
-                , secondKeys -> Key secondElement secondBy_ key secondKeyCount
-                )
+                KeysWithFocus
+                    secondElement
+                    secondKeys
+                    (Key secondElement secondBy_ key secondKeyCount)
+                    secondKeyCount
             , set :
                 Emptiable
                     (KeysSet secondElement secondKeys secondKeyCount)
@@ -1556,18 +1556,22 @@ fold2FromOne :
     ->
         (And
             { key :
-                ( Keys firstElement firstKeys firstKeyCountFrom1
-                , firstKeys -> Key firstElement firstBy_ key firstKeyCountFrom1
-                )
+                KeysWithFocus
+                    firstElement
+                    firstKeys
+                    (Key firstElement firstBy_ key firstKeyCountFrom1)
+                    firstKeyCountFrom1
             , set :
                 Emptiable
                     (KeysSet firstElement firstKeys firstKeyCountFrom1)
                     Never
             }
             { key :
-                ( Keys secondElement secondKeys secondKeyCount
-                , secondKeys -> Key secondElement secondBy_ key secondKeyCount
-                )
+                KeysWithFocus
+                    secondElement
+                    secondKeys
+                    (Key secondElement secondBy_ key secondKeyCount)
+                    secondKeyCount
             , set :
                 Emptiable
                     (KeysSet secondElement secondKeys secondKeyCount)
@@ -1575,21 +1579,22 @@ fold2FromOne :
             }
          -> folded
         )
-fold2FromOne startToInitialFolded reduce ( first, second ) =
-    Tree2.Sorted.fold2FromOne
-        (Keys.keyOrderWith first.key)
-        startToInitialFolded
-        reduce
-        ( { tree =
-                first.set
-                    |> Emptiable.mapFlat
-                        (KeysSet.Internal.treeForElement (Keys.Internal.keyElement first.key))
-          , key = Keys.toKeyWith first.key
-          }
-        , { tree =
-                second.set
-                    |> Emptiable.mapFlat
-                        (KeysSet.Internal.treeForElement (Keys.Internal.keyElement second.key))
-          , key = Keys.toKeyWith second.key
-          }
-        )
+fold2FromOne startToInitialFolded reduce =
+    \( first, second ) ->
+        Tree2.Sorted.fold2FromOne
+            (Keys.keyOrderWith first.key)
+            startToInitialFolded
+            reduce
+            ( { tree =
+                    first.set
+                        |> Emptiable.mapFlat
+                            (KeysSet.Internal.treeForElement (Keys.Internal.keyElement first.key))
+              , key = Keys.toKeyWith first.key
+              }
+            , { tree =
+                    second.set
+                        |> Emptiable.mapFlat
+                            (KeysSet.Internal.treeForElement (Keys.Internal.keyElement second.key))
+              , key = Keys.toKeyWith second.key
+              }
+            )

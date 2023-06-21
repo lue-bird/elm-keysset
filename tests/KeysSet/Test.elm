@@ -8,7 +8,7 @@ import Character exposing (Character)
 import Emptiable exposing (Emptiable(..), filled)
 import Expect
 import Fuzz
-import Keys exposing (Keys)
+import Keys exposing (Keys, key)
 import KeysSet exposing (KeysSet)
 import KeysSet.Internal
 import Linear exposing (Direction(..))
@@ -278,7 +278,7 @@ fromListSuite =
                     , { open = 'c', closed = 'A' }
                     , { open = 'c', closed = 'C' }
                     ]
-                    |> KeysSet.toList ( BracketPair.keys, .open )
+                    |> KeysSet.toList (key .open BracketPair.keys)
                     |> Expect.equalLists
                         (KeysSet.fromList
                             BracketPair.keys
@@ -286,7 +286,7 @@ fromListSuite =
                             , { open = 'a', closed = 'A' }
                             , { open = 'c', closed = 'C' }
                             ]
-                            |> KeysSet.toList ( BracketPair.keys, .open )
+                            |> KeysSet.toList (key .open BracketPair.keys)
                         )
             )
         , fuzz (Fuzz.list Character.fuzz)
@@ -331,7 +331,7 @@ insertIfNoCollisionSuite =
                     [ element0, element1 ]
                     |> KeysSet.insertIfNoCollision Character.keys element0
                     |> KeysSet.insertIfNoCollision Character.keys element1
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists
                         [ element0, element1 ]
             )
@@ -354,7 +354,7 @@ insertIfNoCollisionSuite =
             (\() ->
                 Emptiable.empty
                     |> KeysSet.insertIfNoCollision Character.keys element1
-                    |> KeysSet.element ( Character.keys, .id ) element1.id
+                    |> KeysSet.element (key .id Character.keys) element1.id
                     |> Emptiable.map .char
                     |> Expect.equal (filled element1.char)
             )
@@ -362,14 +362,14 @@ insertIfNoCollisionSuite =
             (\() ->
                 Emptiable.empty
                     |> KeysSet.insertIfNoCollision Character.keys element1
-                    |> KeysSet.element ( Character.keys, .id ) element0.id
+                    |> KeysSet.element (key .id Character.keys) element0.id
                     |> Expect.equal Emptiable.empty
             )
         , test "hardcoded element of absent element 1 is empty by char"
             (\() ->
                 Emptiable.empty
                     |> KeysSet.insertIfNoCollision Character.keys element1
-                    |> KeysSet.element ( Character.keys, .char ) element1.char
+                    |> KeysSet.element (key .char Character.keys) element1.char
                     |> Emptiable.map .id
                     |> Expect.equal (filled element1.id)
             )
@@ -377,7 +377,7 @@ insertIfNoCollisionSuite =
             (\() ->
                 Emptiable.empty
                     |> KeysSet.insertIfNoCollision Character.keys element1
-                    |> KeysSet.element ( Character.keys, .char ) element0.char
+                    |> KeysSet.element (key .char Character.keys) element0.char
                     |> Expect.equal Emptiable.empty
             )
         , fuzz Character.fuzz
@@ -550,7 +550,7 @@ insertReplacingCollisionsSuite =
                     [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
                     |> KeysSet.insertReplacingCollisions Character.keys { id = 0, char = 'B' }
                     |> KeysSet.insertReplacingCollisions Character.keys { id = 1, char = 'A' }
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists
                         [ { id = 0, char = 'B' }, { id = 1, char = 'A' } ]
             )
@@ -560,7 +560,7 @@ insertReplacingCollisionsSuite =
                     [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
                     |> KeysSet.insertReplacingCollisions Character.keys { id = 10, char = 'A' }
                     |> KeysSet.insertReplacingCollisions Character.keys { id = 11, char = 'B' }
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists
                         [ { id = 10, char = 'A' }, { id = 11, char = 'B' } ]
             )
@@ -568,7 +568,7 @@ insertReplacingCollisionsSuite =
             (\() ->
                 Emptiable.empty
                     |> KeysSet.insertReplacingCollisions Character.keys element1
-                    |> KeysSet.element ( Character.keys, .id ) element1.id
+                    |> KeysSet.element (key .id Character.keys) element1.id
                     |> Emptiable.map .char
                     |> Expect.equal (filled element1.char)
             )
@@ -576,14 +576,14 @@ insertReplacingCollisionsSuite =
             (\() ->
                 Emptiable.empty
                     |> KeysSet.insertReplacingCollisions Character.keys element1
-                    |> KeysSet.element ( Character.keys, .id ) element0.id
+                    |> KeysSet.element (key .id Character.keys) element0.id
                     |> Expect.equal Emptiable.empty
             )
         , test "hardcoded element of absent element 1 is empty by char"
             (\() ->
                 Emptiable.empty
                     |> KeysSet.insertReplacingCollisions Character.keys element1
-                    |> KeysSet.element ( Character.keys, .char ) element1.char
+                    |> KeysSet.element (key .char Character.keys) element1.char
                     |> Emptiable.map .id
                     |> Expect.equal (filled element1.id)
             )
@@ -591,7 +591,7 @@ insertReplacingCollisionsSuite =
             (\() ->
                 Emptiable.empty
                     |> KeysSet.insertReplacingCollisions Character.keys element1
-                    |> KeysSet.element ( Character.keys, .char ) element0.char
+                    |> KeysSet.element (key .char Character.keys) element0.char
                     |> Expect.equal Emptiable.empty
             )
         , fuzz Character.fuzz
@@ -766,30 +766,30 @@ removeSuite =
             (\() ->
                 ab
                     |> KeysSet.insertIfNoCollision Character.keys { id = 2, char = 'C' }
-                    |> KeysSet.remove ( Character.keys, .id ) 2
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.remove (key .id Character.keys) 2
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists
-                        (ab |> KeysSet.toList ( Character.keys, .id ))
+                        (ab |> KeysSet.toList (key .id Character.keys))
             )
         , test "hardcoded nothing to remove"
             (\() ->
                 openClosedBrackets
-                    |> KeysSet.remove ( BracketPair.keys, .open ) ')'
+                    |> KeysSet.remove (key .open BracketPair.keys) ')'
                     --> no change, .open is never ')'
                     |> Expect.equal openClosedBrackets
             )
         , test "hardcoded something to remove"
             (\() ->
                 openClosedBrackets
-                    |> KeysSet.remove ( BracketPair.keys, .closed ) ')'
-                    |> KeysSet.toList ( BracketPair.keys, .closed )
+                    |> KeysSet.remove (key .closed BracketPair.keys) ')'
+                    |> KeysSet.toList (key .closed BracketPair.keys)
                     |> Expect.equalLists []
             )
         , fuzz Fuzz.int
             "Emptiable.empty"
             (\id ->
                 Emptiable.empty
-                    |> KeysSet.remove ( Character.keys, .id ) id
+                    |> KeysSet.remove (key .id Character.keys) id
                     |> validate "remove" Character.keys
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
@@ -800,7 +800,7 @@ removeSuite =
             "one"
             (\put delete ->
                 KeysSet.one { id = put, char = '0' }
-                    |> KeysSet.remove ( Character.keys, .id ) delete
+                    |> KeysSet.remove (key .id Character.keys) delete
                     |> validate "remove" Character.keys
                     |> Result.map (\() -> Expect.pass)
                     |> recover Expect.fail
@@ -816,7 +816,7 @@ removeSuite =
                             Result.andThen
                                 (\keysSet ->
                                     keysSet
-                                        |> KeysSet.remove ( Character.keys, .id ) id
+                                        |> KeysSet.remove (key .id Character.keys) id
                                         |> validate ("remove id " ++ (id |> String.fromInt)) Character.keys
                                         |> Result.map (\() -> keysSet)
                                 )
@@ -845,7 +845,7 @@ removeSuite =
                                     let
                                         removed =
                                             keysSet
-                                                |> KeysSet.remove ( Character.keys, .id ) id
+                                                |> KeysSet.remove (key .id Character.keys) id
                                     in
                                     removed
                                         |> validate ("remove id " ++ (id |> String.fromInt)) Character.keys
@@ -879,10 +879,10 @@ elementAlterIfNoCollisionSuite =
             (\() ->
                 KeysSet.fromList Character.keys
                     [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
-                    |> KeysSet.elementAlterIfNoCollision ( Character.keys, .id )
+                    |> KeysSet.elementAlterIfNoCollision (key .id Character.keys)
                         1
                         (\c -> { c | char = 'C' })
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists
                         [ { id = 0, char = 'A' }, { id = 1, char = 'C' } ]
             )
@@ -890,10 +890,10 @@ elementAlterIfNoCollisionSuite =
             (\() ->
                 KeysSet.fromList Character.keys
                     [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
-                    |> KeysSet.elementAlterIfNoCollision ( Character.keys, .id )
+                    |> KeysSet.elementAlterIfNoCollision (key .id Character.keys)
                         1
                         (\c -> { c | id = 0 })
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists
                         [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
             )
@@ -907,10 +907,10 @@ elementAlterReplacingCollisionsSuite =
             (\() ->
                 KeysSet.fromList Character.keys
                     [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
-                    |> KeysSet.elementAlterReplacingCollisions ( Character.keys, .id )
+                    |> KeysSet.elementAlterReplacingCollisions (key .id Character.keys)
                         1
                         (\c -> { c | char = 'C' })
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists
                         [ { id = 0, char = 'A' }, { id = 1, char = 'C' } ]
             )
@@ -918,10 +918,10 @@ elementAlterReplacingCollisionsSuite =
             (\() ->
                 KeysSet.fromList Character.keys
                     [ { id = 0, char = 'A' }, { id = 1, char = 'B' } ]
-                    |> KeysSet.elementAlterReplacingCollisions ( Character.keys, .id )
+                    |> KeysSet.elementAlterReplacingCollisions (key .id Character.keys)
                         1
                         (\c -> { c | id = 0 })
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists
                         [ { id = 0, char = 'B' } ]
             )
@@ -942,7 +942,7 @@ mapSuite =
                     ]
                     |> KeysSet.map (\element -> { element | id = element.id * 10 })
                         Character.keys
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists
                         [ { id = 10, char = 'B' }
                         , { id = 30, char = 'A' }
@@ -974,7 +974,7 @@ fillsMapSuite =
                                 Emptiable.empty
                         )
                         Character.keys
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists
                         [ { id = 1, char = 'B' }
                         , { id = 4, char = 'C' }
@@ -1002,14 +1002,14 @@ unifyWithSuite =
                 Emptiable.empty
                     |> KeysSet.unifyWith Character.keys
                         (KeysSet.one { id = 0, char = 'A' })
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists [ { id = 0, char = 'A' } ]
             )
         , test "up is empty"
             (\() ->
                 KeysSet.one { id = 0, char = 'A' }
                     |> KeysSet.unifyWith Character.keys Emptiable.empty
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists [ { id = 0, char = 'A' } ]
             )
         , test "unions"
@@ -1028,7 +1028,7 @@ unifyWithSuite =
                             , { id = 5, char = 'f' }
                             ]
                         )
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists
                         [ { id = 0, char = 'A' }
                         , { id = 1, char = 'B' }
@@ -1047,16 +1047,16 @@ intersectSuite =
         [ test "down is empty"
             (\() ->
                 KeysSet.one { id = 0, char = 'A' }
-                    |> KeysSet.intersect ( Character.keys, .id ) Emptiable.empty
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.intersect (key .id Character.keys) Emptiable.empty
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists []
             )
         , test "up is empty"
             (\() ->
                 Emptiable.empty
-                    |> KeysSet.intersect ( Character.keys, .id )
+                    |> KeysSet.intersect (key .id Character.keys)
                         (KeysSet.one { id = 0, char = 'A' })
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists []
             )
         , test "hardcoded"
@@ -1067,7 +1067,7 @@ intersectSuite =
                     , { id = 4, char = 'e' }
                     , { id = 5, char = 'f' }
                     ]
-                    |> KeysSet.intersect ( Character.keys, .id )
+                    |> KeysSet.intersect (key .id Character.keys)
                         (KeysSet.fromList Character.keys
                             [ { id = 0, char = 'A' }
                             , { id = 1, char = 'B' }
@@ -1075,7 +1075,7 @@ intersectSuite =
                             , { id = 3, char = 'd' }
                             ]
                         )
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists
                         [ { id = 2, char = 'c' }
                         , { id = 3, char = 'd' }
@@ -1090,19 +1090,19 @@ exceptSuite =
         [ test "down is empty"
             (\() ->
                 Emptiable.empty
-                    |> KeysSet.except ( Character.keys, .id )
+                    |> KeysSet.except (key .id Character.keys)
                         (KeysSet.one { id = 0, char = 'A' }
-                            |> KeysSet.toKeys ( Character.keys, .id )
+                            |> KeysSet.toKeys (key .id Character.keys)
                         )
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists []
             )
         , test "up is empty"
             (\() ->
                 KeysSet.one { id = 0, char = 'A' }
-                    |> KeysSet.except ( Character.keys, .id )
+                    |> KeysSet.except (key .id Character.keys)
                         Emptiable.empty
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists [ { id = 0, char = 'A' } ]
             )
         , test "hardcoded"
@@ -1113,16 +1113,16 @@ exceptSuite =
                     , { id = 2, char = 'c' }
                     , { id = 3, char = 'd' }
                     ]
-                    |> KeysSet.except ( Character.keys, .id )
+                    |> KeysSet.except (key .id Character.keys)
                         (KeysSet.fromList Character.keys
                             [ { id = 2, char = 'c' }
                             , { id = 3, char = 'd' }
                             , { id = 4, char = 'e' }
                             , { id = 5, char = 'f' }
                             ]
-                            |> KeysSet.toKeys ( Character.keys, .id )
+                            |> KeysSet.toKeys (key .id Character.keys)
                         )
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists
                         [ { id = 0, char = 'A' }
                         , { id = 1, char = 'B' }
@@ -1158,10 +1158,10 @@ fold2FromSuite =
     describe "fold2From"
         [ test "hardcoded second is empty"
             (\() ->
-                ( { key = ( Character.keys, .id )
+                ( { key = key .id Character.keys
                   , set = KeysSet.one { id = 0, char = 'A' }
                   }
-                , { key = ( Character.keys, .id )
+                , { key = key .id Character.keys
                   , set = Emptiable.empty
                   }
                 )
@@ -1172,10 +1172,10 @@ fold2FromSuite =
             )
         , test "hardcoded first is empty"
             (\() ->
-                ( { key = ( Character.keys, .id )
+                ( { key = key .id Character.keys
                   , set = Emptiable.empty
                   }
-                , { key = ( Character.keys, .id )
+                , { key = key .id Character.keys
                   , set = KeysSet.one { id = 3, char = 'A' }
                   }
                 )
@@ -1186,7 +1186,7 @@ fold2FromSuite =
             )
         , test "hardcoded"
             (\() ->
-                ( { key = ( Character.keys, .id )
+                ( { key = key .id Character.keys
                   , set =
                         KeysSet.fromList Character.keys
                             [ { id = 2, char = 'C' }
@@ -1195,7 +1195,7 @@ fold2FromSuite =
                             , { id = 5, char = 'f' }
                             ]
                   }
-                , { key = ( Character.keys, .id )
+                , { key = key .id Character.keys
                   , set =
                         KeysSet.fromList Character.keys
                             [ { id = 0, char = 'A' }
@@ -1267,7 +1267,7 @@ elementSuite =
             "Emptiable.empty"
             (\id ->
                 Emptiable.empty
-                    |> KeysSet.element ( Character.keys, .id ) id
+                    |> KeysSet.element (key .id Character.keys) id
                     |> Expect.equal Emptiable.empty
             )
         , fuzz2 Fuzz.int
@@ -1275,7 +1275,7 @@ elementSuite =
             "one"
             (\x y ->
                 KeysSet.one { id = x, char = 'A' }
-                    |> KeysSet.element ( Character.keys, .id ) y
+                    |> KeysSet.element (key .id Character.keys) y
                     |> Expect.equal
                         (if x == y then
                             filled { id = x, char = 'A' }
@@ -1292,7 +1292,7 @@ elementSuite =
             "fromList"
             (\id list ->
                 KeysSet.fromList Character.keys list
-                    |> KeysSet.element ( Character.keys, .id ) id
+                    |> KeysSet.element (key .id Character.keys) id
                     |> Expect.equal
                         (list
                             |> List.Extra.find (\character -> character.id == id)
@@ -1309,12 +1309,12 @@ elementSuite =
 
             open char =
                 casedLetters
-                    |> KeysSet.element ( BracketPair.keys, .closed ) char
+                    |> KeysSet.element (key .closed BracketPair.keys) char
                     |> Emptiable.map .open
 
             closed char =
                 casedLetters
-                    |> KeysSet.element ( BracketPair.keys, .open ) char
+                    |> KeysSet.element (key .open BracketPair.keys) char
                     |> Emptiable.map .closed
           in
           test "fromList hardcoded"
@@ -1333,7 +1333,7 @@ endUpSuite =
             "one"
             (\character ->
                 KeysSet.one character
-                    |> KeysSet.end ( Character.keys, .id ) Up
+                    |> KeysSet.end (key .id Character.keys) Up
                     |> Expect.equal character
             )
         , fuzz
@@ -1355,7 +1355,7 @@ endUpSuite =
             "fromStack"
             (\stack ->
                 KeysSet.fromStack Character.keys stack
-                    |> KeysSet.end ( Character.keys, .id ) Up
+                    |> KeysSet.end (key .id Character.keys) Up
                     |> Expect.equal
                         (stack
                             |> Stack.fold Up
@@ -1378,7 +1378,7 @@ endDownSuite =
             "one"
             (\character ->
                 KeysSet.one character
-                    |> KeysSet.end ( Character.keys, .id ) Down
+                    |> KeysSet.end (key .id Character.keys) Down
                     |> Expect.equal character
             )
         , fuzz
@@ -1400,7 +1400,7 @@ endDownSuite =
             "fromStack"
             (\stack ->
                 KeysSet.fromStack Character.keys stack
-                    |> KeysSet.end ( Character.keys, .id ) Down
+                    |> KeysSet.end (key .id Character.keys) Down
                     |> Expect.equal
                         (stack
                             |> Stack.fold Up
@@ -1422,7 +1422,7 @@ endDownSuite =
                         [ { open = 'b', closed = 'A' }
                         ]
                     )
-                    |> KeysSet.end ( BracketPair.keys, .open ) Down
+                    |> KeysSet.end (key .open BracketPair.keys) Down
                     |> Expect.equal
                         { open = 'a', closed = 'B' }
             )
@@ -1443,13 +1443,13 @@ toListSuite =
         [ test "empty"
             (\() ->
                 Emptiable.empty
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists []
             )
         , test "one"
             (\() ->
                 KeysSet.one { id = 0, char = 'A' }
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists [ { id = 0, char = 'A' } ]
             )
         , test "hardcoded insert"
@@ -1462,7 +1462,7 @@ toListSuite =
                     |> KeysSet.insertIfNoCollision Character.keys { id = 1, char = 'F' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 4, char = 'G' }
                     |> KeysSet.insertIfNoCollision Character.keys { id = 3, char = 'B' }
-                    |> KeysSet.toList ( Character.keys, .id )
+                    |> KeysSet.toList (key .id Character.keys)
                     |> Expect.equalLists
                         [ { id = 0, char = 'B' }
                         , { id = 1, char = 'F' }
@@ -1479,7 +1479,7 @@ toListSuite =
                     [ { open = 'a', closed = 'A' }
                     , { open = 'b', closed = 'B' }
                     ]
-                    |> KeysSet.toList ( BracketPair.keys, .open )
+                    |> KeysSet.toList (key .open BracketPair.keys)
                     |> Expect.equalLists
                         [ { open = 'a', closed = 'A' }
                         , { open = 'b', closed = 'B' }
@@ -1491,7 +1491,7 @@ toListSuite =
                 let
                     toListResult =
                         KeysSet.fromList Character.keys list
-                            |> KeysSet.toList ( Character.keys, .id )
+                            |> KeysSet.toList (key .id Character.keys)
                 in
                 toListResult
                     |> Expect.equalLists
@@ -1518,7 +1518,7 @@ foldFromSuite =
             "hardcoded sum"
             (\list ->
                 KeysSet.fromList Character.keys list
-                    |> KeysSet.foldFrom ( Character.keys, .id ) 0 Up (\c soFar -> soFar + c.id)
+                    |> KeysSet.foldFrom (key .id Character.keys) 0 Up (\c soFar -> soFar + c.id)
                     |> Expect.equal
                         (list
                             |> List.map .id
@@ -1532,7 +1532,7 @@ foldFromSuite =
                     [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
                     , { username = "gria", priority = 3, email = "miggo@inlook.com" }
                     ]
-                    |> KeysSet.foldFrom ( User.byEmail, .email )
+                    |> KeysSet.foldFrom User.byEmail
                         False
                         Up
                         (\user soFar -> soFar || (user.priority >= 4))
@@ -1545,7 +1545,7 @@ foldFromSuite =
                     [ { username = "fred", priority = 1, email = "higgi@outlook.com" }
                     , { username = "gria", priority = 3, email = "miggo@inlook.com" }
                     ]
-                    |> KeysSet.foldFrom ( User.byEmail, .email )
+                    |> KeysSet.foldFrom User.byEmail
                         True
                         Up
                         (\user soFar -> soFar && (user.priority <= 3))
@@ -1570,14 +1570,14 @@ readmeExamplesTest =
 
                     typeChar char =
                         case
-                            brackets |> KeysSet.element ( BracketPair.keys, .open ) char
+                            brackets |> KeysSet.element (key .open BracketPair.keys) char
                         of
                             Emptiable.Filled { closed } ->
                                 [ char, closed ] |> String.fromList
 
                             Emptiable.Empty _ ->
                                 case
-                                    brackets |> KeysSet.element ( BracketPair.keys, .closed ) char
+                                    brackets |> KeysSet.element (key .closed BracketPair.keys) char
                                 of
                                     Emptiable.Filled { open } ->
                                         [ open, char ] |> String.fromList
@@ -1600,7 +1600,7 @@ readmeExamplesTest =
 
                     closedFor char =
                         lowerUppercaseLetters
-                            |> KeysSet.element ( BracketPair.keys, .open ) char
+                            |> KeysSet.element (key .open BracketPair.keys) char
                             |> Emptiable.map .closed
                 in
                 [ 'c', 'a', 'x' ]
@@ -1620,7 +1620,7 @@ readmeExamplesTest =
                     atomicNumberOfElementWithSymbol : String -> Emptiable Int Possibly
                     atomicNumberOfElementWithSymbol symbol =
                         elements
-                            |> KeysSet.element ( Atom.keys, .symbol ) symbol
+                            |> KeysSet.element (key .symbol Atom.keys) symbol
                             |> Emptiable.map .atomicNumber
                 in
                 [ atomicNumberOfElementWithSymbol "He"

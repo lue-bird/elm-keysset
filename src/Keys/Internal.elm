@@ -1,4 +1,4 @@
-module Keys.Internal exposing (Key, KeysBeingBuilt, KeysTag, by, for, keyElement, keyInfo, toArray)
+module Keys.Internal exposing (Key, KeysBeingBuilt, KeysBeingBuiltWithFocus, KeysTag, by, for, key, keyElement, keyInfo, toArray)
 
 import ArraySized exposing (ArraySized)
 import Linear exposing (Direction(..))
@@ -29,9 +29,7 @@ type alias Key element orderByTag key keyCount =
 
 
 keyInfo :
-    ( Keys element keys keyCount
-    , keys -> Key element by_ key keyCount
-    )
+    KeysWithFocus element keys_ (Key element orderByTag key keyCount) keyCount
     ->
         { element :
             ArraySized (Tree2.Branch element) (Exactly (On keyCount))
@@ -39,34 +37,37 @@ keyInfo :
         , toKey : element -> key
         , keyOrder : ( key, key ) -> Order
         }
-keyInfo ( keys, field ) =
+keyInfo key_ =
     let
         info =
-            keys |> Typed.internal Keys
+            key_ |> Typed.internal Keys
     in
-    info |> .keys |> field |> Typed.untag
+    info |> .focus |> Typed.untag
 
 
 {-| A [`Key`](#Key)'s distance from the first [`by`](#by) in the [`Keys` builder](#KeysBeingBuilt)
 -}
 keyElement :
-    ( Keys element keys keyCount
-    , keys -> Key element key_ by_ keyCount
-    )
+    KeysWithFocus element keys_ (Key element orderByTag key keyCount) keyCount
     ->
         (ArraySized (Tree2.Branch element) (Exactly (On keyCount))
          -> Tree2.Branch element
         )
-keyElement ( keys, key ) =
-    ( keys, key ) |> keyInfo |> .element
+keyElement key_ =
+    key_ |> keyInfo |> .element
 
 
 type alias KeysBeingBuilt element keysComplete keysConstructor keyCount =
+    KeysBeingBuiltWithFocus element keysComplete keysConstructor keysConstructor keyCount
+
+
+type alias KeysBeingBuiltWithFocus element keysComplete keysConstructor focus keyCount =
     Typed
         Checked
         KeysTag
         Internal
         { keys : keysConstructor
+        , focus : focus
         , toArray :
             ArraySized
                 (keysComplete -> (( element, element ) -> Order))
@@ -78,8 +79,12 @@ type alias Keys element keys keyCount =
     KeysBeingBuilt element keys keys (On keyCount)
 
 
+type alias KeysWithFocus element keys focus keyCount =
+    KeysBeingBuiltWithFocus element keys keys focus (On keyCount)
+
+
 toArray :
-    Keys element keys_ keyCount
+    KeysWithFocus element keys_ focus_ keyCount
     -> ArraySized (( element, element ) -> Order) (Exactly (On keyCount))
 toArray =
     \keysInfoTagged ->
@@ -97,6 +102,7 @@ for :
     -> KeysBeingBuilt element_ completeKeys_ keysConstructor (Up0 keyCount_)
 for keysConstructor =
     { keys = keysConstructor
+    , focus = keysConstructor
     , toArray = ArraySized.empty
     }
         |> Typed.tag Keys
@@ -133,6 +139,13 @@ by ( keysAccessKey, toKey ) keyOrder =
                     key
                     (Add1 keyCountFrom1)
                 -> keysConstructedPartially
+            , focus :
+                Key
+                    element
+                    (Order.By toKeyTag keyOrderTag)
+                    key
+                    (Add1 keyCountFrom1)
+                -> keysConstructedPartially
             , toArray :
                 ArraySized
                     (keysComplete -> (( element, element ) -> Order))
@@ -140,6 +153,7 @@ by ( keysAccessKey, toKey ) keyOrder =
             }
             ->
                 { keys : keysConstructedPartially
+                , focus : keysConstructedPartially
                 , toArray :
                     ArraySized
                         (keysComplete -> (( element, element ) -> Order))
@@ -190,6 +204,7 @@ by ( keysAccessKey, toKey ) keyOrder =
                         |> ArraySized.minEndsSubtract n1
             in
             { keys = keysInfo.keys keyField
+            , focus = keysInfo.focus keyField
             , toArray = toArrayPushed
             }
     in
@@ -212,3 +227,22 @@ orderWithKey =
         \( a, b ) ->
             keyInfo_.keyOrder
                 ( a |> keyInfo_.toKey, b |> keyInfo_.toKey )
+
+
+key :
+    (keys -> focusNew)
+    ->
+        (KeysWithFocus element keys focusOld_ keyCount
+         -> KeysWithFocus element keys focusNew keyCount
+        )
+key accessKey =
+    \keys ->
+        keys
+            |> Typed.toPublic Keys
+            |> Typed.mapTo Keys
+                (\keysInfo ->
+                    { toArray = keysInfo.toArray
+                    , keys = keysInfo.keys
+                    , focus = keysInfo.keys |> accessKey
+                    }
+                )

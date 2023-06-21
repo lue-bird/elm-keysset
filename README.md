@@ -18,13 +18,13 @@ With a key to compare against, you can find the matching element
 in `log n` time:
 
 ```elm
-|> KeysSet.element ( keys, .flag ) "🇦🇶"
+|> KeysSet.element (key .flag keys) "🇦🇶"
 --→ Just { flag = "🇦🇶", code = "AQ", name = "Antarctica" }
 
-|> KeysSet.element ( keys, .code ) "LB"
+|> KeysSet.element (key .code keys) "LB"
 --→ Just { flag = "🇱🇧", code = "LB", name = "Lebanon" }
 
-|> KeysSet.end ( keys, .code ) Down -- minimum
+|> KeysSet.end (key .code keys) Down -- minimum
 --→ { flag = "🇦🇶", code = "AQ", name = "Antarctica" } no Maybe
 ```
 
@@ -106,7 +106,7 @@ alongside other [goodies](#goodies)
 import KeysSet exposing (KeysSet)
 import Emptiable exposing (Emptiable)
 import Possibly exposing (Possibly)
-import Keys exposing (Key, Keys)
+import Keys exposing (Key, key, Keys)
 import Order
 import String.Order
 import Char.Order
@@ -143,7 +143,7 @@ operators =
 nameOfOperatorSymbol : String -> Emptiable String Possibly
 nameOfOperatorSymbol operatorSymbol =
     operators
-        |> KeysSet.element ( operatorKeys, .symbol ) operatorSymbol
+        |> KeysSet.element (key .symbol operatorKeys) operatorSymbol
 
 type Name
     = Name
@@ -166,13 +166,11 @@ type alias ConversationStep =
     { youSay : String, answer : String }
 
 type alias ByYouSay =
-    { youSay : Key ConversationStep (Order.By YouSay (String.Order.Earlier (Char.Order.AToZ Order.Tie))) String N1 }
+    Key ConversationStep (Order.By YouSay (String.Order.Earlier (Char.Order.AToZ Order.Tie))) String N1
 
 youSayKey : Keys ConversationStep ByYouSay N1
 youSayKey =
-    Keys.for (\youSay_ -> { youSay = youSay_ })
-        |> Keys.by ( .youSay, youSay )
-            (String.Order.earlier (Char.Order.aToZ Order.tie))
+    Keys.oneBy youSay (String.Order.earlier (Char.Order.aToZ Order.tie))
 
 answers : Emptiable (KeysSet ConversationStep ByYouSay N1) Possibly
 answers =
@@ -285,6 +283,7 @@ byHostFirst =
 
 ```elm
 import KeysSet exposing (KeysSet)
+import Keys exposing (key)
 import Emptiable exposing (Emptiable)
 import Possibly exposing (Possibly)
 import N exposing (N2)
@@ -302,12 +301,12 @@ reactTo event =
     case event of
         Registered { name, email } ->
             \state ->
-                case state.users |> KeysSet.element ( User.keys, .name ) name of
+                case state.users |> KeysSet.element (key .name User.keys) name of
                     Emptiable.Filled _ ->
                         -- name taken already
                 
                     Emptiable.Empty _ ->
-                        case state.users |> KeysSet.element ( User.keys, .email ) email of
+                        case state.users |> KeysSet.element (key .email User.keys) email of
                             Emptiable.Filled _ ->
                                 -- email taken already
 
@@ -327,8 +326,9 @@ reactTo event =
                 { state
                     | users =
                         state.users
-                            |> KeysSet.elementAlter
-                                ( .name, state.activeUserName )
+                            |> KeysSet.elementAlterIfNoCollision
+                                (key .name User.keys)
+                                state.activeUserName
                                 (applySettingsChange settingsChange)
                 }
         
