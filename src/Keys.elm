@@ -1,6 +1,6 @@
 module Keys exposing
     ( oneBy
-    , identity
+    , identity, IdentityKeys
     , for, KeysBeingBuilt
     , by
     , Keys, KeysWithFocus
@@ -8,7 +8,6 @@ module Keys exposing
     , Key
     , toArray
     , toKeyWith, keyOrderWith
-    , IdentityKeys
     )
 
 {-| Multiple key [`Ordering`](Order#Ordering)s
@@ -27,7 +26,7 @@ You can just ignore the `Typed` thing but if you're curious → [`typed-value`](
 ### one key
 
 @docs oneBy
-@docs identity, Identity
+@docs identity, IdentityKeys
 
 
 ### multiple keys
@@ -121,6 +120,15 @@ type alias Keys element keys keyCount =
     KeysWithFocus element keys keys keyCount
 
 
+{-| You'll find this type on operations like [`KeysSet.remove`](KeysSet#remove)
+which require you to specify which specific key from the pool of keys elements will be removed by.
+
+If you just have one key, like from [`oneBy`](#oneBy) or [`identity`](#identity),
+just supply the keys and everything will work.
+
+If you have multiple keys, use [`key`](#key) to "select" one.
+
+-}
 type alias KeysWithFocus element keys focus keyCount =
     KeysBeingBuiltWithFocus element keys keys focus (On keyCount)
 
@@ -155,13 +163,6 @@ type alias KeysBeingBuilt element keysComplete keysConstructor keyCount =
 -}
 type alias KeysBeingBuiltWithFocus element keysComplete keysConstructor focus keyCount =
     Keys.Internal.KeysBeingBuiltWithFocus element keysComplete keysConstructor focus keyCount
-
-
-{-| Tags correctly constructed [`Keys`](#Keys) (and each [`Key`](#Key)).
-You will never use this.
--}
-type alias KeysTag =
-    Keys.Internal.KeysTag
 
 
 {-| By which aspect = key and in which key `Order` elements should be sorted
@@ -330,6 +331,25 @@ by ( keysAccessKey, toKey ) keyOrder =
         keysSoFar |> Keys.Internal.by ( keysAccessKey, toKey ) keyOrder
 
 
+{-| You might need this on operations like [`KeysSet.remove`](KeysSet#remove)
+which require you to specify which specific key from the pool of keys elements will be removed by.
+
+If you just have one key, like from [`oneBy`](#oneBy) or [`identity`](#identity),
+just supply the keys and everything will work.
+
+If you have multiple keys, use [`key`](#key) to "select" one, like
+
+    userKeys =
+        Keys.for (\name email -> { name = name, email = email } )
+            |> Keys.by ( .name, User.name )
+                (String.Order.earlier (Char.Order.aToZ Order.tie))
+            |> Keys.by ( .email, User.email )
+                Email.defaultOrder
+
+    users
+        |> KeysSet.remove (key .name userKeys) "default"
+
+-}
 key :
     (keys -> focusNew)
     ->
@@ -344,7 +364,7 @@ key accessKey =
 {-| How to turn the element into the specified key
 -}
 toKeyWith :
-    KeysWithFocus element keys_ (Key element orderByTag key keyCount) keyCount
+    KeysWithFocus element keys_ (Key element orderByTag_ key keyCount) keyCount
     -> (element -> key)
 toKeyWith key_ =
     key_ |> Keys.Internal.keyInfo |> .toKey
@@ -353,7 +373,7 @@ toKeyWith key_ =
 {-| How to order by the specified key
 -}
 keyOrderWith :
-    KeysWithFocus element keys_ (Key element orderByTag key keyCount) keyCount
+    KeysWithFocus element keys_ (Key element orderByTag_ key keyCount) keyCount
     -> (( key, key ) -> Order)
 keyOrderWith key_ =
     key_ |> Keys.Internal.keyInfo |> .keyOrder

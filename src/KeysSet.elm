@@ -1206,7 +1206,7 @@ foldFromOne :
     -> Linear.Direction
     -> (element -> (folded -> folded))
     ->
-        (Emptiable (KeysSet element keys_ keyCount) Never
+        (Emptiable (KeysSet element keys keyCount) Never
          -> folded
         )
 foldFromOne key startToInitialFolded direction reduce =
@@ -1245,7 +1245,7 @@ foldFrom :
     -> Linear.Direction
     -> (element -> (folded -> folded))
     ->
-        (Emptiable (KeysSet element keys_ keyCount) possiblyOrNever_
+        (Emptiable (KeysSet element keys keyCount) possiblyOrNever_
          -> folded
         )
 foldFrom key initial direction reduce =
@@ -1296,7 +1296,7 @@ foldUntilCompleteFrom :
     -> Linear.Direction
     -> (element -> (folded -> PartialOrComplete folded complete))
     ->
-        (Emptiable (KeysSet element keys_ keyCount) possiblyOrNever_
+        (Emptiable (KeysSet element keys keyCount) possiblyOrNever_
          -> PartialOrComplete folded complete
         )
 foldUntilCompleteFrom key initialFolded direction reduceStep =
@@ -1357,7 +1357,7 @@ foldUntilCompleteFromOne :
     -> Linear.Direction
     -> (element -> (folded -> PartialOrComplete folded complete))
     ->
-        (Emptiable (KeysSet element keys_ keyCount) Never
+        (Emptiable (KeysSet element keys keyCount) Never
          -> PartialOrComplete folded complete
         )
 foldUntilCompleteFromOne key startElementStep direction reduceStep =

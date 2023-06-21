@@ -29,7 +29,7 @@ type alias Key element orderByTag key keyCount =
 
 
 keyInfo :
-    KeysWithFocus element keys_ (Key element orderByTag key keyCount) keyCount
+    KeysWithFocus element keys_ (Key element orderByTag_ key keyCount) keyCount
     ->
         { element :
             ArraySized (Tree2.Branch element) (Exactly (On keyCount))
@@ -48,7 +48,7 @@ keyInfo key_ =
 {-| A [`Key`](#Key)'s distance from the first [`by`](#by) in the [`Keys` builder](#KeysBeingBuilt)
 -}
 keyElement :
-    KeysWithFocus element keys_ (Key element orderByTag key keyCount) keyCount
+    KeysWithFocus element keys_ (Key element orderByTag_ key_ keyCount) keyCount
     ->
         (ArraySized (Tree2.Branch element) (Exactly (On keyCount))
          -> Tree2.Branch element
@@ -73,10 +73,6 @@ type alias KeysBeingBuiltWithFocus element keysComplete keysConstructor focus ke
                 (keysComplete -> (( element, element ) -> Order))
                 (Exactly keyCount)
         }
-
-
-type alias Keys element keys keyCount =
-    KeysBeingBuilt element keys keys (On keyCount)
 
 
 type alias KeysWithFocus element keys focus keyCount =

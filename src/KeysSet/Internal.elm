@@ -6,7 +6,7 @@ This setup also improves testability (accessing internal trees for validation fo
 
 import ArraySized exposing (ArraySized)
 import Emptiable exposing (Emptiable, fill)
-import Keys exposing (IdentityKeys, Key, Keys, KeysWithFocus)
+import Keys exposing (IdentityKeys, Key, KeysWithFocus)
 import Linear
 import N exposing (Exactly, On, n1)
 import Order
@@ -90,7 +90,7 @@ tagFor _ =
 
 
 tagForIdentity :
-    KeysWithFocus element keys (Key element (Order.By toKeyTag_ orderTag) key index_) keyCount_
+    KeysWithFocus element keys_ (Key element (Order.By toKeyTag_ orderTag) key index_) keyCount_
     -> KeysSetTag (IdentityKeys key orderTag)
 tagForIdentity _ =
     KeysSet
