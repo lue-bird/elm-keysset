@@ -301,7 +301,7 @@ viewOpenCloseBrackets labelText =
             [ Ui.spacing 6
             , Ui.paddingXY 20 4
             ]
-            [ Ui.text "type text with some [, ], {, }, (, )"
+            [ Ui.text "type text with some [...], {...}, (...)"
             , viewTextInput
                 { value = labelText
                 , onInput = TypeInOpenCloseBrackets
