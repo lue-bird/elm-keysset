@@ -1,5 +1,10 @@
 # change log
 
+#### 5.0.1
+
+- `bounded-nat` → >= 35.0.0
+- `typesafe-array` → >= 34.0.0
+
 ## 5.0.0
 
 - `KeysSet`
