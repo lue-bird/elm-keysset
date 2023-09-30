@@ -1,5 +1,9 @@
 # change log
 
+#### 5.0.2
+
+- readme update
+
 #### 5.0.1
 
 - `bounded-nat` → >= 35.0.0
