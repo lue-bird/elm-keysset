@@ -376,8 +376,8 @@ Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidi
       - 👍 simpler type
       - 👍 simpler internals :)
       - same idea is also implemented in
-          - [`escherlies/elm-ix-dict`: `IxDict`](https://package.elm-lang.org/packages/escherlies/elm-ix-dict/latest/IxDict)
-          - [`Orasund/elm-bag` `Bag`](https://package.elm-lang.org/packages/Orasund/elm-bag/latest/Bag)
+          - [`escherlies/elm-ix-dict`: `IxDict`](https://dark.elm.dmy.fr/packages/escherlies/elm-ix-dict/latest/IxDict)
+          - [`Orasund/elm-bag` `Bag`](https://dark.elm.dmy.fr/packages/Orasund/elm-bag/latest/Bag)
   - no stored function but tags to ensure the given [`Keys`](Keys#Keys) are the same
       - 👍 debugger, json import/export work
       - 👍 lamdera works
@@ -395,12 +395,11 @@ Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidi
       - examples
           - [`elm/core` `Dict`](https://dark.elm.dmy.fr/packages/elm/core/latest/Dict)
           - [`miniBill/elm-fast-dict` `FastDict`](https://dark.elm.dmy.fr/packages/miniBill/elm-fast-dict/latest/)
-          - [`wittjosiah/elm-ordered-dict` `OrderedDict`](https://package.elm-lang.org/packages/wittjosiah/elm-ordered-dict/latest/OrderedDict)
-      - 👎 requires a new `Dict` wrapper when its key contains a custom `type`.
+          - [`wittjosiah/elm-ordered-dict` `OrderedDict`](https://dark.elm.dmy.fr/packages/wittjosiah/elm-ordered-dict/latest/OrderedDict)
+      - 👎 requires a new `Dict`/`Set` wrapper when its key contains a custom `type`.
         Often more a hindrance than helpful
-  - custom functions (to `comparable` or `k -> k -> Order`)
-      - 👎 no guarantee that the given functions are the same
-        when trying to combine (`union`, `intersection`, ...)
+      - 👎 no way to provide a different sorting, e.g. saying `'a'` should be less than `'A'`
+  - using an ordering function (to `comparable` or `k -> k -> Order` or a wrapper)
       - `key -> key -> Order`
           - examples
               - [`owanturist/elm-avl-dict` `AVL.Set`, `AVL.Dict`](https://dark.elm.dmy.fr/packages/owanturist/elm-avl-dict/latest/)
@@ -412,43 +411,61 @@ Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidi
           - examples
               - [`timo-weike/generic-collections`](https://dark.elm.dmy.fr/packages/timo-weike/generic-collections/latest/)
               - [`turboMaCk/any-dict`](https://dark.elm.dmy.fr/packages/turboMaCk/any-dict/latest/)
-              - [`Orasund/elm-bag` `Bag`](https://package.elm-lang.org/packages/Orasund/elm-bag/latest/Bag)
-              - [`escherlies/elm-ix-dict`: `IxDict`](https://package.elm-lang.org/packages/escherlies/elm-ix-dict/latest/)
-              - [`bburdette/typed-collections` `TSet`, `TDict`](https://package.elm-lang.org/packages/bburdette/typed-collections/latest/)
+              - [`Orasund/elm-bag` `Bag`](https://dark.elm.dmy.fr/packages/Orasund/elm-bag/latest/Bag)
+              - [`escherlies/elm-ix-dict`: `IxDict`](https://dark.elm.dmy.fr/packages/escherlies/elm-ix-dict/latest/)
+              - [`bburdette/typed-collections` `TSet`, `TDict`](https://dark.elm.dmy.fr/packages/bburdette/typed-collections/latest/)
+          - 👎 no nice way to provide a different sorting, e.g. saying `'a'` should be less than `'A'`
+          - 👎 more prone to bugs in `toComparable` implementation not returning a unique `comparable` for all keys
+          - 👎 slightly less performant when `toComparable` needs to do heavy work (e.g. convert to a list)
           - `key -> String`
               - examples (in no specific order)
                   - [`matzko/elm-opaque-dict` `OpaqueDict`](https://dark.elm.dmy.fr/packages/matzko/elm-opaque-dict/latest/)
                   - [`edkv/elm-generic-dict` `GenericDict`](https://dark.elm.dmy.fr/packages/edkv/elm-generic-dict/latest/)
               - 👍 avoid having an extra type variable
               - 👎 requires more work
-              - 👎 more prone to bugs in `toString` implementation not returning a unique `String` for all keys
-              - 👎 slightly less performant when `toString` needs to do heavy work
+      - custom ordering wrapper
+          - examples
+              - [`red-g/service-collections` `Service.Dict`, `Service.Set`](https://dark.elm.dmy.fr/packages/red-g/service-collections/latest/) using [`red-g/sort`](https://dark.elm.dmy.fr/packages/red-g/sort/latest/)
+              - [`rtfeldman/elm-sorter-experiment` `Sort.Dict`, `Sort.Set`](https://dark.elm.dmy.fr/packages/rtfeldman/elm-sorter-experiment/latest/)
+          - 👍 simple to create
+          - 👍 simple type
+          - 👍 not limited to `comparable` keys. Therefore simpler while not relying on magic
+          - 👍 guided experience – no getting confused that a type aliases a function
+            ```elm
+            choiceTypeOrder : Ordering ChoiceType
+            choiceTypeOrder what the = ???
+            ```
+          - 👎 libraries often duplicate the ordering wrapper API instead of using a pre-existing one
       - build the complete API from a given function
           - examples
               - [`edkelly303/elm-any-type-collections` `Any.Set`, `Any.Dict`](https://dark.elm.dmy.fr/packages/edkelly303/elm-any-type-collections/latest/) with a `toComparable` function
                   - 👎 dead code elimination doesn't work
                   - 👎 obscure API and interface type
-              - [`miniBill/elm-generic-dict`](https://github.com/miniBill/elm-generic-dict) with a `toComparable` function
+              - [`miniBill/elm-generic-dict` `GenericDict` `GenericSet`](https://dark.elm.dmy.fr/packages/miniBill/elm-generic-dict/latest/) with a `toComparable` function
                   - 👎 code duplication
           - using the constructed API is rather simple
           - 👎 semantic versioning doesn't work
+          - 👍 simple type
+          - 👍 nicely compact
           - 👍 functions aren't stored in the data structure
           - using for example `insert` from the wrong API "instance" with a different function is still possible but less likely to happen in practice
-      - just the function `key -> Maybe value` instead of a data structure
-          - examples
-              - [`jjant/elm-dict` `AllDict`](https://dark.elm.dmy.fr/packages/jjant/elm-dict/latest/AllDict)
-          - 👎 `>= n` runtime
-          - 👎 doesn't simplify it's structure. Every remove, insert, union, difference, _adds_ to the function logic
-          - 👍 pretty easy to understand and build on with powerful features like assigning a specific value x whenever a condition is met
+      - specify that users should wrap the dict/set type for a specific ordering (not code generation)
+          - 👍 simple type
+          - 👍 nicely compact
+          - 👍 functions aren't stored in the data structure
+          - 👎 quite a bit of manual labour without a clear need
+          - 👎 API changes to the original dict/set type do not get propagated
       - stored in the data structure
           - 👍 minimal clutter while still being explicit
           - 👎 needs to be stored in the type → `==` among other things will fail
           - 👎 slightly more cluttered API including `clear` to only remove all elements but keep the function
-      - given on each access/operation
-          - 👎 a tiny bit verbose
+      - ordering given on every insertion/removal operation
+          - 👎 a tiny bit less compact
           - 👎 no guarantee that the given functions are the same
-               (now doesn't only apply to when trying to combine)
-      - given on every insertion/removal operation
+            between operations or
+            when trying to combine (`union`, `intersection`, ...)
+      - ordering given on each access and operation
+          - 👎 a bit less compact
           - 👎 no guarantee that the given functions are the same
   - association-list
       - examples
@@ -461,9 +478,15 @@ Maybe take a look at graphs or [elm-bidict](https://github.com/Janiczek/elm-bidi
   - tagging keys and the structure
       - examples
           - [`joneshf/elm-tagged` `Tagged.Set`, `Tagged.Dict`](https://dark.elm.dmy.fr/packages/joneshf/elm-tagged/latest/Tagged-Dict)
-      - idea is quite similar to `KeySet` but
+      - idea is quite similar to `KeysSet` but
       - 👎 relies on `comparable`
       - 👎 everyone can tag without the tag name so only security by a bit more obscurity
+  - just the function `key -> Maybe value` instead of a data structure
+      - examples
+          - [`jjant/elm-dict` `AllDict`](https://dark.elm.dmy.fr/packages/jjant/elm-dict/latest/AllDict)
+      - 👎 `>= n` runtime
+      - 👎 doesn't simplify it's structure. Every remove, insert, union, difference, _adds_ to the function logic
+      - 👍 pretty easy to understand and build on with powerful features like assigning a specific value x whenever a condition is met
 
 # future ideas
 
